@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login"];
+// Accesibles sin sesión. "/c/" es el link de registro de cada club.
+// /pendiente no va aquí: requiere sesión, pero no un perfil confirmado.
+const PUBLIC_PATHS = ["/login", "/c/"];
 
 // Refresca la sesión de Supabase en cada request y protege las rutas privadas.
 export async function updateSession(request: NextRequest) {
@@ -39,7 +41,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (isLoggedIn && isPublic) {
+  // Solo el login redirige a quien ya tiene sesión; el link de registro no.
+  if (isLoggedIn && pathname.startsWith("/login")) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
