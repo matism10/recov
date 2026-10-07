@@ -1,11 +1,22 @@
-export type UserRole = "admin" | "kinesiologo" | "entrenador";
+export type UserRole =
+  | "head_coach"
+  | "manager"
+  | "entrenador"
+  | "kinesiologo"
+  | "nutricionista"
+  | "preparador_fisico"
+  | "jugador";
 
 export type Availability = "disponible" | "en_recuperacion" | "de_baja";
 
 export const ROLE_LABEL: Record<UserRole, string> = {
-  admin: "Administrador",
-  kinesiologo: "Kinesiólogo",
+  head_coach: "Head coach",
+  manager: "Manager",
   entrenador: "Entrenador",
+  kinesiologo: "Kinesiólogo",
+  nutricionista: "Nutricionista",
+  preparador_fisico: "Preparador físico",
+  jugador: "Jugador",
 };
 
 export const AVAILABILITY_LABEL: Record<Availability, string> = {
