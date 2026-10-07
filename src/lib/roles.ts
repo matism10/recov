@@ -7,6 +7,16 @@ export type UserRole =
   | "preparador_fisico"
   | "jugador";
 
+// Puestos que se pueden solicitar al registrarse por el link del club.
+export const STAFF_SIGNUP_ROLES = [
+  "kinesiologo",
+  "entrenador",
+  "nutricionista",
+  "preparador_fisico",
+] as const satisfies readonly UserRole[];
+
+export type StaffSignupRole = (typeof STAFF_SIGNUP_ROLES)[number];
+
 export type Availability = "disponible" | "en_recuperacion" | "de_baja";
 
 export const ROLE_LABEL: Record<UserRole, string> = {
