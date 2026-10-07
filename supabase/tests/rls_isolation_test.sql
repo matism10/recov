@@ -117,6 +117,9 @@ insert into public.documents (club_id, player_id, storage_path, file_name) value
   ('bbbbbbbb-0000-0000-0000-000000000002', 'b1000000-1111-0000-0000-000000000001',
    'bbbbbbbb-0000-0000-0000-000000000002/b1000000-1111-0000-0000-000000000001/informe.pdf', 'informe.pdf');
 
+-- archivo existente de otro jugador (para probar que no se puede referenciar)
+insert into storage.objects (bucket_id, name) values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000002/ajeno.pdf');
+
 -- =======================================================================
 -- 1. Kinesiólogo A: ve su club, no el B, y puede registrar lesiones
 -- =======================================================================
@@ -174,13 +177,13 @@ select pg_temp.expect_fail($q$insert into public.injuries (club_id, player_id, t
 select pg_temp.back();
 
 -- =======================================================================
--- 3. Head coach: ve pendientes y lesiones, pero no documentos; no escribe directo
+-- 3. Head coach: ve pendientes, lesiones y documentos; no escribe directo
 -- =======================================================================
 select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_count($q$select 1 from public.players$q$, 3, 'head coach A ve el plantel y al pendiente');
 select pg_temp.expect_count($q$select 1 from public.profiles where status = 'pendiente'$q$, 2, 'head coach A ve los 2 perfiles pendientes');
 select pg_temp.expect_count($q$select 1 from public.injuries where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 2, 'head coach A ve lesiones');
-select pg_temp.expect_count($q$select 1 from public.documents$q$, 0, 'head coach A no ve documentos médicos (decisión por defecto)');
+select pg_temp.expect_count($q$select 1 from public.documents$q$, 1, 'head coach A ve los documentos médicos');
 select pg_temp.expect_no_rows($q$update public.profiles set roles = '{head_coach}' where id = '40000000-0000-0000-0000-00000000000a'$q$,
   'head coach A modifica perfiles directamente');
 select pg_temp.expect_no_rows($q$update public.clubs set kine_delegate_id = '40000000-0000-0000-0000-00000000000a'$q$,
@@ -274,24 +277,48 @@ select pg_temp.expect_count($q$select 1 from public.injuries$q$, 0, 'staff remov
 select pg_temp.back();
 
 -- =======================================================================
--- 7. Jugador confirmado: sube y ve solo sus documentos
+-- 7. Jugador confirmado: registra su lesión, ve solo lo suyo
 -- =======================================================================
 select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_count($q$select 1 from public.players$q$, 3, 'jugador A1 ve el plantel');
-select pg_temp.expect_count($q$select 1 from public.injuries$q$, 0, 'jugador A1 no ve lesiones');
+select pg_temp.expect_count($q$select 1 from public.injuries$q$, 1, 'jugador A1 ve solo su lesión');
 select pg_temp.expect_count($q$select 1 from public.injury_phases$q$, 0, 'jugador A1 no ve fases');
 select pg_temp.expect_count($q$select 1 from public.documents$q$, 0, 'jugador A1 no ve documentos ajenos');
-select pg_temp.expect_ok($q$insert into public.documents (club_id, player_id, storage_path, file_name, uploaded_by)
-  values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001',
-          'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf', 'mio.pdf', '60000000-0000-0000-0000-00000000000a')$q$,
-  'jugador A1 sube su documento');
-select pg_temp.expect_count($q$select 1 from public.documents$q$, 1, 'jugador A1 ve solo su documento');
+-- no puede insertar documentos directo (solo vía report_injury)
 select pg_temp.expect_fail($q$insert into public.documents (club_id, player_id, storage_path, file_name, uploaded_by)
-  values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', 'a/b/x.pdf', 'x.pdf', '60000000-0000-0000-0000-00000000000a')$q$,
-  'jugador A1 sube documentos a nombre de otro');
-select pg_temp.expect_fail($q$insert into public.documents (club_id, player_id, storage_path, file_name, status, uploaded_by)
-  values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'a/b/y.pdf', 'y.pdf', 'revisado', '60000000-0000-0000-0000-00000000000a')$q$,
-  'jugador A1 se auto-revisa un documento');
+  values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/directo.pdf', 'directo.pdf', '60000000-0000-0000-0000-00000000000a')$q$,
+  'jugador A1 inserta documentos directo');
+-- sube el archivo y registra la lesión
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name) values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf')$q$,
+  'jugador A1 sube su archivo');
+-- archivo que no existe en storage
+select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 6, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/noexiste.pdf","name":"x.pdf"}]'::jsonb)$q$, 'reporta con archivo inexistente');
+-- ruta de otro jugador
+select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 6, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000002/ajeno.pdf","name":"x.pdf"}]'::jsonb)$q$, 'reporta con ruta de otro jugador');
+-- duración inválida y fecha futura
+select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 0, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb)$q$, 'reporta duración 0');
+select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 3, 'años', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb)$q$, 'reporta unidad inválida');
+select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date + 5, 3, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb)$q$, 'reporta fecha futura');
+-- el reporte válido
+select pg_temp.expect_ok($q$select public.report_injury('Esguince de tobillo', current_date - 2, 8, 'semanas', 'Me torcí en el entrenamiento',
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb)$q$, 'jugador A1 registra su lesión');
+select pg_temp.expect_count($q$select 1 from public.injuries$q$, 2, 'jugador A1 ve su lesión nueva');
+select pg_temp.expect_count($q$select 1 from public.injuries where reported_by_player and severity is null
+  and expected_return_on = current_date - 2 + 56 and doctor_estimate_value = 8 and doctor_estimate_unit = 'semanas'$q$, 1,
+  'la lesión queda con la fecha estimada y lo que dijo el médico');
+select pg_temp.expect_count($q$select 1 from public.documents$q$, 1, 'jugador A1 ve su documento');
+select pg_temp.expect_count($q$select 1 from public.documents where injury_id is not null and status = 'borrador'$q$, 1,
+  'el documento queda ligado a la lesión y en borrador');
+-- no se puede escribir directo
+select pg_temp.expect_no_rows($q$update public.injuries set expected_return_on = current_date$q$, 'jugador A1 edita su lesión');
+select pg_temp.expect_no_rows($q$update public.injury_phases set name = 'x'$q$, 'jugador A1 edita fases');
+select pg_temp.expect_count($q$select 1 from public.injuries where reported_by_player$q$, 1, 'una sola lesión reportada y sin fases generadas');
+select pg_temp.expect_count($q$select 1 from public.injury_phases where name <> 'Reposo'$q$, 0, 'no se generan fases automáticas');
 select pg_temp.expect_fail($q$insert into public.injuries (club_id, player_id, type, severity)
   values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'x', 'leve')$q$,
   'jugador A1 registra una lesión');
@@ -355,16 +382,16 @@ select pg_temp.back();
 -- =======================================================================
 select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
-  values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf')$q$,
+  values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/segundo.pdf')$q$,
   'jugador A1 sube a su propia carpeta');
 select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name)
   values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000002/ajeno.pdf')$q$,
   'jugador A1 sube a la carpeta de otro jugador');
-select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'medical-docs'$q$, 1, 'jugador A1 ve solo sus archivos');
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'medical-docs'$q$, 2, 'jugador A1 ve solo sus archivos');
 select pg_temp.back();
 
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
-select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'medical-docs'$q$, 1, 'kine A ve los archivos de su club');
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'medical-docs'$q$, 3, 'kine A ve los archivos de su club');
 select pg_temp.back();
 
 select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');
@@ -373,6 +400,26 @@ select pg_temp.back();
 
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
 select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'medical-docs'$q$, 0, 'kine B no ve archivos del club A');
+select pg_temp.back();
+
+-- =======================================================================
+-- 10. Kinesiólogo revisa la lesión reportada; staff sin permisos no la edita
+-- =======================================================================
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.injuries where reported_by_player$q$, 1, 'kine A ve la lesión reportada');
+select pg_temp.expect_ok($q$update public.injuries set severity = 'moderada', expected_return_on = expected_return_on + 7,
+  reviewed_by = '30000000-0000-0000-0000-00000000000a', reviewed_at = now() where reported_by_player$q$, 'kine A revisa y mueve la fecha');
+select pg_temp.expect_count($q$select 1 from public.injuries where reported_by_player and doctor_estimate_value = 8$q$, 1,
+  'lo que dijo el médico se conserva');
+select pg_temp.back();
+
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.injuries where reported_by_player$q$, 1, 'entrenador A ve la lesión reportada');
+select pg_temp.expect_no_rows($q$update public.injuries set severity = 'grave' where reported_by_player$q$, 'entrenador A edita la lesión');
+select pg_temp.back();
+
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_count($q$select 1 from public.injuries$q$, 1, 'jugador B1 solo ve su lesión, no la del club A');
 select pg_temp.back();
 
 rollback;
