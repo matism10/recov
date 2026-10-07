@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
@@ -5,6 +6,7 @@ import {
   AVAILABILITY_LABEL,
   AVAILABILITY_STYLE,
   ROLE_LABEL,
+  isDirection,
   type Availability,
   type UserRole,
 } from "@/lib/roles";
@@ -18,20 +20,25 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   // RLS: solo devuelve el perfil y el club del propio usuario.
+  // Desde 0005 hay dos relaciones profiles–clubs (club_id y kine_delegate_id):
+  // hay que nombrar la FK o PostgREST responde PGRST201 y profile queda null.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, clubs(name)")
+    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name)")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (!profile) {
+  if (profile?.status === "pendiente") redirect("/pendiente");
+
+  // Sin perfil o rechazado: no tiene acceso a los datos del club.
+  if (!profile || profile.status !== "confirmado") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
         <h1 className="text-xl font-semibold text-slate-900">
           Tu cuenta aún no está asociada a un club
         </h1>
         <p className="max-w-md text-slate-500">
-          Pide al administrador de tu club que te agregue a Recov.
+          Pide a la dirección de tu club que te agregue a Recov.
         </p>
         <form action={signOut}>
           <button className="text-sm text-slate-500 underline">
@@ -42,15 +49,27 @@ export default async function DashboardPage() {
     );
   }
 
-  // RLS: solo jugadores del club del usuario.
+  // RLS: solo jugadores del club del usuario. La dirección también ve los
+  // pendientes, así que se filtra el plantel confirmado.
   const { data: players } = await supabase
     .from("players")
     .select("id, full_name, position, availability")
     .eq("active", true)
+    .eq("status", "confirmado")
     .order("full_name");
 
   const club = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
   const roles = (profile.roles ?? []) as UserRole[];
+
+  // RLS: solo la dirección ve perfiles pendientes; para el resto el conteo es 0.
+  let pendingCount = 0;
+  if (isDirection(roles)) {
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pendiente");
+    pendingCount = count ?? 0;
+  }
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
@@ -64,11 +83,26 @@ export default async function DashboardPage() {
             {profile.full_name} · {roles.map((r) => ROLE_LABEL[r]).join(", ")}
           </p>
         </div>
-        <form action={signOut}>
-          <button className="text-sm text-slate-500 underline">
-            Cerrar sesión
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          {isDirection(roles) && (
+            <Link
+              href="/registros"
+              className="text-sm font-medium text-emerald-700 underline"
+            >
+              Registros pendientes
+              {pendingCount > 0 && (
+                <span className="ml-1.5 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+          )}
+          <form action={signOut}>
+            <button className="text-sm text-slate-500 underline">
+              Cerrar sesión
+            </button>
+          </form>
+        </div>
       </header>
 
       {players && players.length > 0 ? (

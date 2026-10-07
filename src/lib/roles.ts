@@ -7,6 +7,24 @@ export type UserRole =
   | "preparador_fisico"
   | "jugador";
 
+// Dirección del club: valida registros y gestiona el staff. Solo controla qué se
+// muestra; el permiso real lo verifica la base de datos.
+export const DIRECTION_ROLES = ["head_coach", "manager"] as const satisfies readonly UserRole[];
+
+export function isDirection(roles: readonly UserRole[]) {
+  return DIRECTION_ROLES.some((r) => roles.includes(r));
+}
+
+// Puestos que se pueden solicitar al registrarse por el link del club.
+export const STAFF_SIGNUP_ROLES = [
+  "kinesiologo",
+  "entrenador",
+  "nutricionista",
+  "preparador_fisico",
+] as const satisfies readonly UserRole[];
+
+export type StaffSignupRole = (typeof STAFF_SIGNUP_ROLES)[number];
+
 export type Availability = "disponible" | "en_recuperacion" | "de_baja";
 
 export const ROLE_LABEL: Record<UserRole, string> = {
