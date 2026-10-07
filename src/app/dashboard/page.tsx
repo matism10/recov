@@ -18,9 +18,11 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   // RLS: solo devuelve el perfil y el club del propio usuario.
+  // Desde 0005 hay dos relaciones profiles–clubs (club_id y kine_delegate_id):
+  // hay que nombrar la FK o PostgREST responde PGRST201 y profile queda null.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, status, clubs(name)")
+    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name)")
     .eq("id", user.id)
     .maybeSingle();
 
