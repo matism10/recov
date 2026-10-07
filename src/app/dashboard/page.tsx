@@ -20,18 +20,21 @@ export default async function DashboardPage() {
   // RLS: solo devuelve el perfil y el club del propio usuario.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, clubs(name)")
+    .select("full_name, roles, status, clubs(name)")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (!profile) {
+  if (profile?.status === "pendiente") redirect("/pendiente");
+
+  // Sin perfil o rechazado: no tiene acceso a los datos del club.
+  if (!profile || profile.status !== "confirmado") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
         <h1 className="text-xl font-semibold text-slate-900">
           Tu cuenta aún no está asociada a un club
         </h1>
         <p className="max-w-md text-slate-500">
-          Pide al administrador de tu club que te agregue a Recov.
+          Pide a la dirección de tu club que te agregue a Recov.
         </p>
         <form action={signOut}>
           <button className="text-sm text-slate-500 underline">
@@ -42,11 +45,13 @@ export default async function DashboardPage() {
     );
   }
 
-  // RLS: solo jugadores del club del usuario.
+  // RLS: solo jugadores del club del usuario. La dirección también ve los
+  // pendientes, así que se filtra el plantel confirmado.
   const { data: players } = await supabase
     .from("players")
     .select("id, full_name, position, availability")
     .eq("active", true)
+    .eq("status", "confirmado")
     .order("full_name");
 
   const club = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
