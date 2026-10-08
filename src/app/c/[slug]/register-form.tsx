@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ChangeEvent } from "react";
 import { ROLE_LABEL, STAFF_SIGNUP_ROLES } from "@/lib/roles";
 import { registerMember, type RegisterState } from "./actions";
 
@@ -10,6 +10,26 @@ const inputClass =
   "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200";
 const labelClass = "block text-sm font-medium text-slate-700";
 const optional = <span className="font-normal text-slate-400">(opcional)</span>;
+
+const AVATAR_SIZE = 512;
+
+// Achica la foto en el navegador: así pesa poco y entra en el límite de la server action.
+async function resizeAvatar(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, AVATAR_SIZE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("toBlob"))),
+      "image/jpeg",
+      0.85,
+    ),
+  );
+}
 
 export function RegisterForm({
   slug,
@@ -24,6 +44,36 @@ export function RegisterForm({
     {},
   );
   const f = state.fields;
+  const [avatar, setAvatar] = useState<Blob | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  async function pickAvatar(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setAvatarError(null);
+    try {
+      const blob = await resizeAvatar(file);
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      setAvatar(blob);
+      setAvatarPreview(URL.createObjectURL(blob));
+    } catch {
+      setAvatarError("No pudimos leer esa imagen. Prueba con una foto JPG o PNG.");
+    }
+  }
+
+  function removeAvatar() {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatar(null);
+    setAvatarPreview(null);
+  }
+
+  // La foto ya achicada viaja en el FormData; el input de archivo no tiene name.
+  function submit(formData: FormData) {
+    if (avatar) formData.set("avatar", avatar, "foto.jpg");
+    formAction(formData);
+  }
 
   if (!kind) {
     return (
@@ -43,7 +93,7 @@ export function RegisterForm({
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={submit} className="space-y-4">
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="kind" value={kind} />
 
@@ -59,6 +109,45 @@ export function RegisterForm({
         >
           Cambiar
         </button>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-slate-400">
+          {avatarPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarPreview} alt="Tu foto de perfil" className="h-full w-full object-cover" />
+          ) : (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8" aria-hidden="true">
+              <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4 0-7 2-7 4.5V20h14v-1.5C19 16 16 14 12 14Z" />
+            </svg>
+          )}
+        </div>
+        <div className="text-sm">
+          <span className="block font-medium text-slate-700">Foto de perfil {optional}</span>
+          <div className="mt-1 flex gap-3">
+            <label className="cursor-pointer text-emerald-700 underline">
+              {avatar ? "Cambiar foto" : "Agregar foto"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={pickAvatar}
+                disabled={pending}
+                className="sr-only"
+              />
+            </label>
+            {avatar && (
+              <button
+                type="button"
+                onClick={removeAvatar}
+                disabled={pending}
+                className="text-slate-500 underline"
+              >
+                Quitar
+              </button>
+            )}
+          </div>
+          {avatarError && <p className="mt-1 text-red-600">{avatarError}</p>}
+        </div>
       </div>
 
       <label className={labelClass}>
