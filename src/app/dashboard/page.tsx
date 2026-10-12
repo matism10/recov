@@ -183,6 +183,11 @@ export default async function DashboardPage() {
               )}
             </Link>
           )}
+          {isDirection(roles) && (
+            <Link href="/staff" className="text-sm font-medium text-emerald-700 underline">
+              Staff
+            </Link>
+          )}
           <form action={signOut}>
             <button className="text-sm text-slate-500 underline">
               Cerrar sesión
