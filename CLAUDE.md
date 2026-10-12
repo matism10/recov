@@ -13,7 +13,12 @@ Recov es una plataforma web de seguimiento de lesiones para clubes deportivos am
 
 - **Aislamiento por club:** toda tabla lleva `club_id` y la seguridad la define RLS en la base de datos, no el frontend. Nunca usar la service role key en código de cliente.
 - **Datos de salud:** el jugador solo ve la disponibilidad del plantel, nunca lesiones ni documentos de otros. Los documentos médicos los revisa solo el kinesiólogo. El entrenador ve disponibilidad, lesiones y fases.
-- **Cambios de base de datos:** siempre en un archivo nuevo dentro de `supabase/migrations/`, sin editar los existentes. Después de cada cambio de políticas, correr `supabase/tests/rls_isolation_test.sql`. No aplicar migraciones al proyecto real sin que Mati las revise.
+- **Cambios de base de datos:** el agente escribe y aplica las migraciones por el MCP de Supabase (proyecto "Recov"). Por cada cambio:
+  1. Migración nueva en `supabase/migrations/` (siguiente número, ej. `0008_...`) y sus pruebas en `supabase/tests/rls_isolation_test.sql`.
+  2. Aplicarla con `apply_migration`, con el mismo contenido del archivo.
+  3. Correr el test con `execute_sql` (termina en `ROLLBACK`). Si hay un "FAIL", corregir con una migración nueva y avisar a Mati.
+  4. Revisar `get_advisors` (seguridad) y avisar si aparece algo nuevo.
+  Nunca editar una migración ya aplicada. Los cambios de enum (`alter type ... add value`) van en una migración propia. Preguntar a Mati antes de cualquier `DROP TABLE`, `TRUNCATE`, `DELETE` sobre datos o de hacer más permisiva una política RLS.
 - **Datos:** solo datos ficticios. Nunca commitear `.env.local` ni claves.
 - **Git:** trabajar en ramas y abrir pull request. `main` está protegida.
 - **Next.js 16:** `middleware` ahora se llama `proxy.ts`. Antes de usar una API, leer `node_modules/next/dist/docs/`.

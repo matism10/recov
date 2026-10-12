@@ -15,6 +15,20 @@ export function isDirection(roles: readonly UserRole[]) {
   return DIRECTION_ROLES.some((r) => roles.includes(r));
 }
 
+// Staff del club: ve lesiones y fases. Igual que private.staff_roles() en la base.
+export const STAFF_ROLES = [
+  "head_coach",
+  "manager",
+  "entrenador",
+  "kinesiologo",
+  "nutricionista",
+  "preparador_fisico",
+] as const satisfies readonly UserRole[];
+
+export function isStaff(roles: readonly UserRole[]) {
+  return STAFF_ROLES.some((r) => roles.includes(r));
+}
+
 // Puestos que se pueden solicitar al registrarse por el link del club.
 export const STAFF_SIGNUP_ROLES = [
   "kinesiologo",

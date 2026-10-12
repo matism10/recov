@@ -169,5 +169,41 @@ export async function registerMember(
     );
   }
 
+  // Foto de perfil opcional: si falla, el registro ya quedó hecho y se sigue.
+  const avatar = formData.get("avatar");
+  if (avatar instanceof File && avatar.size > 0) {
+    await saveAvatar(supabase, avatar);
+  }
+
   redirect("/pendiente");
+}
+
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+async function saveAvatar(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  avatar: File,
+) {
+  if (avatar.size > AVATAR_MAX_BYTES || !AVATAR_TYPES.includes(avatar.type)) return;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("club_id")
+    .eq("id", user.id)
+    .maybeSingle<{ club_id: string }>();
+  if (!profile) return;
+
+  const ext = avatar.type.split("/")[1].replace("jpeg", "jpg");
+  const path = `${profile.club_id}/${user.id}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("avatars")
+    .upload(path, avatar, { contentType: avatar.type, upsert: false });
+  if (error) return;
+
+  await supabase.rpc("set_my_avatar", { p_path: path });
 }

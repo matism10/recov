@@ -7,9 +7,17 @@ import {
   AVAILABILITY_STYLE,
   ROLE_LABEL,
   isDirection,
+  isStaff,
   type Availability,
   type UserRole,
 } from "@/lib/roles";
+import {
+  INJURY_STATUS_LABEL,
+  formatDate,
+  type InjuryStatus,
+} from "@/lib/injuries";
+import { InjuryProgress } from "@/app/lesiones/injury-progress";
+import { AvailabilitySelect } from "./availability-select";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -24,7 +32,7 @@ export default async function DashboardPage() {
   // hay que nombrar la FK o PostgREST responde PGRST201 y profile queda null.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name)")
+    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, kine_delegate_id)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -60,6 +68,11 @@ export default async function DashboardPage() {
 
   const club = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
   const roles = (profile.roles ?? []) as UserRole[];
+  // Solo decide qué se muestra; set_player_availability valida el permiso real.
+  const canSetAvailability =
+    roles.includes("kinesiologo") ||
+    roles.includes("head_coach") ||
+    club?.kine_delegate_id === user.id;
 
   // RLS: solo la dirección ve perfiles pendientes; para el resto el conteo es 0.
   let pendingCount = 0;
@@ -69,6 +82,19 @@ export default async function DashboardPage() {
       .select("id", { count: "exact", head: true })
       .eq("status", "pendiente");
     pendingCount = count ?? 0;
+  }
+
+  // RLS: el staff ve las lesiones del club y el jugador solo las suyas.
+  const staff = isStaff(roles);
+  const isPlayer = roles.includes("jugador");
+  let injuries = null;
+  if (staff || isPlayer) {
+    let query = supabase
+      .from("injuries")
+      .select("id, type, status, started_on, expected_return_on, players(full_name)")
+      .order("started_on", { ascending: false });
+    if (staff) query = query.eq("status", "activa");
+    ({ data: injuries } = await query);
   }
 
   return (
@@ -105,6 +131,62 @@ export default async function DashboardPage() {
         </div>
       </header>
 
+      {(staff || isPlayer) && (
+        <section className="mb-8">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-sm font-medium text-slate-500">
+              {staff ? "Lesiones activas" : "Mis lesiones"}
+            </h2>
+            {isPlayer && (
+              <Link
+                href="/registrar-lesion"
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+              >
+                Registrar lesión
+              </Link>
+            )}
+          </div>
+          {injuries && injuries.length > 0 ? (
+            <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+              {injuries.map((i) => {
+                const player = Array.isArray(i.players) ? i.players[0] : i.players;
+                return (
+                  <li key={i.id}>
+                    <Link
+                      href={`/lesiones/${i.id}`}
+                      className="block space-y-2 px-5 py-4 transition hover:bg-slate-50"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-medium text-slate-900">
+                            {staff && player ? `${player.full_name} · ${i.type}` : i.type}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            Desde el {formatDate(i.started_on)}
+                          </p>
+                        </div>
+                        <span className="text-xs text-slate-500">
+                          {INJURY_STATUS_LABEL[i.status as InjuryStatus]}
+                        </span>
+                      </div>
+                      <InjuryProgress
+                        startedOn={i.started_on}
+                        expectedReturnOn={i.expected_return_on}
+                      />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
+              {staff ? "No hay lesiones activas." : "No has registrado lesiones."}
+            </p>
+          )}
+        </section>
+      )}
+
+      <h2 className="mb-3 text-sm font-medium text-slate-500">Plantel</h2>
       {players && players.length > 0 ? (
         <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
           {players.map((p) => {
@@ -120,11 +202,19 @@ export default async function DashboardPage() {
                     <p className="text-sm text-slate-500">{p.position}</p>
                   )}
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${AVAILABILITY_STYLE[status]}`}
-                >
-                  {AVAILABILITY_LABEL[status]}
-                </span>
+                {canSetAvailability ? (
+                  <AvailabilitySelect
+                    playerId={p.id}
+                    playerName={p.full_name}
+                    value={status}
+                  />
+                ) : (
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${AVAILABILITY_STYLE[status]}`}
+                  >
+                    {AVAILABILITY_LABEL[status]}
+                  </span>
+                )}
               </li>
             );
           })}
