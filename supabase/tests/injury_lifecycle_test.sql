@@ -1,5 +1,5 @@
 -- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0015)
--- Correr DESPUÉS de las migraciones 0001 a 0015. Autónomo: crea sus propios datos y termina en ROLLBACK.
+-- Correr DESPUÉS de las migraciones 0001 a 0016. Autónomo: crea sus propios datos y termina en ROLLBACK.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
 begin;
@@ -87,7 +87,7 @@ insert into public.players (id, club_id, full_name, first_name, last_name, posit
   ('a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A1',   'Jugador', 'A1',   'Pilar',   'confirmado', '60000000-0000-0000-0000-00000000000a'),
   ('a1000000-1111-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A2',   'Jugador', 'A2',   'Hooker',  'confirmado', null),
   ('a1000000-1111-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador Pend', 'Jugador', 'Pend', 'Apertura','pendiente',  '70000000-0000-0000-0000-00000000000a'),
-  ('b1000000-1111-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'Jugador B1',   'Jugador', 'B1',   'Arquero', 'confirmado', '60000000-0000-0000-0000-00000000000b');
+  ('b1000000-1111-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'Jugador B1',   'Jugador', 'B1',   'Defensa central', 'confirmado', '60000000-0000-0000-0000-00000000000b');
 
 -- archivo ajeno que existe en storage (para probar que no se puede referenciar)
 insert into storage.objects (bucket_id, name) values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000002/ajeno.pdf');

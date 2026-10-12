@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0015.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0016.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -102,7 +102,7 @@ insert into public.players (id, club_id, full_name, first_name, last_name, posit
   ('a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A1',    'Jugador', 'A1',   'Pilar',   'confirmado', '60000000-0000-0000-0000-00000000000a'),
   ('a1000000-1111-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A2',    'Jugador', 'A2',   'Hooker',  'confirmado', null),
   ('a1000000-1111-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador Pend',  'Jugador', 'Pend', 'Apertura','pendiente',  '70000000-0000-0000-0000-00000000000a'),
-  ('b1000000-1111-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'Jugador B1',    'Jugador', 'B1',   'Arquero', 'confirmado', '60000000-0000-0000-0000-00000000000b');
+  ('b1000000-1111-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'Jugador B1',    'Jugador', 'B1',   'Portero', 'confirmado', '60000000-0000-0000-0000-00000000000b');
 
 insert into public.injuries (id, club_id, player_id, type, severity) values
   ('a2000000-2222-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'Esguince', 'leve'),
@@ -347,7 +347,7 @@ select pg_temp.expect_fail($q$select 1 from public.profiles$q$, 'anónimo lee pr
 select pg_temp.back();
 
 select pg_temp.as_user('c0000000-0000-0000-0000-00000000000a');   -- cuenta nueva sin perfil
-select pg_temp.expect_fail($q$select public.register_member('club-a', 'jugador', 'Juan', 'Pérez', 'Arquero')$q$, 'posición de otro deporte');
+select pg_temp.expect_fail($q$select public.register_member('club-a', 'jugador', 'Juan', 'Pérez', 'Portero')$q$, 'posición de otro deporte');
 select pg_temp.expect_fail($q$select public.register_member('club-a', 'jugador', 'Juan', 'Pérez', null)$q$, 'posición principal obligatoria');
 select pg_temp.expect_fail($q$select public.register_member('club-a', 'jugador', 'Juan', 'Pérez', 'Pilar', 'Pilar')$q$, 'posición secundaria igual a la principal');
 select pg_temp.expect_fail($q$select public.register_member('club-a', 'jugador', '', 'Pérez', 'Pilar')$q$, 'nombre vacío');
@@ -500,6 +500,52 @@ select pg_temp.back();
 
 select pg_temp.as_anon();
 select pg_temp.expect_fail($q$select public.set_player_availability('a1000000-1111-0000-0000-000000000002', 'disponible')$q$, 'anónimo cambia la disponibilidad');
+select pg_temp.back();
+
+-- =======================================================================
+-- 13. Catálogo de deportes y validación de posición por trigger (0016)
+-- =======================================================================
+-- anon lee el catálogo y no puede modificarlo
+select pg_temp.as_anon();
+select pg_temp.expect_count($q$select 1 from public.sports$q$, 7, 'hay 7 deportes');
+select pg_temp.expect_count($q$select 1 from public.positions$q$, 44, 'hay 44 posiciones en total');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'futbol'$q$, 8, 'fútbol tiene 8 posiciones');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'futsal'$q$, 4, 'futsal tiene 4 posiciones');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'rugby'$q$, 10, 'rugby tiene 10 posiciones');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'handball'$q$, 5, 'handball tiene 5 posiciones');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'voleibol'$q$, 5, 'vóleibol tiene 5 posiciones');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'basquetbol'$q$, 5, 'básquetbol tiene 5 posiciones');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'hockey'$q$, 7, 'hockey tiene 7 posiciones');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'rugby' and name = 'Flanker'$q$, 1, 'Flanker existe en rugby');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'rugby' and name = 'Ala'$q$, 0, 'Ala ya no existe en rugby');
+select pg_temp.expect_fail($q$insert into public.sports (slug, name) values ('tenis', 'Tenis')$q$, 'anónimo inserta deportes');
+select pg_temp.expect_fail($q$insert into public.positions (sport, name, sort) values ('rugby', 'Utility', 11)$q$, 'anónimo inserta posiciones');
+select pg_temp.expect_fail($q$update public.positions set name = 'x' where sport = 'rugby'$q$, 'anónimo actualiza posiciones');
+select pg_temp.expect_fail($q$update public.sports set name = 'x'$q$, 'anónimo actualiza deportes');
+select pg_temp.expect_fail($q$delete from public.positions where sport = 'hockey'$q$, 'anónimo borra posiciones');
+select pg_temp.expect_fail($q$delete from public.sports where slug = 'futbol'$q$, 'anónimo borra deportes');
+select pg_temp.back();
+
+-- INSERT directo (como postgres): el trigger valida aunque no pase por register_member
+select pg_temp.expect_fail($q$insert into public.players (club_id, full_name, position, status)
+  values ('aaaaaaaa-0000-0000-0000-000000000001', 'Inválido 1', 'Portero', 'confirmado')$q$, 'insert directo con posición de otro deporte');
+select pg_temp.expect_fail($q$insert into public.players (club_id, full_name, position, secondary_position, status)
+  values ('aaaaaaaa-0000-0000-0000-000000000001', 'Inválido 2', 'Pilar', 'Base', 'confirmado')$q$, 'insert directo con posición secundaria inválida');
+select pg_temp.expect_ok($q$insert into public.players (club_id, full_name, position, status)
+  values ('aaaaaaaa-0000-0000-0000-000000000001', 'Sin posición', null, 'confirmado')$q$, 'posición NULL sigue permitida');
+select pg_temp.expect_ok($q$insert into public.players (club_id, full_name, position, secondary_position, status)
+  values ('bbbbbbbb-0000-0000-0000-000000000002', 'Hockey válido', 'Defensa central', 'Portero', 'confirmado')$q$, 'posición válida del deporte del club');
+
+-- UPDATE directo como kinesiólogo del club (players_update lo permite; el trigger valida)
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$update public.players set position = 'Portero' where id = 'a1000000-1111-0000-0000-000000000002'$q$,
+  'kine A cambia la posición a una de otro deporte');
+select pg_temp.expect_fail($q$update public.players set secondary_position = 'Base' where id = 'a1000000-1111-0000-0000-000000000002'$q$,
+  'kine A pone una posición secundaria inválida');
+select pg_temp.expect_ok($q$update public.players set position = 'Flanker' where id = 'a1000000-1111-0000-0000-000000000002'$q$,
+  'kine A cambia a una posición válida de rugby');
+select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000002' and position = 'Flanker'$q$, 1,
+  'la posición válida quedó guardada');
 select pg_temp.back();
 
 rollback;
