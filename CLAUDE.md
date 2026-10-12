@@ -5,18 +5,35 @@ Recov es una plataforma web de seguimiento de lesiones para clubes deportivos am
 
 **Stack:** Next.js (App Router) + Supabase (Auth, Postgres con RLS, Storage) + Vercel.
 
-**Roles:** `admin`, `kinesiologo`, `entrenador` y `jugador`. `profiles.roles` es un arreglo, así que una persona puede tener varios roles. El jugador tiene login y, por ahora, solo puede hacer dos cosas: subir su propia documentación médica (queda en borrador hasta que el kinesiólogo la revisa) y ver el estado de disponibilidad del plantel.
+**Roles** (`profiles.roles` es un arreglo: una persona puede tener varios):
+- **Dirección:** `head_coach` y `manager`. Confirman o rechazan registros (`/registros`) y gestionan el staff (`/staff`: roles y delegación).
+- **Staff:** `head_coach`, `manager`, `entrenador`, `kinesiologo`, `nutricionista`, `preparador_fisico`. Ven lesiones, fases y la ficha de cada jugador.
+- **Gestionan lesiones:** `kinesiologo`, la persona en quien el head coach delegó sus funciones (`clubs.kine_delegate_id`) y `head_coach`. Marcan lesionados, revisan (confirmar, descartar, dar de alta), editan fases y cambian la disponibilidad. Los documentos médicos los ven el kinesiólogo, su delegado y el head coach.
+- **`jugador`:** reporta o completa su propia lesión con documentos, ve sus lesiones y fases, y el plantel.
 
-**Flujo central del MVP:** el jugador sube su documentación médica. El kinesiólogo la revisa y decide: (a) actualiza la disponibilidad directamente, o (b) registra una lesión y se genera una línea de tiempo de fases de recuperación. Ambos caminos terminan en el dashboard de disponibilidad del plantel (disponible, en recuperación, de baja), que consultan el entrenador y los jugadores.
+Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` hasta que la dirección lo confirma.
+
+**Flujo de una lesión:**
+1. Entra al sistema de dos formas: el kine la marca en terreno ("Marcar lesionado": lesión `en_evaluacion`, jugador `en_revision`) y el jugador completa su diagnóstico, o el jugador la reporta por su cuenta. En ambos casos queda `activa` sin revisar.
+2. Aparece en la bandeja "Por revisar". Se confirma (gravedad, alta estimada, disponibilidad) o se descarta.
+3. Recuperación: fases editables (plantilla Reposo → Rehabilitación → Readaptación → Reintegro); la fase "Reintegro" en curso pone al jugador en `reintegro`.
+4. Alta: la lesión queda `cerrada` y el jugador vuelve a `disponible` si no tiene otra abierta.
+
+**Estados:**
+- Disponibilidad del jugador: `disponible`, `en_revision` (solo al marcarlo lesionado), `lesionado`, `reintegro`. Los dos últimos forman "Lesiones activas".
+- Lesión: `en_evaluacion`, `activa`, `cerrada`, `descartada`.
+- Fase: `pendiente`, `en_curso`, `completada`; las quitadas se marcan con `archived_at`.
+
+**Convención:** las escrituras sensibles van por funciones `SECURITY DEFINER` con permisos explícitos (`mark_player_injured`, `review_injury`, `set_injury_phases`, `set_player_availability`, etc.), no por updates directos desde la app. En la app, `canManageInjuries` e `isDirection` (`src/lib/roles.ts`) solo deciden qué se muestra.
 
 ### Reglas que no se rompen
 
 - **Aislamiento por club:** toda tabla lleva `club_id` y la seguridad la define RLS en la base de datos, no el frontend. Nunca usar la service role key en código de cliente.
 - **Datos de salud:** de sus compañeros, el jugador solo ve la disponibilidad y el nombre de la fase de recuperación en curso (`squad_current_phases`); nunca el tipo de lesión, fechas ni documentos de otros. De sus propias lesiones ve todo, incluidas las fases. Los documentos médicos los revisa solo el kinesiólogo. El entrenador ve disponibilidad, lesiones y fases.
 - **Cambios de base de datos:** el agente escribe y aplica las migraciones por el MCP de Supabase (proyecto "Recov"). Por cada cambio:
-  1. Migración nueva en `supabase/migrations/` (siguiente número, ej. `0008_...`) y sus pruebas en `supabase/tests/rls_isolation_test.sql`.
+  1. Migración nueva en `supabase/migrations/` (siguiente número de cuatro dígitos) y sus pruebas en `supabase/tests/`: `rls_isolation_test.sql` (aislamiento y permisos) o `injury_lifecycle_test.sql` (ciclo de la lesión y fases).
   2. Aplicarla con `apply_migration`, con el mismo contenido del archivo.
-  3. Correr el test con `execute_sql` (termina en `ROLLBACK`). Si hay un "FAIL", corregir con una migración nueva y avisar a Mati.
+  3. Correr los tests con `execute_sql` (terminan en `ROLLBACK`). Si hay un "FAIL", corregir con una migración nueva y avisar a Mati.
   4. Revisar `get_advisors` (seguridad) y avisar si aparece algo nuevo.
   Nunca editar una migración ya aplicada. Los cambios de enum (`alter type ... add value`) van en una migración propia. Preguntar a Mati antes de cualquier `DROP TABLE`, `TRUNCATE`, `DELETE` sobre datos o de hacer más permisiva una política RLS.
 - **Datos:** solo datos ficticios. Nunca commitear `.env.local` ni claves.
