@@ -27,8 +27,8 @@ begin
   insert into public.players (club_id, full_name, first_name, last_name, position, availability, status) values
     (cid, 'Jugador Uno',    'Jugador', 'Uno',    'Pilar',         'disponible',      'confirmado'),
     (cid, 'Jugador Dos',    'Jugador', 'Dos',    'Hooker',        'disponible',      'confirmado'),
-    (cid, 'Jugador Tres',   'Jugador', 'Tres',   'Segunda línea', 'en_recuperacion', 'confirmado'),
+    (cid, 'Jugador Tres',   'Jugador', 'Tres',   'Segunda línea', 'reintegro',       'confirmado'),
     (cid, 'Jugador Cuatro', 'Jugador', 'Cuatro', 'Medio scrum',   'disponible',      'confirmado'),
-    (cid, 'Jugador Cinco',  'Jugador', 'Cinco',  'Apertura',      'de_baja',         'confirmado'),
+    (cid, 'Jugador Cinco',  'Jugador', 'Cinco',  'Apertura',      'lesionado',       'confirmado'),
     (cid, 'Jugador Seis',   'Jugador', 'Seis',   'Centro',        'disponible',      'confirmado');
 end $$;
