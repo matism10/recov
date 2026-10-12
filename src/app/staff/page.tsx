@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, isDirection, isStaff, type UserRole } from "@/lib/roles";
+import { Avatar } from "@/app/avatar";
+import { getAvatarUrls } from "@/lib/avatars";
 import { DelegateForm, RolesForm } from "./staff-forms";
 
 type StaffProfile = { id: string; full_name: string | null; roles: UserRole[] };
@@ -38,6 +40,10 @@ export default async function StaffPage() {
     .order("full_name");
 
   const staff = ((profiles ?? []) as StaffProfile[]).filter((p) => isStaff(p.roles ?? []));
+  const avatarUrls = await getAvatarUrls(
+    supabase,
+    staff.map((p) => p.id),
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
@@ -73,19 +79,22 @@ export default async function StaffPage() {
               const isMe = p.id === user.id;
               return (
                 <li key={p.id} className="space-y-3 px-5 py-4">
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {p.full_name}
-                      {isMe && <span className="font-normal text-slate-400"> (tú)</span>}
-                      {p.id === delegateId && (
-                        <span className="ml-2 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
-                          Funciones de kinesiólogo
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      {p.roles.map((r) => ROLE_LABEL[r]).join(", ")}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <Avatar name={p.full_name ?? ""} url={avatarUrls.get(p.id)} />
+                    <div>
+                      <p className="font-medium text-slate-900">
+                        {p.full_name}
+                        {isMe && <span className="font-normal text-slate-400"> (tú)</span>}
+                        {p.id === delegateId && (
+                          <span className="ml-2 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                            Funciones de kinesiólogo
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {p.roles.map((r) => ROLE_LABEL[r]).join(", ")}
+                      </p>
+                    </div>
                   </div>
                   {isMe ? (
                     <p className="text-xs text-slate-400">
