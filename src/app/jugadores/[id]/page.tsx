@@ -22,6 +22,8 @@ import {
   type PhaseStatus,
 } from "@/lib/injuries";
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
+import { Avatar } from "@/app/avatar";
+import { getAvatarUrls } from "@/lib/avatars";
 
 const OPEN_STATUSES: InjuryStatus[] = ["en_evaluacion", "activa"];
 
@@ -54,7 +56,7 @@ export default async function PlayerPage({
   // RLS: solo jugadores del club.
   const { data: player } = await supabase
     .from("players")
-    .select("id, full_name, position, availability")
+    .select("id, full_name, position, availability, user_id")
     .eq("id", id)
     .eq("status", "confirmado")
     .maybeSingle();
@@ -84,6 +86,7 @@ export default async function PlayerPage({
           .order("position")
       : { data: [] };
 
+  const avatarUrl = (await getAvatarUrls(supabase, [player.user_id])).get(player.user_id);
   const availability = player.availability as Availability;
   const latestReturn = open
     .map((i) => i.expected_return_on as string | null)
@@ -97,18 +100,23 @@ export default async function PlayerPage({
         <Link href="/dashboard" className="text-sm text-slate-500 underline">
           ← Volver
         </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold text-slate-900">{player.full_name}</h1>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${AVAILABILITY_STYLE[availability]}`}
-          >
-            {AVAILABILITY_LABEL[availability]}
-          </span>
+        <div className="mt-3 flex items-center gap-4">
+          <Avatar name={player.full_name} url={avatarUrl} size="lg" />
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold text-slate-900">{player.full_name}</h1>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${AVAILABILITY_STYLE[availability]}`}
+              >
+                {AVAILABILITY_LABEL[availability]}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              {player.position && `${player.position} · `}
+              {returnLabel(latestReturn ?? null)}
+            </p>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-slate-500">
-          {player.position && `${player.position} · `}
-          {returnLabel(latestReturn ?? null)}
-        </p>
       </header>
 
       <div className="space-y-6">

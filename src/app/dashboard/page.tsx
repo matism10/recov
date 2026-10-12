@@ -21,6 +21,8 @@ import {
   type InjuryStatus,
 } from "@/lib/injuries";
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
+import { Avatar } from "@/app/avatar";
+import { getAvatarUrls } from "@/lib/avatars";
 import { AvailabilitySelect } from "./availability-select";
 
 export default async function DashboardPage() {
@@ -65,10 +67,15 @@ export default async function DashboardPage() {
   // pendientes, así que se filtra el plantel confirmado.
   const { data: players } = await supabase
     .from("players")
-    .select("id, full_name, position, availability")
+    .select("id, full_name, position, availability, user_id")
     .eq("active", true)
     .eq("status", "confirmado")
     .order("full_name");
+  // Foto de perfil de los jugadores con cuenta.
+  const avatarUrls = await getAvatarUrls(
+    supabase,
+    (players ?? []).map((p) => p.user_id),
+  );
 
   const club = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
   const roles = (profile.roles ?? []) as UserRole[];
@@ -284,11 +291,14 @@ export default async function DashboardPage() {
                       href={`/jugadores/${p.id}`}
                       className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50"
                     >
-                      <div>
-                        <p className="font-medium text-slate-900">{p.full_name}</p>
-                        <p className="text-sm text-slate-500">
-                          {returnLabel(returnByPlayer.get(p.id) ?? null)}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
+                        <div>
+                          <p className="font-medium text-slate-900">{p.full_name}</p>
+                          <p className="text-sm text-slate-500">
+                            {returnLabel(returnByPlayer.get(p.id) ?? null)}
+                          </p>
+                        </div>
                       </div>
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-medium ${AVAILABILITY_STYLE[status]}`}
@@ -370,11 +380,14 @@ export default async function DashboardPage() {
                 key={p.id}
                 className="flex items-center justify-between gap-4 px-5 py-4"
               >
-                <div>
-                  <p className="font-medium text-slate-900">{p.full_name}</p>
-                  {p.position && (
-                    <p className="text-sm text-slate-500">{p.position}</p>
-                  )}
+                <div className="flex items-center gap-3">
+                  <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
+                  <div>
+                    <p className="font-medium text-slate-900">{p.full_name}</p>
+                    {p.position && (
+                      <p className="text-sm text-slate-500">{p.position}</p>
+                    )}
+                  </div>
                 </div>
                 {/* "En revisión" no se cambia a mano: lo resuelve la revisión de la lesión. */}
                 {canManage && status !== "en_revision" ? (
