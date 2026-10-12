@@ -1,7 +1,7 @@
 @AGENTS.md
 ## Contexto de Recov
 
-Recov es una plataforma web de seguimiento de lesiones para clubes deportivos amateur (rugby, hockey). Es un proyecto del Taller de Emprendimiento Tecnológico y Sostenibilidad (UAI). Su propuesta de valor es la simplicidad: una versión simple y barata de las plataformas pensadas para clubes profesionales, con una interfaz clara y atractiva. La interfaz va en español.
+Recov es una plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 deportes: fútbol, futsal, rugby, handball, vóleibol, básquetbol, hockey césped; cada club tiene uno, fijado al crearlo). Es un proyecto del Taller de Emprendimiento Tecnológico y Sostenibilidad (UAI). Su propuesta de valor es la simplicidad: una versión simple y barata de las plataformas pensadas para clubes profesionales, con una interfaz clara y atractiva. La interfaz va en español.
 
 **Stack:** Next.js (App Router) + Supabase (Auth, Postgres con RLS, Storage) + Vercel.
 
@@ -23,6 +23,8 @@ Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` 
 - Disponibilidad del jugador: `disponible`, `en_revision` (solo al marcarlo lesionado), `lesionado`, `reintegro`. Los dos últimos forman "Lesiones activas".
 - Lesión: `en_evaluacion`, `activa`, `cerrada`, `descartada`.
 - Fase: `pendiente`, `en_curso`, `completada`; las quitadas se marcan con `archived_at`.
+
+**Deportes y posiciones:** el catálogo vive en `sports` y `positions` (0005 y 0016). Desde 0016, el trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club (en todo insert o update, también directo); la posición puede ser nula.
 
 **Convención:** las escrituras sensibles van por funciones `SECURITY DEFINER` con permisos explícitos (`mark_player_injured`, `review_injury`, `set_injury_phases`, `set_player_availability`, etc.), no por updates directos desde la app. En la app, `canManageInjuries` e `isDirection` (`src/lib/roles.ts`) solo deciden qué se muestra.
 

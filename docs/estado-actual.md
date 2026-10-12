@@ -1,12 +1,13 @@
 # Recov: estado actual de la plataforma (12 oct 2026)
 
-Plataforma web de seguimiento de lesiones para clubes deportivos amateur (rugby, hockey). Proyecto del Taller de Emprendimiento Tecnológico y Sostenibilidad (UAI). Interfaz en español, solo datos ficticios.
+Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 deportes: fútbol, futsal, rugby, handball, vóleibol, básquetbol, hockey césped; cada club tiene uno, fijado al crearlo). Proyecto del Taller de Emprendimiento Tecnológico y Sostenibilidad (UAI). Interfaz en español, solo datos ficticios.
 
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
 - Todo está mergeado en `main` (último: PR #11). No hay ramas con trabajo pendiente.
-- Migraciones 0001 a 0015 aplicadas en Supabase y presentes en `main`. 0007 a 0015 se aplicaron por MCP; 0001 a 0006, por el SQL Editor.
+- Migraciones 0001 a 0016 aplicadas en Supabase. 0007 a 0015 se aplicaron por MCP; 0001 a 0006 y 0016, por el SQL Editor.
+- 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
 - Tests (terminan en ROLLBACK, ambos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos) e `injury_lifecycle_test.sql` (ciclo de la lesión y fases).
 - CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones.
 
