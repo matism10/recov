@@ -142,7 +142,7 @@ select pg_temp.expect_fail($q$insert into public.injuries (club_id, player_id, t
 select pg_temp.expect_ok($q$insert into public.injuries (club_id, player_id, type, severity)
   values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', 'Rotura fibrilar', 'moderada')$q$,
   'kine A registra una lesión en su club');
-select pg_temp.expect_ok($q$update public.players set availability = 'en_recuperacion' where id = 'a1000000-1111-0000-0000-000000000002'$q$,
+select pg_temp.expect_ok($q$update public.players set availability = 'reintegro' where id = 'a1000000-1111-0000-0000-000000000002'$q$,
   'kine A actualiza disponibilidad');
 select pg_temp.expect_no_rows($q$update public.players set status = 'rechazado' where id = 'a1000000-1111-0000-0000-000000000002'$q$,
   'kine A cambia el estado de validación de un jugador');
@@ -164,7 +164,7 @@ select pg_temp.expect_count($q$select 1 from public.documents$q$, 0, 'entrenador
 select pg_temp.expect_fail($q$insert into public.injuries (club_id, player_id, type, severity)
   values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', 'x', 'leve')$q$,
   'entrenador A registra una lesión');
-select pg_temp.expect_no_rows($q$update public.players set availability = 'de_baja'$q$, 'entrenador A cambia disponibilidad');
+select pg_temp.expect_no_rows($q$update public.players set availability = 'lesionado'$q$, 'entrenador A cambia disponibilidad');
 select pg_temp.back();
 
 select pg_temp.as_user('50000000-0000-0000-0000-00000000000a');
@@ -322,7 +322,7 @@ select pg_temp.expect_count($q$select 1 from public.injury_phases where name <> 
 select pg_temp.expect_fail($q$insert into public.injuries (club_id, player_id, type, severity)
   values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'x', 'leve')$q$,
   'jugador A1 registra una lesión');
-select pg_temp.expect_no_rows($q$update public.players set availability = 'de_baja'$q$, 'jugador A1 cambia disponibilidad');
+select pg_temp.expect_no_rows($q$update public.players set availability = 'lesionado'$q$, 'jugador A1 cambia disponibilidad');
 select pg_temp.expect_no_rows($q$update public.documents set status = 'revisado'$q$, 'jugador A1 modifica documentos');
 select pg_temp.expect_fail($q$select public.review_member('80000000-0000-0000-0000-00000000000a', 'confirmar')$q$, 'jugador A1 confirma registros');
 select pg_temp.back();
@@ -471,15 +471,15 @@ select pg_temp.back();
 -- 12. Disponibilidad: kinesiólogo (o delegado) y head coach (0008)
 -- =======================================================================
 select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach
-select pg_temp.expect_ok($q$select public.set_player_availability('a1000000-1111-0000-0000-000000000002', 'de_baja')$q$, 'head coach cambia la disponibilidad');
-select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000002' and availability = 'de_baja'$q$, 1, 'la disponibilidad quedó cambiada');
-select pg_temp.expect_fail($q$select public.set_player_availability('b1000000-1111-0000-0000-000000000001', 'de_baja')$q$, 'head coach cambia un jugador del club B');
+select pg_temp.expect_ok($q$select public.set_player_availability('a1000000-1111-0000-0000-000000000002', 'lesionado')$q$, 'head coach cambia la disponibilidad');
+select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000002' and availability = 'lesionado'$q$, 1, 'la disponibilidad quedó cambiada');
+select pg_temp.expect_fail($q$select public.set_player_availability('b1000000-1111-0000-0000-000000000001', 'lesionado')$q$, 'head coach cambia un jugador del club B');
 select pg_temp.expect_fail($q$select public.set_player_availability('a1000000-1111-0000-0000-000000000002', null)$q$, 'disponibilidad vacía');
 select pg_temp.expect_no_rows($q$update public.players set availability = 'disponible'$q$, 'head coach sigue sin editar players directo');
 select pg_temp.back();
 
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine
-select pg_temp.expect_ok($q$select public.set_player_availability('a1000000-1111-0000-0000-000000000002', 'en_recuperacion')$q$, 'kine A cambia la disponibilidad');
+select pg_temp.expect_ok($q$select public.set_player_availability('a1000000-1111-0000-0000-000000000002', 'reintegro')$q$, 'kine A cambia la disponibilidad');
 select pg_temp.back();
 
 select pg_temp.as_user('20000000-0000-0000-0000-00000000000a');   -- manager

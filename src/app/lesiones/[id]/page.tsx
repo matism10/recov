@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isStaff, type UserRole } from "@/lib/roles";
+import { canManageInjuries, isStaff, type Availability, type UserRole } from "@/lib/roles";
 import {
   INJURY_STATUS_LABEL,
+  INJURY_STATUS_STYLE,
+  OCCURRED_DURING_LABEL,
   PHASE_STATUS_LABEL,
   SEVERITY_LABEL,
   durationLabel,
@@ -11,17 +13,13 @@ import {
   type DurationUnit,
   type InjurySeverity,
   type InjuryStatus,
+  type OccurredDuring,
   type PhaseStatus,
 } from "@/lib/injuries";
 import { InjuryProgress } from "../injury-progress";
 import { ReviewForm } from "./review-form";
 
 const SIGNED_URL_SECONDS = 5 * 60;
-
-const STATUS_STYLE: Record<InjuryStatus, string> = {
-  activa: "bg-amber-100 text-amber-800",
-  cerrada: "bg-slate-100 text-slate-700",
-};
 
 export default async function InjuryPage({
   params,
@@ -49,7 +47,7 @@ export default async function InjuryPage({
   const { data: injury } = await supabase
     .from("injuries")
     .select(
-      "id, type, severity, status, description, started_on, expected_return_on, doctor_estimate_value, doctor_estimate_unit, reviewed_by, reviewed_at, players(full_name)",
+      "id, type, severity, status, description, started_on, expected_return_on, doctor_estimate_value, doctor_estimate_unit, occurred_during, reviewed_by, reviewed_at, players(full_name, availability, user_id)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -63,10 +61,9 @@ export default async function InjuryPage({
     .select("kine_delegate_id")
     .eq("id", me.club_id)
     .maybeSingle();
-  // Solo decide qué se muestra; RLS (injuries_write) valida el permiso real.
-  const hasKinePowers =
-    roles.includes("kinesiologo") || club?.kine_delegate_id === user.id;
-  const canSeeDocuments = !staff || hasKinePowers || roles.includes("head_coach");
+  // Solo decide qué se muestra; review_injury valida el permiso real.
+  const canManage = canManageInjuries(roles, user.id, club?.kine_delegate_id);
+  const canSeeDocuments = !staff || canManage;
 
   const [{ data: documents }, { data: phases }, { data: reviewer }] =
     await Promise.all([
@@ -107,6 +104,9 @@ export default async function InjuryPage({
 
   const player = Array.isArray(injury.players) ? injury.players[0] : injury.players;
   const status = injury.status as InjuryStatus;
+  const inEvaluation = status === "en_evaluacion";
+  const isOwnInjury = player?.user_id === user.id;
+  const occurredDuring = injury.occurred_during as OccurredDuring | null;
   const severity = injury.severity as InjurySeverity | null;
   const doctorEstimate =
     injury.doctor_estimate_value && injury.doctor_estimate_unit
@@ -128,7 +128,7 @@ export default async function InjuryPage({
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold text-slate-900">{injury.type}</h1>
           <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLE[status]}`}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${INJURY_STATUS_STYLE[status]}`}
           >
             {INJURY_STATUS_LABEL[status]}
           </span>
@@ -136,26 +136,49 @@ export default async function InjuryPage({
       </header>
 
       <div className="space-y-6">
+        {inEvaluation && isOwnInjury && (
+          <Link
+            href={`/lesiones/${injury.id}/completar`}
+            className="block rounded-2xl bg-sky-50 p-5 ring-1 ring-sky-200 transition hover:bg-sky-100"
+          >
+            <p className="font-medium text-sky-900">Sube tu diagnóstico</p>
+            <p className="mt-1 text-sm text-sky-800">
+              Agrega lo que te indicó el médico y tus documentos para que el
+              kinesiólogo revise la lesión.
+            </p>
+          </Link>
+        )}
+
         <section className="space-y-4 rounded-2xl bg-white p-5 ring-1 ring-slate-200">
           <dl className="space-y-2 text-sm">
             <div>
               <dt className="inline text-slate-500">Ocurrió: </dt>
               <dd className="inline text-slate-900">{formatDate(injury.started_on)}</dd>
             </div>
-            <div>
-              <dt className="inline text-slate-500">Alta estimada: </dt>
-              <dd className="inline text-slate-900">
-                {injury.expected_return_on
-                  ? formatDate(injury.expected_return_on)
-                  : "Sin definir"}
-                {doctorEstimate && (
-                  <span className="text-slate-500">
-                    {" "}
-                    ({doctorEstimate} según el médico)
-                  </span>
-                )}
-              </dd>
-            </div>
+            {occurredDuring && (
+              <div>
+                <dt className="inline text-slate-500">Ocurrió en: </dt>
+                <dd className="inline text-slate-900">
+                  {OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}
+                </dd>
+              </div>
+            )}
+            {!inEvaluation && (
+              <div>
+                <dt className="inline text-slate-500">Alta estimada: </dt>
+                <dd className="inline text-slate-900">
+                  {injury.expected_return_on
+                    ? formatDate(injury.expected_return_on)
+                    : "Sin definir"}
+                  {doctorEstimate && (
+                    <span className="text-slate-500">
+                      {" "}
+                      ({doctorEstimate} según el médico)
+                    </span>
+                  )}
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="inline text-slate-500">Gravedad: </dt>
               <dd className="inline text-slate-900">
@@ -165,11 +188,13 @@ export default async function InjuryPage({
             <div>
               <dt className="inline text-slate-500">Revisión: </dt>
               <dd className="inline text-slate-900">
-                {injury.reviewed_at
-                  ? `Revisada el ${formatDate(injury.reviewed_at)}${
-                      reviewer?.full_name ? ` por ${reviewer.full_name}` : ""
-                    }`
-                  : "Pendiente de revisión del kinesiólogo"}
+                {inEvaluation
+                  ? "Esperando el diagnóstico del jugador"
+                  : injury.reviewed_at
+                    ? `Revisada el ${formatDate(injury.reviewed_at)}${
+                        reviewer?.full_name ? ` por ${reviewer.full_name}` : ""
+                      }`
+                    : "Pendiente de revisión del kinesiólogo"}
               </dd>
             </div>
           </dl>
@@ -178,21 +203,24 @@ export default async function InjuryPage({
               {injury.description}
             </p>
           )}
-          <InjuryProgress
-            startedOn={injury.started_on}
-            expectedReturnOn={injury.expected_return_on}
-          />
+          {!inEvaluation && (
+            <InjuryProgress
+              startedOn={injury.started_on}
+              expectedReturnOn={injury.expected_return_on}
+            />
+          )}
         </section>
 
-        {hasKinePowers && (
+        {canManage && (inEvaluation || status === "activa") && (
           <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
-            <h2 className="mb-4 font-medium text-slate-900">Revisión del kinesiólogo</h2>
+            <h2 className="mb-4 font-medium text-slate-900">Revisión</h2>
             <ReviewForm
               injuryId={injury.id}
+              status={status}
               startedOn={injury.started_on}
               expectedReturnOn={injury.expected_return_on}
               severity={severity}
-              reviewed={!!injury.reviewed_at}
+              availability={(player?.availability ?? "disponible") as Availability}
             />
           </section>
         )}

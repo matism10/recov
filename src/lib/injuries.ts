@@ -1,7 +1,8 @@
 // Reglas y formato de lesiones compartidos entre servidor y cliente.
-// Los límites replican los de public.report_injury (migración 0006).
+// Los límites replican los de public.report_injury (0006) y del ciclo de vida (0010).
 
-export type InjuryStatus = "activa" | "cerrada";
+export type InjuryStatus = "en_evaluacion" | "activa" | "cerrada" | "descartada";
+export type OccurredDuring = "entrenamiento" | "competencia";
 export type InjurySeverity = "leve" | "moderada" | "grave";
 export type DurationUnit = "semanas" | "meses";
 export type PhaseStatus = "pendiente" | "en_curso" | "completada";
@@ -11,6 +12,9 @@ export const INJURY_TYPE_MAX = 120;
 export const DESCRIPTION_MAX = 1000;
 export const FILE_NAME_MAX = 200;
 export const MAX_INJURY_AGE_DAYS = 365;
+// Nota breve al marcar a un jugador lesionado (public.mark_player_injured).
+export const NOTE_MIN = 2;
+export const NOTE_MAX = 120;
 export const DURATION_MAX: Record<DurationUnit, number> = { semanas: 104, meses: 24 };
 
 export const MIN_FILES = 1;
@@ -24,8 +28,22 @@ export const FILE_TYPES: Record<string, string> = {
 };
 
 export const INJURY_STATUS_LABEL: Record<InjuryStatus, string> = {
+  en_evaluacion: "En evaluación",
   activa: "Activa",
   cerrada: "Cerrada",
+  descartada: "Descartada",
+};
+
+export const INJURY_STATUS_STYLE: Record<InjuryStatus, string> = {
+  en_evaluacion: "bg-sky-100 text-sky-800",
+  activa: "bg-amber-100 text-amber-800",
+  cerrada: "bg-slate-100 text-slate-700",
+  descartada: "bg-slate-100 text-slate-500",
+};
+
+export const OCCURRED_DURING_LABEL: Record<OccurredDuring, string> = {
+  entrenamiento: "Entrenamiento",
+  competencia: "Competencia",
 };
 
 export const SEVERITY_LABEL: Record<InjurySeverity, string> = {
@@ -78,6 +96,17 @@ export function recoveryProgress(startedOn: string, expectedReturnOn: string) {
   const total = Math.max(daysBetween(startedOn, expectedReturnOn), 1);
   const day = Math.min(Math.max(daysBetween(startedOn, todayInChile()), 0), total);
   return { day, total, percent: Math.round((day / total) * 100) };
+}
+
+// Tiempo que falta para el regreso estimado, para el listado de lesiones activas.
+export function returnLabel(expectedReturnOn: string | null) {
+  if (!expectedReturnOn) return "Sin fecha de regreso";
+  const date = formatDate(expectedReturnOn);
+  const days = daysBetween(todayInChile(), expectedReturnOn);
+  if (days < 0) return `Regreso estimado vencido (${date})`;
+  if (days === 0) return "Regresa hoy";
+  if (days < 14) return `Regresa en ${days === 1 ? "1 día" : `${days} días`} · ${date}`;
+  return `Regresa en ${Math.round(days / 7)} semanas · ${date}`;
 }
 
 const dateFormat = new Intl.DateTimeFormat("es-CL", {

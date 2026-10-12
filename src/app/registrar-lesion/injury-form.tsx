@@ -16,6 +16,7 @@ import {
   addDays,
   todayInChile,
 } from "@/lib/injuries";
+import { completeInjuryReport } from "@/app/lesiones/[id]/completar/actions";
 import { reportInjury, type ReportInjuryState } from "./actions";
 
 const fieldClass =
@@ -26,7 +27,18 @@ const optional = <span className="font-normal text-slate-400">(opcional)</span>;
 
 const fileKey = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
 
-export function InjuryForm({ clubId, playerId }: { clubId: string; playerId: string }) {
+// Sin injuryId registra una lesión nueva (report_injury). Con injuryId completa
+// el diagnóstico de una lesión en evaluación (complete_injury_report): la fecha
+// ya la tiene la lesión, así que no se pide.
+export function InjuryForm({
+  clubId,
+  playerId,
+  injuryId,
+}: {
+  clubId: string;
+  playerId: string;
+  injuryId?: string;
+}) {
   const router = useRouter();
   // Archivos ya subidos en un intento anterior: si el registro falla y se
   // reenvía, no se vuelven a subir (el jugador no puede borrar del bucket).
@@ -70,7 +82,9 @@ export function InjuryForm({ clubId, playerId }: { clubId: string; playerId: str
 
       formData.delete("files");
       formData.set("files", JSON.stringify(results));
-      const result = await reportInjury(prevState, formData);
+      const result = injuryId
+        ? await completeInjuryReport(prevState, formData)
+        : await reportInjury(prevState, formData);
       if (result.injuryId) router.push(`/lesiones/${result.injuryId}`);
       return result;
     },
@@ -98,17 +112,21 @@ export function InjuryForm({ clubId, playerId }: { clubId: string; playerId: str
         />
       </label>
 
-      <label className={labelClass}>
-        Fecha en que ocurrió
-        <input
-          name="injury_date"
-          type="date"
-          required
-          max={today}
-          min={addDays(today, -MAX_INJURY_AGE_DAYS)}
-          className={inputClass}
-        />
-      </label>
+      {injuryId ? (
+        <input type="hidden" name="injury_id" value={injuryId} />
+      ) : (
+        <label className={labelClass}>
+          Fecha en que ocurrió
+          <input
+            name="injury_date"
+            type="date"
+            required
+            max={today}
+            min={addDays(today, -MAX_INJURY_AGE_DAYS)}
+            className={inputClass}
+          />
+        </label>
+      )}
 
       <fieldset>
         <legend className={labelClass}>Duración que te indicó el médico</legend>
@@ -171,7 +189,7 @@ export function InjuryForm({ clubId, playerId }: { clubId: string; playerId: str
         disabled={pending}
         className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
       >
-        {pending ? "Enviando…" : "Registrar lesión"}
+        {pending ? "Enviando…" : injuryId ? "Enviar diagnóstico" : "Registrar lesión"}
       </button>
     </form>
   );
