@@ -1,5 +1,5 @@
--- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0014)
--- Correr DESPUÉS de las migraciones 0001 a 0014. Autónomo: crea sus propios datos y termina en ROLLBACK.
+-- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0015)
+-- Correr DESPUÉS de las migraciones 0001 a 0015. Autónomo: crea sus propios datos y termina en ROLLBACK.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
 begin;
@@ -294,5 +294,106 @@ select pg_temp.expect_ok($q$select public.review_injury((select a6 from ids6), '
 select pg_temp.back();
 select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000002' and availability = 'disponible'$q$, 1,
   'sin lesiones abiertas vuelve a disponible');
+
+-- =======================================================================
+-- 6. Fases de recuperación (0015)
+-- =======================================================================
+-- Compañero de A1 con cuenta, para probar qué ve de las fases de otros.
+insert into auth.users (id, email) values ('90000000-0000-0000-0000-00000000000a', 'j3@test.cl');
+insert into public.profiles (id, club_id, roles, full_name, status) values
+  ('90000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}', 'Jugador A3', 'confirmado');
+insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
+  ('a1000000-1111-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A3', 'Jugador', 'A3', 'Wing', 'confirmado', '90000000-0000-0000-0000-00000000000a');
+
+-- A1 tiene una lesión activa, confirmada.
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.mark_player_injured('a1000000-1111-0000-0000-000000000001', 'competencia', 'Golpe en el muslo', 'en_revision')$q$, 'kine marca a A1 para fases');
+select pg_temp.back();
+create temp table ids7 as select id as a7 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000001' and status = 'en_evaluacion';
+grant select on ids7 to authenticated;
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[{"name":"Reposo"}]'::jsonb)$q$, 'fases de una lesión en evaluación');
+select pg_temp.expect_ok($q$select public.review_injury((select a7 from ids7), 'confirmar', 'moderada', current_date + 60)$q$, 'kine confirma la lesión de A1');
+select pg_temp.back();
+
+-- Permisos
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[{"name":"Reposo"}]'::jsonb)$q$, 'entrenador define fases');
+select pg_temp.expect_fail($q$select public.advance_injury_phase((select a7 from ids7))$q$, 'entrenador avanza fases');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[{"name":"Reposo"}]'::jsonb)$q$, 'jugador define sus fases');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[{"name":"Reposo"}]'::jsonb)$q$, 'kine B define fases del club A');
+select pg_temp.back();
+
+-- Validaciones
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[]'::jsonb)$q$, 'sin fases');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[{"name":"x"}]'::jsonb)$q$, 'nombre muy corto');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[{"name":"Reposo","status":"en_curso"},{"name":"Rehabilitación","status":"en_curso"}]'::jsonb)$q$, 'dos fases en curso');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), format('[{"name":"Reposo","started_on":"%s"}]', current_date - 400)::jsonb)$q$, 'fase antes de la lesión');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[{"name":"Reposo","status":"pendiente"},{"name":"Rehabilitación","status":"completada"}]'::jsonb)$q$, 'completada después de una pendiente');
+
+-- El head coach carga la plantilla
+select pg_temp.expect_ok($q$select public.set_injury_phases((select a7 from ids7), format(
+  '[{"name":"Reposo","status":"en_curso","started_on":"%s"},{"name":"Rehabilitación"},{"name":"Readaptación"},{"name":"Reintegro"}]',
+  current_date)::jsonb)$q$, 'head coach define 4 fases');
+
+-- Agregar una fase y después quitarla: queda marcada como quitada, no se borra.
+select pg_temp.expect_ok($q$select public.set_injury_phases((select a7 from ids7),
+  (select jsonb_agg(jsonb_build_object('id', id, 'name', name, 'status', status, 'started_on', started_on) order by position)
+     from public.injury_phases where injury_id = (select a7 from ids7) and archived_at is null)
+  || '[{"name":"Control médico"}]'::jsonb)$q$, 'head coach agrega una fase');
+select pg_temp.expect_count($q$select 1 from public.injury_phases where injury_id = (select a7 from ids7) and archived_at is null$q$, 5, 'quedan 5 fases');
+select pg_temp.expect_ok($q$select public.set_injury_phases((select a7 from ids7),
+  (select jsonb_agg(jsonb_build_object('id', id, 'name', name, 'status', status, 'started_on', started_on) order by position)
+     from public.injury_phases where injury_id = (select a7 from ids7) and archived_at is null and name <> 'Control médico'))$q$, 'head coach quita esa fase');
+select pg_temp.expect_count($q$select 1 from public.injury_phases where injury_id = (select a7 from ids7) and archived_at is null$q$, 4, 'vuelven a ser 4 fases visibles');
+select pg_temp.expect_count($q$select 1 from public.injury_phases where injury_id = (select a7 from ids7) and archived_at is not null and name = 'Control médico'$q$, 1,
+  'la fase quitada se conserva marcada');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7),
+  jsonb_build_array(jsonb_build_object('id', (select id from public.injury_phases where injury_id = (select a7 from ids7) and archived_at is not null), 'name', 'Control médico')))$q$,
+  'reusar el id de una fase quitada');
+select pg_temp.back();
+
+-- Visibilidad
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.injury_phases where injury_id = (select a7 from ids7) and archived_at is null$q$, 4, 'el entrenador ve las fases');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.injury_phases where archived_at is null$q$, 4, 'A1 ve las fases de su lesión');
+select pg_temp.back();
+select pg_temp.as_user('90000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.injury_phases$q$, 0, 'A3 no ve las fases de A1');
+select pg_temp.expect_count($q$select 1 from public.injuries$q$, 0, 'A3 no ve la lesión de A1');
+select pg_temp.expect_count($q$select 1 from public.squad_current_phases() where player_id = 'a1000000-1111-0000-0000-000000000001' and phase_name = 'Reposo'$q$, 1,
+  'A3 ve solo el nombre de la fase en curso de A1');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_count($q$select 1 from public.squad_current_phases()$q$, 0, 'B1 no ve fases del club A');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select 1 from public.squad_current_phases()$q$, 'anónimo ve fases');
+select pg_temp.back();
+
+-- Avanzar hasta Reintegro
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.advance_injury_phase((select a7 from ids7))$q$, 'avanza a Rehabilitación');
+select pg_temp.expect_ok($q$select public.advance_injury_phase((select a7 from ids7))$q$, 'avanza a Readaptación');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000001' and availability = 'lesionado'$q$, 1, 'antes de Reintegro sigue lesionado');
+select pg_temp.expect_count($q$select 1 from public.injury_phases where injury_id = (select a7 from ids7) and archived_at is null and status = 'completada' and ended_on = current_date$q$, 2, 'dos fases completadas');
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.advance_injury_phase((select a7 from ids7))$q$, 'avanza a Reintegro');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000001' and availability = 'reintegro'$q$, 1, 'la fase Reintegro lo pone en reintegro');
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.advance_injury_phase((select a7 from ids7))$q$, 'completa Reintegro');
+select pg_temp.expect_fail($q$select public.advance_injury_phase((select a7 from ids7))$q$, 'no quedan fases');
+select pg_temp.expect_ok($q$select public.review_injury((select a7 from ids7), 'cerrar')$q$, 'alta de A1');
+select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[{"name":"Reposo"}]'::jsonb)$q$, 'fases de una lesión cerrada');
+select pg_temp.back();
 
 rollback;
