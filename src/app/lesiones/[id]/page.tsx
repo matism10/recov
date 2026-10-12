@@ -6,7 +6,6 @@ import {
   INJURY_STATUS_LABEL,
   INJURY_STATUS_STYLE,
   OCCURRED_DURING_LABEL,
-  PHASE_STATUS_LABEL,
   SEVERITY_LABEL,
   durationLabel,
   formatDate,
@@ -17,6 +16,7 @@ import {
   type PhaseStatus,
 } from "@/lib/injuries";
 import { InjuryProgress } from "../injury-progress";
+import { PhasesPanel } from "./phases-panel";
 import { ReviewForm } from "./review-form";
 
 const SIGNED_URL_SECONDS = 5 * 60;
@@ -73,13 +73,13 @@ export default async function InjuryPage({
         .select("id, file_name, storage_path, created_at")
         .eq("injury_id", id)
         .order("created_at"),
-      staff
-        ? supabase
-            .from("injury_phases")
-            .select("id, name, status, started_on, ended_on")
-            .eq("injury_id", id)
-            .order("position")
-        : Promise.resolve({ data: null }),
+      // RLS: el staff ve las fases del club; el jugador, las de sus lesiones.
+      supabase
+        .from("injury_phases")
+        .select("id, name, status, started_on, ended_on")
+        .eq("injury_id", id)
+        .is("archived_at", null)
+        .order("position"),
       injury.reviewed_by
         ? supabase
             .from("profiles")
@@ -225,28 +225,22 @@ export default async function InjuryPage({
           </section>
         )}
 
-        {staff && (
+        {(staff || isOwnInjury) && (
           <section>
-            <h2 className="mb-3 text-sm font-medium text-slate-500">Línea de tiempo</h2>
-            {phases && phases.length > 0 ? (
-              <ol className="space-y-3 border-l-2 border-slate-200 pl-5">
-                {phases.map((ph) => (
-                  <li key={ph.id} className="relative">
-                    <span className="absolute top-1.5 -left-[27px] size-3 rounded-full border-2 border-white bg-emerald-500" />
-                    <p className="font-medium text-slate-900">{ph.name}</p>
-                    <p className="text-sm text-slate-500">
-                      {PHASE_STATUS_LABEL[ph.status as PhaseStatus]}
-                      {ph.started_on && ` · desde ${formatDate(ph.started_on)}`}
-                      {ph.ended_on && ` · hasta ${formatDate(ph.ended_on)}`}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
-                Sin fases registradas.
-              </p>
-            )}
+            <h2 className="mb-3 text-sm font-medium text-slate-500">Fases de recuperación</h2>
+            <PhasesPanel
+              injuryId={injury.id}
+              phases={(phases ?? []).map((ph) => ({
+                id: ph.id,
+                name: ph.name,
+                status: ph.status as PhaseStatus,
+                started_on: ph.started_on ?? "",
+                ended_on: ph.ended_on ?? "",
+              }))}
+              canEdit={canManage && status === "activa"}
+              startedOn={injury.started_on}
+              expectedReturnOn={injury.expected_return_on}
+            />
           </section>
         )}
 

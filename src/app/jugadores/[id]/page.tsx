@@ -83,6 +83,7 @@ export default async function PlayerPage({
             "injury_id",
             open.map((i) => i.id),
           )
+          .is("archived_at", null)
           .order("position")
       : { data: [] };
 
