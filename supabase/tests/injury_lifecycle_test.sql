@@ -1,5 +1,5 @@
--- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0013)
--- Correr DESPUÉS de las migraciones 0001 a 0013. Autónomo: crea sus propios datos y termina en ROLLBACK.
+-- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0014)
+-- Correr DESPUÉS de las migraciones 0001 a 0014. Autónomo: crea sus propios datos y termina en ROLLBACK.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
 begin;
@@ -263,5 +263,36 @@ select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000
 select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_count($q$select 1 from public.players where availability = 'lesionado'$q$, 1, 'el jugador ve el estado del plantel');
 select pg_temp.back();
+
+-- =======================================================================
+-- 5. Descartar o cerrar con otra lesión abierta (0014)
+-- =======================================================================
+-- A2 tiene una lesión activa (confirmada en la sección 4) y está lesionado.
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.mark_player_injured('a1000000-1111-0000-0000-000000000002', 'competencia', 'Golpe en la cabeza', 'en_revision')$q$, 'kine marca a A2 otra vez');
+select pg_temp.back();
+create temp table ids5 as select id as a5 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000002' and status = 'en_evaluacion';
+grant select on ids5 to authenticated;
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_injury((select a5 from ids5), 'descartar')$q$, 'kine descarta la nueva');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000002' and availability = 'lesionado'$q$, 1,
+  'descartar con otra lesión activa deja lesionado, no en revisión');
+
+-- Cerrar la activa mientras otra sigue en evaluación: sigue en revisión.
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.mark_player_injured('a1000000-1111-0000-0000-000000000002', 'entrenamiento', 'Dolor en el tobillo', 'en_revision')$q$, 'kine marca a A2 una vez más');
+select pg_temp.expect_ok($q$select public.review_injury((select a4 from ids4), 'cerrar')$q$, 'kine da de alta la lesión activa de A2');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000002' and availability = 'en_revision'$q$, 1,
+  'con otra lesión en evaluación sigue en revisión');
+
+create temp table ids6 as select id as a6 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000002' and status = 'en_evaluacion';
+grant select on ids6 to authenticated;
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_injury((select a6 from ids6), 'descartar')$q$, 'head coach descarta la última');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000002' and availability = 'disponible'$q$, 1,
+  'sin lesiones abiertas vuelve a disponible');
 
 rollback;
