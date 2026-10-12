@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { AVAILABILITY_LABEL, type Availability } from "@/lib/roles";
+import { MANUAL_AVAILABILITY, type ManualAvailability } from "@/lib/roles";
 
 export type AvailabilityState = { error?: string };
 
@@ -17,7 +17,7 @@ export async function setPlayerAvailability(
   const availability = String(formData.get("availability") ?? "");
 
   if (!UUID_RE.test(playerId)) return { error: "Jugador no válido." };
-  if (!(availability in AVAILABILITY_LABEL)) {
+  if (!MANUAL_AVAILABILITY.includes(availability as ManualAvailability)) {
     return { error: "Estado no válido." };
   }
 
@@ -26,7 +26,7 @@ export async function setPlayerAvailability(
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_player_availability", {
     p_player_id: playerId,
-    p_availability: availability as Availability,
+    p_availability: availability as ManualAvailability,
   });
 
   if (error) {

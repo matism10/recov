@@ -4,6 +4,7 @@ import { useActionState, useRef } from "react";
 import {
   AVAILABILITY_LABEL,
   AVAILABILITY_STYLE,
+  MANUAL_AVAILABILITY,
   type Availability,
 } from "@/lib/roles";
 import { setPlayerAvailability, type AvailabilityState } from "./actions";
@@ -36,7 +37,7 @@ export function AvailabilitySelect({
         aria-label={`Disponibilidad de ${playerName}`}
         className={`cursor-pointer rounded-full border-0 py-1 pl-3 pr-8 text-xs font-medium disabled:opacity-60 ${AVAILABILITY_STYLE[value]}`}
       >
-        {(Object.keys(AVAILABILITY_LABEL) as Availability[]).map((a) => (
+        {MANUAL_AVAILABILITY.map((a) => (
           <option key={a} value={a}>
             {AVAILABILITY_LABEL[a]}
           </option>

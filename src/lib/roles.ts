@@ -29,6 +29,21 @@ export function isStaff(roles: readonly UserRole[]) {
   return STAFF_ROLES.some((r) => roles.includes(r));
 }
 
+// Marca, revisa, descarta y da de alta lesiones: kinesiólogo, su delegado y
+// head coach. Igual que private.can_manage_injuries() en la base; solo decide
+// qué se muestra, el permiso real lo verifica la base de datos.
+export function canManageInjuries(
+  roles: readonly UserRole[],
+  userId: string,
+  kineDelegateId: string | null | undefined,
+) {
+  return (
+    roles.includes("kinesiologo") ||
+    roles.includes("head_coach") ||
+    kineDelegateId === userId
+  );
+}
+
 // Puestos que se pueden solicitar al registrarse por el link del club.
 export const STAFF_SIGNUP_ROLES = [
   "kinesiologo",
@@ -39,7 +54,19 @@ export const STAFF_SIGNUP_ROLES = [
 
 export type StaffSignupRole = (typeof STAFF_SIGNUP_ROLES)[number];
 
-export type Availability = "disponible" | "en_recuperacion" | "de_baja";
+export type Availability = "disponible" | "en_revision" | "lesionado" | "reintegro";
+
+// "En revisión" lo pone solo mark_player_injured y lo reemplaza review_injury:
+// no se ofrece al elegir la disponibilidad a mano.
+export const MANUAL_AVAILABILITY = [
+  "disponible",
+  "lesionado",
+  "reintegro",
+] as const satisfies readonly Availability[];
+export type ManualAvailability = (typeof MANUAL_AVAILABILITY)[number];
+
+// Jugadores que aparecen en "Lesiones activas".
+export const INJURED_AVAILABILITY = ["lesionado", "reintegro"] as const satisfies readonly Availability[];
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   head_coach: "Head coach",
@@ -53,12 +80,14 @@ export const ROLE_LABEL: Record<UserRole, string> = {
 
 export const AVAILABILITY_LABEL: Record<Availability, string> = {
   disponible: "Disponible",
-  en_recuperacion: "En recuperación",
-  de_baja: "De baja",
+  en_revision: "En revisión",
+  lesionado: "Lesionado",
+  reintegro: "Reintegro",
 };
 
 export const AVAILABILITY_STYLE: Record<Availability, string> = {
   disponible: "bg-emerald-100 text-emerald-800",
-  en_recuperacion: "bg-amber-100 text-amber-800",
-  de_baja: "bg-red-100 text-red-800",
+  en_revision: "bg-sky-100 text-sky-800",
+  lesionado: "bg-red-100 text-red-800",
+  reintegro: "bg-amber-100 text-amber-800",
 };
