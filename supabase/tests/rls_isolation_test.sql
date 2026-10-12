@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0008.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0015.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -282,7 +282,7 @@ select pg_temp.back();
 select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_count($q$select 1 from public.players$q$, 3, 'jugador A1 ve el plantel');
 select pg_temp.expect_count($q$select 1 from public.injuries$q$, 1, 'jugador A1 ve solo su lesión');
-select pg_temp.expect_count($q$select 1 from public.injury_phases$q$, 0, 'jugador A1 no ve fases');
+select pg_temp.expect_count($q$select 1 from public.injury_phases$q$, 1, 'jugador A1 ve solo las fases de su propia lesión');
 select pg_temp.expect_count($q$select 1 from public.documents$q$, 0, 'jugador A1 no ve documentos ajenos');
 -- no puede insertar documentos directo (solo vía report_injury)
 select pg_temp.expect_fail($q$insert into public.documents (club_id, player_id, storage_path, file_name, uploaded_by)

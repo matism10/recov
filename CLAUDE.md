@@ -12,7 +12,7 @@ Recov es una plataforma web de seguimiento de lesiones para clubes deportivos am
 ### Reglas que no se rompen
 
 - **Aislamiento por club:** toda tabla lleva `club_id` y la seguridad la define RLS en la base de datos, no el frontend. Nunca usar la service role key en código de cliente.
-- **Datos de salud:** el jugador solo ve la disponibilidad del plantel, nunca lesiones ni documentos de otros. Los documentos médicos los revisa solo el kinesiólogo. El entrenador ve disponibilidad, lesiones y fases.
+- **Datos de salud:** de sus compañeros, el jugador solo ve la disponibilidad y el nombre de la fase de recuperación en curso (`squad_current_phases`); nunca el tipo de lesión, fechas ni documentos de otros. De sus propias lesiones ve todo, incluidas las fases. Los documentos médicos los revisa solo el kinesiólogo. El entrenador ve disponibilidad, lesiones y fases.
 - **Cambios de base de datos:** el agente escribe y aplica las migraciones por el MCP de Supabase (proyecto "Recov"). Por cada cambio:
   1. Migración nueva en `supabase/migrations/` (siguiente número, ej. `0008_...`) y sus pruebas en `supabase/tests/rls_isolation_test.sql`.
   2. Aplicarla con `apply_migration`, con el mismo contenido del archivo.

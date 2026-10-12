@@ -76,6 +76,15 @@ export default async function DashboardPage() {
     supabase,
     (players ?? []).map((p) => p.user_id),
   );
+  // Fase de recuperación en curso de cada jugador: solo el nombre, visible para
+  // todo el club (los jugadores no ven el resto de la lesión de sus compañeros).
+  const { data: currentPhases } = await supabase.rpc("squad_current_phases");
+  const phaseByPlayer = new Map(
+    ((currentPhases ?? []) as { player_id: string; phase_name: string }[]).map((p) => [
+      p.player_id,
+      p.phase_name,
+    ]),
+  );
 
   const club = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
   const roles = (profile.roles ?? []) as UserRole[];
@@ -384,8 +393,12 @@ export default async function DashboardPage() {
                   <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
                   <div>
                     <p className="font-medium text-slate-900">{p.full_name}</p>
-                    {p.position && (
-                      <p className="text-sm text-slate-500">{p.position}</p>
+                    {(p.position || phaseByPlayer.has(p.id)) && (
+                      <p className="text-sm text-slate-500">
+                        {[p.position, phaseByPlayer.has(p.id) && `Fase: ${phaseByPlayer.get(p.id)}`]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
                     )}
                   </div>
                 </div>

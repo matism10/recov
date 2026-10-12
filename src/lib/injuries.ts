@@ -58,6 +58,41 @@ export const PHASE_STATUS_LABEL: Record<PhaseStatus, string> = {
   completada: "Completada",
 };
 
+// Fases sugeridas al cargar la línea de tiempo de una lesión. La fase llamada
+// "Reintegro" pone al jugador en Reintegro cuando queda en curso (0015).
+export const PHASE_TEMPLATE = ["Reposo", "Rehabilitación", "Readaptación", "Reintegro"];
+export const PHASE_NAME_MIN = 2;
+export const PHASE_NAME_MAX = 60;
+export const MAX_PHASES = 8;
+
+export type PhaseDraft = {
+  id?: string;
+  name: string;
+  status: PhaseStatus;
+  started_on: string;
+  ended_on: string;
+};
+
+// Reparte las fases de la plantilla entre el inicio de la lesión y el alta
+// estimada; la primera queda en curso.
+export function templatePhases(startedOn: string, expectedReturnOn: string | null): PhaseDraft[] {
+  const total = expectedReturnOn ? Math.max(daysBetween(startedOn, expectedReturnOn), 0) : 0;
+  const span = Math.floor(total / PHASE_TEMPLATE.length);
+  return PHASE_TEMPLATE.map((name, i) => {
+    const last = i === PHASE_TEMPLATE.length - 1;
+    return {
+      name,
+      status: i === 0 ? "en_curso" : "pendiente",
+      started_on: expectedReturnOn ? addDays(startedOn, i * span) : i === 0 ? startedOn : "",
+      ended_on: expectedReturnOn
+        ? last
+          ? expectedReturnOn
+          : addDays(startedOn, Math.max((i + 1) * span - 1, i * span))
+        : "",
+    };
+  });
+}
+
 export function durationLabel(value: number, unit: DurationUnit) {
   if (value === 1) return unit === "semanas" ? "1 semana" : "1 mes";
   return `${value} ${unit}`;
