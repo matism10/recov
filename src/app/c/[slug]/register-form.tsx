@@ -2,32 +2,13 @@
 
 import { useActionState, useState, type ChangeEvent } from "react";
 import { ROLE_LABEL, STAFF_SIGNUP_ROLES } from "@/lib/roles";
+import { resizeAvatar } from "@/app/avatar-resize";
 import { registerMember, type RegisterState } from "./actions";
 import { ErrorMessage, buttonPrimary, inputClass, labelClass, optionalClass, textButton } from "@/app/ui";
 
 type Kind = "jugador" | "staff";
 
 const optional = <span className={optionalClass}>(opcional)</span>;
-
-const AVATAR_SIZE = 512;
-
-// Achica la foto en el navegador: así pesa poco y entra en el límite de la server action.
-async function resizeAvatar(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, AVATAR_SIZE / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return new Promise((resolve, reject) =>
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("toBlob"))),
-      "image/jpeg",
-      0.85,
-    ),
-  );
-}
 
 export function RegisterForm({
   slug,
