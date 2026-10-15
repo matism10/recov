@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, isDirection, type UserRole } from "@/lib/roles";
 import { ReviewButtons } from "./review-buttons";
+import { textButton } from "@/app/ui";
 
 type PendingProfile = {
   id: string;
@@ -95,19 +96,19 @@ export default async function RegistrosPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <header className="mb-8">
-        <Link href="/dashboard" className="text-sm text-slate-500 underline">
+        <Link href="/dashboard" className={textButton}>
           ← Volver al plantel
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">
+        <h1 className="mt-2 text-2xl font-semibold text-ink">
           Registros pendientes
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted">
           Confirma a quienes se registraron con el link del club.
         </p>
       </header>
 
       {pending.length === 0 ? (
-        <p className="rounded-2xl bg-white p-8 text-center text-slate-500 ring-1 ring-slate-200">
+        <p className="rounded-xl bg-mist p-8 text-center text-muted border border-line">
           No hay registros pendientes.
         </p>
       ) : (
@@ -116,21 +117,21 @@ export default async function RegistrosPage() {
             .filter((s) => s.items.length > 0)
             .map((s) => (
               <section key={s.title}>
-                <h2 className="mb-3 text-sm font-medium text-slate-500">
+                <h2 className="mb-3 text-sm font-medium text-muted">
                   {s.title} ({s.items.length})
                 </h2>
-                <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+                <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
                   {s.items.map((p) => (
                     <li
                       key={p.id}
                       className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
                     >
                       <div>
-                        <p className="font-medium text-slate-900">
+                        <p className="font-medium text-ink">
                           {p.full_name}
                         </p>
-                        <p className="text-sm text-slate-500">{s.details(p)}</p>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-sm text-muted">{s.details(p)}</p>
+                        <p className="text-xs text-muted">
                           Registrado el {dateFormat.format(new Date(p.created_at))}
                         </p>
                       </div>

@@ -24,7 +24,7 @@ export function Avatar({
 }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 font-medium text-slate-500 ${SIZES[size]}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-soft font-medium text-brand-text ${SIZES[size]}`}
     >
       {url ? (
         // URL firmada de Storage que vence: no pasa por next/image.

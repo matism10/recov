@@ -3,13 +3,11 @@
 import { useActionState, useState, type ChangeEvent } from "react";
 import { ROLE_LABEL, STAFF_SIGNUP_ROLES } from "@/lib/roles";
 import { registerMember, type RegisterState } from "./actions";
+import { ErrorMessage, buttonPrimary, inputClass, labelClass, optionalClass, textButton } from "@/app/ui";
 
 type Kind = "jugador" | "staff";
 
-const inputClass =
-  "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200";
-const labelClass = "block text-sm font-medium text-slate-700";
-const optional = <span className="font-normal text-slate-400">(opcional)</span>;
+const optional = <span className={optionalClass}>(opcional)</span>;
 
 const AVATAR_SIZE = 512;
 
@@ -83,7 +81,7 @@ export function RegisterForm({
             key={k}
             type="button"
             onClick={() => setKind(k)}
-            className="rounded-lg border border-slate-300 px-4 py-3 font-medium text-slate-900 transition hover:border-emerald-600 hover:bg-emerald-50"
+            className="min-h-11 rounded-xl border border-line bg-white px-4 py-3 font-medium text-ink transition hover:border-brand-strong hover:bg-brand-soft"
           >
             {k === "jugador" ? "Soy jugador" : "Soy staff"}
           </button>
@@ -98,21 +96,21 @@ export function RegisterForm({
       <input type="hidden" name="kind" value={kind} />
 
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-slate-900">
+        <span className="font-medium text-ink">
           {kind === "jugador" ? "Registro de jugador" : "Registro de staff"}
         </span>
         <button
           type="button"
           onClick={() => setKind(null)}
           disabled={pending}
-          className="text-slate-500 underline"
+          className={textButton}
         >
-          Cambiar
+          Cambia
         </button>
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-slate-400">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-soft text-brand-text">
           {avatarPreview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarPreview} alt="Tu foto de perfil" className="h-full w-full object-cover" />
@@ -123,10 +121,10 @@ export function RegisterForm({
           )}
         </div>
         <div className="text-sm">
-          <span className="block font-medium text-slate-700">Foto de perfil {optional}</span>
+          <span className="block font-medium text-ink">Foto de perfil {optional}</span>
           <div className="mt-1 flex gap-3">
-            <label className="cursor-pointer text-emerald-700 underline">
-              {avatar ? "Cambiar foto" : "Agregar foto"}
+            <label className="inline-flex min-h-11 cursor-pointer items-center font-medium text-brand-text underline">
+              {avatar ? "Cambia la foto" : "Agrega una foto"}
               <input
                 type="file"
                 accept="image/*"
@@ -140,13 +138,13 @@ export function RegisterForm({
                 type="button"
                 onClick={removeAvatar}
                 disabled={pending}
-                className="text-slate-500 underline"
+                className={textButton}
               >
-                Quitar
+                Quita
               </button>
             )}
           </div>
-          {avatarError && <p className="mt-1 text-red-600">{avatarError}</p>}
+          {avatarError && <ErrorMessage className="mt-1">{avatarError}</ErrorMessage>}
         </div>
       </div>
 
@@ -284,18 +282,14 @@ export function RegisterForm({
         </label>
       )}
 
-      {state.error && (
-        <p role="alert" className="text-sm text-red-600">
-          {state.error}
-        </p>
-      )}
+      {state.error && <ErrorMessage>{state.error}</ErrorMessage>}
 
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
+        className={`w-full ${buttonPrimary}`}
       >
-        {pending ? "Creando cuenta…" : "Crear cuenta"}
+        {pending ? "Creando cuenta…" : "Crea tu cuenta"}
       </button>
     </form>
   );

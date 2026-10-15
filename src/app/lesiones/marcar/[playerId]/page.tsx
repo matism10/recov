@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canManageInjuries, type UserRole } from "@/lib/roles";
 import { MarkForm } from "../mark-form";
+import { textButton } from "@/app/ui";
 
 export default async function MarkInjuredPage({
   params,
@@ -45,19 +46,19 @@ export default async function MarkInjuredPage({
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/dashboard" className="text-sm text-slate-500 underline">
+        <Link href="/dashboard" className={textButton}>
           ← Volver
         </Link>
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-2 text-sm text-muted">
           {player.full_name}
           {player.position && ` · ${player.position}`}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold text-slate-900">Marcar lesionado</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="mt-1 text-2xl font-semibold text-ink">Marcar lesionado</h1>
+        <p className="mt-1 text-sm text-muted">
           El jugador quedará “En revisión” hasta que el kinesiólogo revise la lesión.
         </p>
       </header>
-      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <div className="rounded-xl bg-mist p-6 border border-line">
         <MarkForm playerId={player.id} />
       </div>
     </main>

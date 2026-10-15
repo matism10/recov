@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/roles";
 import { formatDate } from "@/lib/injuries";
 import { InjuryForm } from "@/app/registrar-lesion/injury-form";
+import { textButton } from "@/app/ui";
 
 export default async function CompleteInjuryPage({
   params,
@@ -50,18 +51,18 @@ export default async function CompleteInjuryPage({
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href={`/lesiones/${id}`} className="text-sm text-slate-500 underline">
+        <Link href={`/lesiones/${id}`} className={textButton}>
           ← Volver
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">
+        <h1 className="mt-2 text-2xl font-semibold text-ink">
           Sube tu diagnóstico
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted">
           El cuerpo médico registró “{injury.type}” el {formatDate(injury.started_on)}.
           Completa lo que te indicó el médico para que el kinesiólogo lo revise.
         </p>
       </header>
-      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <div className="rounded-xl bg-mist p-6 border border-line">
         <InjuryForm clubId={player.club_id} playerId={player.id} injuryId={injury.id} />
       </div>
     </main>

@@ -8,14 +8,14 @@ export function InjuryProgress({
   expectedReturnOn: string | null;
 }) {
   if (!expectedReturnOn) {
-    return <p className="text-sm text-slate-500">Sin fecha estimada de alta</p>;
+    return <p className="text-sm text-muted">Sin fecha estimada de alta</p>;
   }
 
   const { day, total, percent } = recoveryProgress(startedOn, expectedReturnOn);
 
   return (
     <div>
-      <div className="mb-1 flex justify-between text-xs text-slate-500">
+      <div className="mb-1 flex justify-between text-xs text-muted">
         <span>
           Día {day} de {total}
         </span>
@@ -27,10 +27,10 @@ export function InjuryProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label="Avance hacia el alta"
-        className="h-2 overflow-hidden rounded-full bg-slate-100"
+        className="h-2 overflow-hidden rounded-full bg-line"
       >
         <div
-          className="h-full rounded-full bg-emerald-500"
+          className="h-full rounded-full bg-brand-strong"
           style={{ width: `${percent}%` }}
         />
       </div>

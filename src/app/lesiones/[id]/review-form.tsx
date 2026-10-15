@@ -9,12 +9,15 @@ import {
 } from "@/lib/roles";
 import { SEVERITY_LABEL, type InjurySeverity, type InjuryStatus } from "@/lib/injuries";
 import { reviewInjury, type ReviewInjuryState } from "./actions";
+import {
+  ErrorMessage,
+  SuccessMessage,
+  buttonPrimary,
+  buttonSecondary,
+  inputClass,
+  labelClass,
+} from "@/app/ui";
 
-const inputClass =
-  "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200";
-const labelClass = "block text-sm font-medium text-slate-700";
-const secondaryButton =
-  "rounded-lg border border-slate-300 px-4 py-2.5 font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60";
 
 const CONFIRM_MESSAGE = {
   descartar:
@@ -116,13 +119,13 @@ export function ReviewForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          className={buttonPrimary}
         >
-          {pending ? "Guardando…" : "Confirmar lesión"}
+          {pending ? "Guardando…" : "Confirma la lesión"}
         </button>
       </form>
 
-      <form action={formAction} className="flex flex-wrap gap-3 border-t border-slate-200 pt-4">
+      <form action={formAction} className="flex flex-wrap gap-3 border-t border-line pt-4">
         <input type="hidden" name="injury_id" value={injuryId} />
         <button
           type="submit"
@@ -130,9 +133,9 @@ export function ReviewForm({
           value="descartar"
           disabled={pending}
           onClick={(e) => confirmDecision(e, "descartar")}
-          className={secondaryButton}
+          className={buttonSecondary}
         >
-          Descartar lesión
+          Descarta la lesión
         </button>
         {status === "activa" && (
           <button
@@ -141,22 +144,16 @@ export function ReviewForm({
             value="cerrar"
             disabled={pending}
             onClick={(e) => confirmDecision(e, "cerrar")}
-            className={secondaryButton}
+            className={buttonSecondary}
           >
-            Dar de alta
+            Da de alta
           </button>
         )}
       </form>
 
-      {state.error && (
-        <p role="alert" className="text-sm text-red-600">
-          {state.error}
-        </p>
-      )}
+      {state.error && <ErrorMessage>{state.error}</ErrorMessage>}
       {state.ok && !pending && (
-        <p role="status" className="text-sm text-emerald-700">
-          Cambios guardados.
-        </p>
+        <SuccessMessage>Cambios guardados.</SuccessMessage>
       )}
     </div>
   );

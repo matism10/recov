@@ -5,6 +5,7 @@ import { ROLE_LABEL, isDirection, isStaff, type UserRole } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import { DelegateForm, RolesForm } from "./staff-forms";
+import { cardClass, chipClass, textButton } from "@/app/ui";
 
 type StaffProfile = { id: string; full_name: string | null; roles: UserRole[] };
 
@@ -48,19 +49,19 @@ export default async function StaffPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <header className="mb-8">
-        <Link href="/dashboard" className="text-sm text-slate-500 underline">
+        <Link href="/dashboard" className={textButton}>
           ← Volver al plantel
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Staff del club</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="mt-2 text-2xl font-semibold text-ink">Staff del club</h1>
+        <p className="mt-1 text-sm text-muted">
           Cambia los roles del staff y decide quién tiene las funciones de kinesiólogo.
         </p>
       </header>
 
       <div className="space-y-8">
-        <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
-          <h2 className="font-medium text-slate-900">Funciones de kinesiólogo</h2>
-          <p className="mt-1 mb-4 text-sm text-slate-500">
+        <section className={`p-5 ${cardClass}`}>
+          <h2 className="font-medium text-ink">Funciones de kinesiólogo</h2>
+          <p className="mt-1 mb-4 text-sm text-muted">
             Si el club no tiene kinesiólogo, delega sus funciones en alguien del staff:
             podrá revisar lesiones, ver documentos médicos y cambiar la disponibilidad.
           </p>
@@ -71,10 +72,10 @@ export default async function StaffPage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-medium text-slate-500">
+          <h2 className="mb-3 text-sm font-medium text-muted">
             Staff ({staff.length})
           </h2>
-          <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+          <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
             {staff.map((p) => {
               const isMe = p.id === user.id;
               return (
@@ -82,22 +83,22 @@ export default async function StaffPage() {
                   <div className="flex items-center gap-3">
                     <Avatar name={p.full_name ?? ""} url={avatarUrls.get(p.id)} />
                     <div>
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-ink">
                         {p.full_name}
-                        {isMe && <span className="font-normal text-slate-400"> (tú)</span>}
+                        {isMe && <span className="font-normal text-muted"> (tú)</span>}
                         {p.id === delegateId && (
-                          <span className="ml-2 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                          <span className={`ml-2 ${chipClass}`}>
                             Funciones de kinesiólogo
                           </span>
                         )}
                       </p>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-muted">
                         {p.roles.map((r) => ROLE_LABEL[r]).join(", ")}
                       </p>
                     </div>
                   </div>
                   {isMe ? (
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted">
                       No puedes cambiar tus propios roles.
                     </p>
                   ) : (

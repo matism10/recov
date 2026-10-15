@@ -15,8 +15,8 @@ export default async function ClubSignupPage({
 
   if (!club) {
     return (
-      <main className="flex flex-1 items-center justify-center bg-slate-50 px-4">
-        <p className="rounded-2xl bg-white p-8 text-center text-slate-700 shadow-sm ring-1 ring-slate-200">
+      <main className="flex flex-1 items-center justify-center bg-white px-4">
+        <p className="rounded-xl bg-mist p-8 text-center text-ink border border-line">
           Este link no es válido
         </p>
       </main>
@@ -30,12 +30,12 @@ export default async function ClubSignupPage({
     .order("sort");
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-slate-50 px-4 py-10">
-      <div className="w-full max-w-sm space-y-5 rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+    <main className="flex flex-1 items-center justify-center bg-white px-4 py-10">
+      <div className="w-full max-w-sm space-y-5 rounded-xl bg-mist p-8 border border-line">
         <div>
-          <p className="text-sm text-slate-500">Recov</p>
-          <h1 className="text-2xl font-semibold text-slate-900">{club.name}</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="font-display text-sm font-extrabold text-ink">Recov</p>
+          <h1 className="text-2xl font-semibold text-ink">{club.name}</h1>
+          <p className="mt-1 text-sm text-muted">
             Crea tu cuenta para unirte al club.
           </p>
         </div>

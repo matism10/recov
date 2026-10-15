@@ -18,12 +18,9 @@ import {
 } from "@/lib/injuries";
 import { completeInjuryReport } from "@/app/lesiones/[id]/completar/actions";
 import { reportInjury, type ReportInjuryState } from "./actions";
+import { ErrorMessage, buttonPrimary, fieldClass, inputClass, labelClass, optionalClass } from "@/app/ui";
 
-const fieldClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200";
-const inputClass = `mt-1 ${fieldClass}`;
-const labelClass = "block text-sm font-medium text-slate-700";
-const optional = <span className="font-normal text-slate-400">(opcional)</span>;
+const optional = <span className={optionalClass}>(opcional)</span>;
 
 const fileKey = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
 
@@ -165,7 +162,7 @@ export function InjuryForm({
 
       <label className={labelClass}>
         Documentos médicos
-        <span className="block font-normal text-slate-400">
+        <span className="block font-normal text-muted">
           De {MIN_FILES} a {MAX_FILES} archivos PDF, JPG o PNG, máximo 10 MB cada uno.
         </span>
         <input
@@ -174,22 +171,18 @@ export function InjuryForm({
           required
           multiple
           accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-          className="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+          className="mt-2 block w-full text-sm text-muted file:mr-3 file:min-h-11 file:rounded-xl file:border file:border-line file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink hover:file:bg-mist"
         />
       </label>
 
-      {state.error && (
-        <p role="alert" className="text-sm text-red-600">
-          {state.error}
-        </p>
-      )}
+      {state.error && <ErrorMessage>{state.error}</ErrorMessage>}
 
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
+        className={`w-full ${buttonPrimary}`}
       >
-        {pending ? "Enviando…" : injuryId ? "Enviar diagnóstico" : "Registrar lesión"}
+        {pending ? "Enviando…" : injuryId ? "Envía tu diagnóstico" : "Registra tu lesión"}
       </button>
     </form>
   );

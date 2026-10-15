@@ -3,8 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canManageInjuries, isStaff, type Availability, type UserRole } from "@/lib/roles";
 import {
-  INJURY_STATUS_LABEL,
-  INJURY_STATUS_STYLE,
   OCCURRED_DURING_LABEL,
   SEVERITY_LABEL,
   durationLabel,
@@ -16,6 +14,7 @@ import {
   type PhaseStatus,
 } from "@/lib/injuries";
 import { InjuryProgress } from "../injury-progress";
+import { InjuryStatusBadge, buttonPrimary, cardClass, textButton } from "@/app/ui";
 import { PhasesPanel } from "./phases-panel";
 import { ReviewForm } from "./review-form";
 
@@ -119,59 +118,54 @@ export default async function InjuryPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/dashboard" className="text-sm text-slate-500 underline">
+        <Link href="/dashboard" className={textButton}>
           ← Volver
         </Link>
         {staff && player && (
-          <p className="mt-2 text-sm text-slate-500">{player.full_name}</p>
+          <p className="mt-2 text-sm text-muted">{player.full_name}</p>
         )}
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold text-slate-900">{injury.type}</h1>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${INJURY_STATUS_STYLE[status]}`}
-          >
-            {INJURY_STATUS_LABEL[status]}
-          </span>
+          <h1 className="text-2xl font-semibold text-ink">{injury.type}</h1>
+          <InjuryStatusBadge status={status} />
         </div>
       </header>
 
       <div className="space-y-6">
         {inEvaluation && isOwnInjury && (
-          <Link
-            href={`/lesiones/${injury.id}/completar`}
-            className="block rounded-2xl bg-sky-50 p-5 ring-1 ring-sky-200 transition hover:bg-sky-100"
-          >
-            <p className="font-medium text-sky-900">Sube tu diagnóstico</p>
-            <p className="mt-1 text-sm text-sky-800">
+          <div className="space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
+            <p className="text-sm text-ink">
               Agrega lo que te indicó el médico y tus documentos para que el
               kinesiólogo revise la lesión.
             </p>
-          </Link>
+            <Link href={`/lesiones/${injury.id}/completar`} className={buttonPrimary}>
+              Sube tu diagnóstico
+            </Link>
+          </div>
         )}
 
-        <section className="space-y-4 rounded-2xl bg-white p-5 ring-1 ring-slate-200">
+        <section className={`space-y-4 p-5 ${cardClass}`}>
           <dl className="space-y-2 text-sm">
             <div>
-              <dt className="inline text-slate-500">Ocurrió: </dt>
-              <dd className="inline text-slate-900">{formatDate(injury.started_on)}</dd>
+              <dt className="inline text-muted">Ocurrió: </dt>
+              <dd className="inline text-ink">{formatDate(injury.started_on)}</dd>
             </div>
             {occurredDuring && (
               <div>
-                <dt className="inline text-slate-500">Ocurrió en: </dt>
-                <dd className="inline text-slate-900">
+                <dt className="inline text-muted">Ocurrió en: </dt>
+                <dd className="inline text-ink">
                   {OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}
                 </dd>
               </div>
             )}
             {!inEvaluation && (
               <div>
-                <dt className="inline text-slate-500">Alta estimada: </dt>
-                <dd className="inline text-slate-900">
+                <dt className="inline text-muted">Alta estimada: </dt>
+                <dd className="inline text-ink">
                   {injury.expected_return_on
                     ? formatDate(injury.expected_return_on)
                     : "Sin definir"}
                   {doctorEstimate && (
-                    <span className="text-slate-500">
+                    <span className="text-muted">
                       {" "}
                       ({doctorEstimate} según el médico)
                     </span>
@@ -180,14 +174,14 @@ export default async function InjuryPage({
               </div>
             )}
             <div>
-              <dt className="inline text-slate-500">Gravedad: </dt>
-              <dd className="inline text-slate-900">
+              <dt className="inline text-muted">Gravedad: </dt>
+              <dd className="inline text-ink">
                 {severity ? SEVERITY_LABEL[severity] : "Por definir"}
               </dd>
             </div>
             <div>
-              <dt className="inline text-slate-500">Revisión: </dt>
-              <dd className="inline text-slate-900">
+              <dt className="inline text-muted">Revisión: </dt>
+              <dd className="inline text-ink">
                 {inEvaluation
                   ? "Esperando el diagnóstico del jugador"
                   : injury.reviewed_at
@@ -199,7 +193,7 @@ export default async function InjuryPage({
             </div>
           </dl>
           {injury.description && (
-            <p className="text-sm whitespace-pre-line text-slate-700">
+            <p className="text-sm whitespace-pre-line text-ink">
               {injury.description}
             </p>
           )}
@@ -212,8 +206,8 @@ export default async function InjuryPage({
         </section>
 
         {canManage && (inEvaluation || status === "activa") && (
-          <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
-            <h2 className="mb-4 font-medium text-slate-900">Revisión</h2>
+          <section className={`p-5 ${cardClass}`}>
+            <h2 className="mb-4 font-medium text-ink">Revisión</h2>
             <ReviewForm
               injuryId={injury.id}
               status={status}
@@ -227,7 +221,7 @@ export default async function InjuryPage({
 
         {(staff || isOwnInjury) && (
           <section>
-            <h2 className="mb-3 text-sm font-medium text-slate-500">Fases de recuperación</h2>
+            <h2 className="mb-3 text-sm font-medium text-muted">Fases de recuperación</h2>
             <PhasesPanel
               injuryId={injury.id}
               phases={(phases ?? []).map((ph) => ({
@@ -245,13 +239,13 @@ export default async function InjuryPage({
         )}
 
         <section>
-          <h2 className="mb-3 text-sm font-medium text-slate-500">Documentos</h2>
+          <h2 className="mb-3 text-sm font-medium text-muted">Documentos</h2>
           {!canSeeDocuments ? (
-            <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
               Los documentos médicos solo los ven el kinesiólogo y el head coach.
             </p>
           ) : documents && documents.length > 0 ? (
-            <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+            <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
               {documents.map((d) => {
                 const url = signedUrls.get(d.storage_path as string);
                 return (
@@ -260,8 +254,8 @@ export default async function InjuryPage({
                     className="flex items-center justify-between gap-4 px-5 py-3"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-slate-900">{d.file_name}</p>
-                      <p className="text-xs text-slate-400">
+                      <p className="truncate text-ink">{d.file_name}</p>
+                      <p className="text-xs text-muted">
                         Subido el {formatDate(d.created_at)}
                       </p>
                     </div>
@@ -270,19 +264,19 @@ export default async function InjuryPage({
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm font-medium text-emerald-700 underline"
+                        className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
                       >
                         Ver
                       </a>
                     ) : (
-                      <span className="text-sm text-slate-400">No disponible</span>
+                      <span className="text-sm text-muted">No disponible</span>
                     )}
                   </li>
                 );
               })}
             </ul>
           ) : (
-            <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
               No hay documentos adjuntos.
             </p>
           )}

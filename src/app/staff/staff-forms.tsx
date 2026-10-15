@@ -3,26 +3,23 @@
 import { useActionState, useState } from "react";
 import { ROLE_LABEL, STAFF_ROLES, type UserRole } from "@/lib/roles";
 import { setKineDelegate, setStaffRoles, type StaffState } from "./actions";
+import {
+  ErrorMessage,
+  SuccessMessage,
+  buttonDanger,
+  buttonPrimary,
+  fieldClass,
+  textButton,
+} from "@/app/ui";
 
-const inputClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200";
-const primaryButton =
-  "rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60";
+const primaryButton = `text-sm ${buttonPrimary}`;
 
 function Feedback({ state, pending }: { state: StaffState; pending: boolean }) {
   if (state.error) {
-    return (
-      <p role="alert" className="text-sm text-red-600">
-        {state.error}
-      </p>
-    );
+    return <ErrorMessage>{state.error}</ErrorMessage>;
   }
   if (state.ok && !pending) {
-    return (
-      <p role="status" className="text-sm text-emerald-700">
-        Cambios guardados.
-      </p>
-    );
+    return <SuccessMessage>Cambios guardados.</SuccessMessage>;
   }
   return null;
 }
@@ -47,7 +44,7 @@ export function DelegateForm({
           defaultValue={currentDelegateId ?? ""}
           key={currentDelegateId ?? ""}
           aria-label="Persona con funciones de kinesiólogo"
-          className={`${inputClass} sm:w-72`}
+          className={`${fieldClass} sm:w-72`}
         >
           <option value="">Sin delegación</option>
           {staff.map((s) => (
@@ -57,7 +54,7 @@ export function DelegateForm({
           ))}
         </select>
         <button type="submit" disabled={pending} className={primaryButton}>
-          {pending ? "Guardando…" : "Guardar"}
+          {pending ? "Guardando…" : "Guarda la delegación"}
         </button>
       </div>
       <Feedback state={state} pending={pending} />
@@ -88,14 +85,14 @@ export function RolesForm({
         <legend className="sr-only">Roles de {name}</legend>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           {STAFF_ROLES.map((r) => (
-            <label key={r} className="flex items-center gap-2 text-sm text-slate-700">
+            <label key={r} className="flex min-h-11 items-center gap-2 text-sm text-ink">
               <input
                 type="checkbox"
                 name="roles"
                 value={r}
                 defaultChecked={roles.includes(r)}
                 disabled={pending}
-                className="size-4 accent-emerald-600"
+                className="size-4 accent-brand-strong"
               />
               {ROLE_LABEL[r]}
             </label>
@@ -105,7 +102,7 @@ export function RolesForm({
 
       {confirmingRemove ? (
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm text-slate-600">
+          <span className="text-sm text-muted">
             ¿Quitar a {name} del staff? Perderá el acceso a los datos del club.
           </span>
           <button
@@ -113,15 +110,15 @@ export function RolesForm({
             name="decision"
             value="quitar"
             disabled={pending}
-            className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60"
+            className={`text-sm ${buttonDanger}`}
           >
-            {pending ? "Guardando…" : "Sí, quitar"}
+            {pending ? "Guardando…" : "Sí, quita del staff"}
           </button>
           <button
             type="button"
             onClick={() => setConfirmingRemove(false)}
             disabled={pending}
-            className="text-sm text-slate-500 underline"
+            className={textButton}
           >
             Cancelar
           </button>
@@ -135,15 +132,15 @@ export function RolesForm({
             disabled={pending}
             className={primaryButton}
           >
-            {pending ? "Guardando…" : "Guardar roles"}
+            {pending ? "Guardando…" : "Guarda los roles"}
           </button>
           <button
             type="button"
             onClick={() => setConfirmingRemove(true)}
             disabled={pending}
-            className="text-sm text-slate-500 underline"
+            className={textButton}
           >
-            Quitar del staff
+            Quita del staff
           </button>
         </div>
       )}
