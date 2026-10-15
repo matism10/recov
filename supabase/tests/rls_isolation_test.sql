@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0016.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0017.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -546,6 +546,38 @@ select pg_temp.expect_ok($q$update public.players set position = 'Flanker' where
   'kine A cambia a una posición válida de rugby');
 select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000002' and position = 'Flanker'$q$, 1,
   'la posición válida quedó guardada');
+select pg_temp.back();
+
+-- =======================================================================
+-- 14. El usuario edita su propio perfil (0017)
+-- =======================================================================
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');   -- jugador A1 (rugby)
+select pg_temp.expect_ok($q$select public.update_my_profile('Juana', 'Pérez Soto', 'Flanker', 'Octavo', 178, 80.5)$q$, 'jugador A1 edita su perfil');
+select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000-1111-0000-0000-000000000001'
+  and first_name = 'Juana' and last_name = 'Pérez Soto' and full_name = 'Juana Pérez Soto'
+  and position = 'Flanker' and secondary_position = 'Octavo' and height_cm = 178 and weight_kg = 80.5$q$, 1, 'los datos del jugador quedaron guardados');
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '60000000-0000-0000-0000-00000000000a' and full_name = 'Juana Pérez Soto'$q$, 1, 'el nombre del perfil quedó guardado');
+select pg_temp.expect_fail($q$select public.update_my_profile('Juana', 'Pérez', 'Portero')$q$, 'posición de otro deporte');
+select pg_temp.expect_fail($q$select public.update_my_profile('Juana', 'Pérez', null)$q$, 'jugador sin posición principal');
+select pg_temp.expect_fail($q$select public.update_my_profile('Juana', 'Pérez', 'Pilar', 'Pilar')$q$, 'secundaria igual a la principal');
+select pg_temp.expect_fail($q$select public.update_my_profile('', 'Pérez', 'Pilar')$q$, 'nombre vacío');
+select pg_temp.expect_fail($q$select public.update_my_profile('Juana', 'Pérez', 'Pilar', null, 20)$q$, 'altura fuera de rango');
+select pg_temp.expect_fail($q$select public.update_my_profile('Juana', 'Pérez', 'Pilar', null, null, 500)$q$, 'peso fuera de rango');
+select pg_temp.expect_no_rows($q$update public.profiles set full_name = 'x' where id = '60000000-0000-0000-0000-00000000000a'$q$, 'el jugador sigue sin editar profiles directo');
+select pg_temp.back();
+
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A (staff)
+select pg_temp.expect_ok($q$select public.update_my_profile('Kine', 'Nuevo')$q$, 'el staff edita su nombre');
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '30000000-0000-0000-0000-00000000000a' and full_name = 'Kine Nuevo'$q$, 1, 'el nombre del staff quedó guardado');
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '60000000-0000-0000-0000-00000000000a' and full_name = 'Juana Pérez Soto'$q$, 1, 'editar el propio perfil no toca el de otros');
+select pg_temp.back();
+
+select pg_temp.as_user('c0000000-0000-0000-0000-00000000000a');   -- jugador pendiente
+select pg_temp.expect_fail($q$select public.update_my_profile('Juan', 'Pérez', 'Pilar')$q$, 'un pendiente no edita su perfil');
+select pg_temp.back();
+
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select public.update_my_profile('A', 'B')$q$, 'anónimo edita un perfil');
 select pg_temp.back();
 
 rollback;
