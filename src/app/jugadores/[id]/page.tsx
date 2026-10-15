@@ -100,7 +100,7 @@ export default async function PlayerPage({
     .at(-1);
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-6">
         <Link href="/dashboard" className={textButton}>
           ← Volver
@@ -120,7 +120,8 @@ export default async function PlayerPage({
         </div>
       </header>
 
-      <div className="space-y-6">
+      {/* En escritorio: lesión actual a la izquierda y línea de tiempo a la derecha. */}
+      <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
         <section>
           <h2 className="mb-3 text-sm font-medium text-muted">Lesión actual</h2>
           {open.length > 0 ? (

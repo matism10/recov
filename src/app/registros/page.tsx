@@ -80,11 +80,13 @@ export default async function RegistrosPage() {
   const sections = [
     {
       title: "Jugadores",
+      detailsLabel: "Posición y medidas",
       items: pendingPlayers,
       details: (p: PendingProfile) => playerDetails(playerByUser.get(p.id)!),
     },
     {
       title: "Staff",
+      detailsLabel: "Puesto solicitado",
       items: pendingStaff,
       details: (p: PendingProfile) =>
         p.requested_role
@@ -94,7 +96,7 @@ export default async function RegistrosPage() {
   ];
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
         <Link href="/dashboard" className={textButton}>
           ← Volver al plantel
@@ -120,7 +122,7 @@ export default async function RegistrosPage() {
                 <h2 className="mb-3 text-sm font-medium text-muted">
                   {s.title} ({s.items.length})
                 </h2>
-                <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
+                <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line lg:hidden">
                   {s.items.map((p) => (
                     <li
                       key={p.id}
@@ -139,6 +141,43 @@ export default async function RegistrosPage() {
                     </li>
                   ))}
                 </ul>
+                {/* En escritorio, la misma lista como tabla. */}
+                <div className="hidden overflow-x-auto rounded-xl border border-line bg-mist lg:block">
+                  <table className="w-full text-left">
+                    <thead className="text-sm text-muted">
+                      <tr className="border-b border-line">
+                        <th scope="col" className="py-3 pr-3 pl-5 font-medium">
+                          Nombre
+                        </th>
+                        <th scope="col" className="px-3 py-3 font-medium">
+                          {s.detailsLabel}
+                        </th>
+                        <th scope="col" className="px-3 py-3 font-medium">
+                          Registrado
+                        </th>
+                        <th scope="col" className="py-3 pr-5 pl-3 text-right font-medium">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line">
+                      {s.items.map((p) => (
+                        <tr key={p.id}>
+                          <td className="py-4 pr-3 pl-5 font-medium text-ink">
+                            {p.full_name}
+                          </td>
+                          <td className="px-3 py-4 text-sm text-muted">{s.details(p)}</td>
+                          <td className="px-3 py-4 text-sm whitespace-nowrap text-muted">
+                            {dateFormat.format(new Date(p.created_at))}
+                          </td>
+                          <td className="py-4 pr-5 pl-3">
+                            <ReviewButtons profileId={p.id} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </section>
             ))}
         </div>

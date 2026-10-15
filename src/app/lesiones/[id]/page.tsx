@@ -116,7 +116,7 @@ export default async function InjuryPage({
       : null;
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-6">
         <Link href="/dashboard" className={textButton}>
           ← Volver
@@ -130,113 +130,116 @@ export default async function InjuryPage({
         </div>
       </header>
 
-      <div className="space-y-6">
-        {inEvaluation && isOwnInjury && (
-          <div className="space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
-            <p className="text-sm text-ink">
-              Agrega lo que te indicó el médico y tus documentos para que el
-              kinesiólogo revise la lesión.
-            </p>
-            <Link href={`/lesiones/${injury.id}/completar`} className={buttonPrimary}>
-              Sube tu diagnóstico
-            </Link>
-          </div>
-        )}
-
-        <section className={`space-y-4 p-5 ${cardClass}`}>
-          <dl className="space-y-2 text-sm">
-            <div>
-              <dt className="inline text-muted">Ocurrió: </dt>
-              <dd className="inline text-ink">{formatDate(injury.started_on)}</dd>
+      {/* En escritorio: detalle, revisión y fases (2/3); documentos al costado (1/3). */}
+      <div className="space-y-6 lg:grid lg:grid-cols-3 lg:items-start lg:gap-8 lg:space-y-0">
+        <div className="space-y-6 lg:col-span-2">
+          {inEvaluation && isOwnInjury && (
+            <div className="space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
+              <p className="text-sm text-ink">
+                Agrega lo que te indicó el médico y tus documentos para que el
+                kinesiólogo revise la lesión.
+              </p>
+              <Link href={`/lesiones/${injury.id}/completar`} className={buttonPrimary}>
+                Sube tu diagnóstico
+              </Link>
             </div>
-            {occurredDuring && (
+          )}
+
+          <section className={`space-y-4 p-5 ${cardClass}`}>
+            <dl className="space-y-2 text-sm">
               <div>
-                <dt className="inline text-muted">Ocurrió en: </dt>
+                <dt className="inline text-muted">Ocurrió: </dt>
+                <dd className="inline text-ink">{formatDate(injury.started_on)}</dd>
+              </div>
+              {occurredDuring && (
+                <div>
+                  <dt className="inline text-muted">Ocurrió en: </dt>
+                  <dd className="inline text-ink">
+                    {OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}
+                  </dd>
+                </div>
+              )}
+              {!inEvaluation && (
+                <div>
+                  <dt className="inline text-muted">Alta estimada: </dt>
+                  <dd className="inline text-ink">
+                    {injury.expected_return_on
+                      ? formatDate(injury.expected_return_on)
+                      : "Sin definir"}
+                    {doctorEstimate && (
+                      <span className="text-muted">
+                        {" "}
+                        ({doctorEstimate} según el médico)
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt className="inline text-muted">Gravedad: </dt>
                 <dd className="inline text-ink">
-                  {OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}
+                  {severity ? SEVERITY_LABEL[severity] : "Por definir"}
                 </dd>
               </div>
+              <div>
+                <dt className="inline text-muted">Revisión: </dt>
+                <dd className="inline text-ink">
+                  {inEvaluation
+                    ? "Esperando el diagnóstico del jugador"
+                    : injury.reviewed_at
+                      ? `Revisada el ${formatDate(injury.reviewed_at)}${
+                          reviewer?.full_name ? ` por ${reviewer.full_name}` : ""
+                        }`
+                      : "Pendiente de revisión del kinesiólogo"}
+                </dd>
+              </div>
+            </dl>
+            {injury.description && (
+              <p className="text-sm whitespace-pre-line text-ink">
+                {injury.description}
+              </p>
             )}
             {!inEvaluation && (
-              <div>
-                <dt className="inline text-muted">Alta estimada: </dt>
-                <dd className="inline text-ink">
-                  {injury.expected_return_on
-                    ? formatDate(injury.expected_return_on)
-                    : "Sin definir"}
-                  {doctorEstimate && (
-                    <span className="text-muted">
-                      {" "}
-                      ({doctorEstimate} según el médico)
-                    </span>
-                  )}
-                </dd>
-              </div>
+              <InjuryProgress
+                startedOn={injury.started_on}
+                expectedReturnOn={injury.expected_return_on}
+              />
             )}
-            <div>
-              <dt className="inline text-muted">Gravedad: </dt>
-              <dd className="inline text-ink">
-                {severity ? SEVERITY_LABEL[severity] : "Por definir"}
-              </dd>
-            </div>
-            <div>
-              <dt className="inline text-muted">Revisión: </dt>
-              <dd className="inline text-ink">
-                {inEvaluation
-                  ? "Esperando el diagnóstico del jugador"
-                  : injury.reviewed_at
-                    ? `Revisada el ${formatDate(injury.reviewed_at)}${
-                        reviewer?.full_name ? ` por ${reviewer.full_name}` : ""
-                      }`
-                    : "Pendiente de revisión del kinesiólogo"}
-              </dd>
-            </div>
-          </dl>
-          {injury.description && (
-            <p className="text-sm whitespace-pre-line text-ink">
-              {injury.description}
-            </p>
-          )}
-          {!inEvaluation && (
-            <InjuryProgress
-              startedOn={injury.started_on}
-              expectedReturnOn={injury.expected_return_on}
-            />
-          )}
-        </section>
-
-        {canManage && (inEvaluation || status === "activa") && (
-          <section className={`p-5 ${cardClass}`}>
-            <h2 className="mb-4 font-medium text-ink">Revisión</h2>
-            <ReviewForm
-              injuryId={injury.id}
-              status={status}
-              startedOn={injury.started_on}
-              expectedReturnOn={injury.expected_return_on}
-              severity={severity}
-              availability={(player?.availability ?? "disponible") as Availability}
-            />
           </section>
-        )}
 
-        {(staff || isOwnInjury) && (
-          <section>
-            <h2 className="mb-3 text-sm font-medium text-muted">Fases de recuperación</h2>
-            <PhasesPanel
-              injuryId={injury.id}
-              phases={(phases ?? []).map((ph) => ({
-                id: ph.id,
-                name: ph.name,
-                status: ph.status as PhaseStatus,
-                started_on: ph.started_on ?? "",
-                ended_on: ph.ended_on ?? "",
-              }))}
-              canEdit={canManage && status === "activa"}
-              startedOn={injury.started_on}
-              expectedReturnOn={injury.expected_return_on}
-            />
-          </section>
-        )}
+          {canManage && (inEvaluation || status === "activa") && (
+            <section className={`p-5 ${cardClass}`}>
+              <h2 className="mb-4 font-medium text-ink">Revisión</h2>
+              <ReviewForm
+                injuryId={injury.id}
+                status={status}
+                startedOn={injury.started_on}
+                expectedReturnOn={injury.expected_return_on}
+                severity={severity}
+                availability={(player?.availability ?? "disponible") as Availability}
+              />
+            </section>
+          )}
+
+          {(staff || isOwnInjury) && (
+            <section>
+              <h2 className="mb-3 text-sm font-medium text-muted">Fases de recuperación</h2>
+              <PhasesPanel
+                injuryId={injury.id}
+                phases={(phases ?? []).map((ph) => ({
+                  id: ph.id,
+                  name: ph.name,
+                  status: ph.status as PhaseStatus,
+                  started_on: ph.started_on ?? "",
+                  ended_on: ph.ended_on ?? "",
+                }))}
+                canEdit={canManage && status === "activa"}
+                startedOn={injury.started_on}
+                expectedReturnOn={injury.expected_return_on}
+              />
+            </section>
+          )}
+        </div>
 
         <section>
           <h2 className="mb-3 text-sm font-medium text-muted">Documentos</h2>
