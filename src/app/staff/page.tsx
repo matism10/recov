@@ -47,7 +47,7 @@ export default async function StaffPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
         <Link href="/dashboard" className={textButton}>
           ← Volver al plantel
@@ -79,7 +79,11 @@ export default async function StaffPage() {
             {staff.map((p) => {
               const isMe = p.id === user.id;
               return (
-                <li key={p.id} className="space-y-3 px-5 py-4">
+                // En escritorio: persona a la izquierda (1/3) y sus roles a la derecha (2/3).
+                <li
+                  key={p.id}
+                  className="space-y-3 px-5 py-4 lg:grid lg:grid-cols-3 lg:items-center lg:gap-8 lg:space-y-0"
+                >
                   <div className="flex items-center gap-3">
                     <Avatar name={p.full_name ?? ""} url={avatarUrls.get(p.id)} />
                     <div>
@@ -97,17 +101,19 @@ export default async function StaffPage() {
                       </p>
                     </div>
                   </div>
-                  {isMe ? (
-                    <p className="text-xs text-muted">
-                      No puedes cambiar tus propios roles.
-                    </p>
-                  ) : (
-                    <RolesForm
-                      profileId={p.id}
-                      name={p.full_name ?? "esta persona"}
-                      roles={p.roles}
-                    />
-                  )}
+                  <div className="lg:col-span-2">
+                    {isMe ? (
+                      <p className="text-xs text-muted">
+                        No puedes cambiar tus propios roles.
+                      </p>
+                    ) : (
+                      <RolesForm
+                        profileId={p.id}
+                        name={p.full_name ?? "esta persona"}
+                        roles={p.roles}
+                      />
+                    )}
+                  </div>
                 </li>
               );
             })}

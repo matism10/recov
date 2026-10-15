@@ -27,7 +27,8 @@ import {
   chipClass,
   textButton,
 } from "@/app/ui";
-import { AvailabilitySelect } from "./availability-select";
+import { SquadList } from "./squad-list";
+import { SquadTable } from "./squad-table";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -109,6 +110,8 @@ export default async function DashboardPage() {
 
   const staff = isStaff(roles);
   const isPlayer = roles.includes("jugador");
+  // Por revisar, Lesiones activas y Mis lesiones: columna lateral en escritorio.
+  const hasSideColumn = canManage || staff || isPlayer;
 
   // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con la fecha
   // de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
@@ -179,7 +182,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-muted">{club?.name}</p>
@@ -239,200 +242,184 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {canManage && (
-        <section className="mb-8">
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-muted">
-              Por revisar
-              {toReview.length > 0 && (
-                <span className={`ml-1.5 ${chipClass}`}>
-                  {toReview.length}
-                </span>
-              )}
-            </h2>
-          </div>
-          {toReview.length > 0 ? (
-            <div className="space-y-3">
-              {[
-                { title: "Diagnóstico por revisar", items: diagnosisToReview },
-                { title: "Esperando el diagnóstico del jugador", items: awaitingDiagnosis },
-              ]
-                .filter((group) => group.items.length > 0)
-                .map((group) => (
-                  <div key={group.title}>
-                    <h3 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
-                      {group.title} ({group.items.length})
-                    </h3>
-                    <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
-                      {group.items.map((i) => {
-                        const player = Array.isArray(i.players) ? i.players[0] : i.players;
-                        return (
-                          <li key={i.id}>
-                            <Link
-                              href={`/lesiones/${i.id}`}
-                              className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-white"
-                            >
+      {/* En escritorio: bandejas a la izquierda (1/3) y plantel a la derecha (2/3). */}
+      <div className="lg:grid lg:grid-cols-3 lg:items-start lg:gap-8">
+        {hasSideColumn && (
+          <div>
+            {canManage && (
+              <section className="mb-8">
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <h2 className="text-sm font-medium text-muted">
+                    Por revisar
+                    {toReview.length > 0 && (
+                      <span className={`ml-1.5 ${chipClass}`}>
+                        {toReview.length}
+                      </span>
+                    )}
+                  </h2>
+                </div>
+                {toReview.length > 0 ? (
+                  <div className="space-y-3">
+                    {[
+                      { title: "Diagnóstico por revisar", items: diagnosisToReview },
+                      { title: "Esperando el diagnóstico del jugador", items: awaitingDiagnosis },
+                    ]
+                      .filter((group) => group.items.length > 0)
+                      .map((group) => (
+                        <div key={group.title}>
+                          <h3 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
+                            {group.title} ({group.items.length})
+                          </h3>
+                          <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
+                            {group.items.map((i) => {
+                              const player = Array.isArray(i.players) ? i.players[0] : i.players;
+                              return (
+                                <li key={i.id}>
+                                  <Link
+                                    href={`/lesiones/${i.id}`}
+                                    className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-white"
+                                  >
+                                    <div>
+                                      <p className="font-medium text-ink">
+                                        {player ? `${player.full_name} · ${i.type}` : i.type}
+                                      </p>
+                                      <p className="text-sm text-muted">
+                                        Desde el {formatDate(i.started_on)}
+                                      </p>
+                                    </div>
+                                    <span className="text-sm font-medium text-brand-text underline">
+                                      Revisa
+                                    </span>
+                                  </Link>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className={`p-5 text-sm text-muted ${cardClass}`}>
+                    No hay lesiones por revisar.
+                  </p>
+                )}
+              </section>
+            )}
+
+            {staff && (
+              <section className="mb-8">
+                <h2 className="mb-3 text-sm font-medium text-muted">Lesiones activas</h2>
+                {injuredPlayers.length > 0 ? (
+                  <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
+                    {injuredPlayers.map((p) => {
+                      const status = p.availability as Availability;
+                      return (
+                        <li key={p.id}>
+                          <Link
+                            href={`/jugadores/${p.id}`}
+                            className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-white"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
                               <div>
-                                <p className="font-medium text-ink">
-                                  {player ? `${player.full_name} · ${i.type}` : i.type}
+                                <p className="font-medium text-ink">{p.full_name}</p>
+                                <p className="text-sm text-muted">
+                                  {returnLabel(returnByPlayer.get(p.id) ?? null)}
                                 </p>
+                              </div>
+                            </div>
+                            <AvailabilityBadge status={status} />
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className={`p-5 text-sm text-muted ${cardClass}`}>
+                    No hay jugadores lesionados ni en reintegro.
+                  </p>
+                )}
+              </section>
+            )}
+
+            {isPlayer && (
+              <section className="mb-8">
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <h2 className="text-sm font-medium text-muted">Mis lesiones</h2>
+                  <Link
+                    href="/registrar-lesion"
+                    className={`text-sm ${buttonPrimary}`}
+                  >
+                    Registra una lesión
+                  </Link>
+                </div>
+                {injuries && injuries.length > 0 ? (
+                  <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
+                    {injuries.map((i) => {
+                      return (
+                        <li key={i.id}>
+                          <Link
+                            href={`/lesiones/${i.id}`}
+                            className="block space-y-2 px-5 py-4 transition hover:bg-white"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="font-medium text-ink">{i.type}</p>
                                 <p className="text-sm text-muted">
                                   Desde el {formatDate(i.started_on)}
                                 </p>
                               </div>
-                              <span className="text-sm font-medium text-brand-text underline">
-                                Revisa
-                              </span>
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))}
-            </div>
-          ) : (
-            <p className={`p-5 text-sm text-muted ${cardClass}`}>
-              No hay lesiones por revisar.
-            </p>
-          )}
-        </section>
-      )}
-
-      {staff && (
-        <section className="mb-8">
-          <h2 className="mb-3 text-sm font-medium text-muted">Lesiones activas</h2>
-          {injuredPlayers.length > 0 ? (
-            <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
-              {injuredPlayers.map((p) => {
-                const status = p.availability as Availability;
-                return (
-                  <li key={p.id}>
-                    <Link
-                      href={`/jugadores/${p.id}`}
-                      className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-white"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
-                        <div>
-                          <p className="font-medium text-ink">{p.full_name}</p>
-                          <p className="text-sm text-muted">
-                            {returnLabel(returnByPlayer.get(p.id) ?? null)}
-                          </p>
-                        </div>
-                      </div>
-                      <AvailabilityBadge status={status} />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className={`p-5 text-sm text-muted ${cardClass}`}>
-              No hay jugadores lesionados ni en reintegro.
-            </p>
-          )}
-        </section>
-      )}
-
-      {isPlayer && (
-        <section className="mb-8">
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-muted">Mis lesiones</h2>
-            <Link
-              href="/registrar-lesion"
-              className={`text-sm ${buttonPrimary}`}
-            >
-              Registra una lesión
-            </Link>
-          </div>
-          {injuries && injuries.length > 0 ? (
-            <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
-              {injuries.map((i) => {
-                return (
-                  <li key={i.id}>
-                    <Link
-                      href={`/lesiones/${i.id}`}
-                      className="block space-y-2 px-5 py-4 transition hover:bg-white"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="font-medium text-ink">{i.type}</p>
-                          <p className="text-sm text-muted">
-                            Desde el {formatDate(i.started_on)}
-                          </p>
-                        </div>
-                        <InjuryStatusBadge status={i.status as InjuryStatus} outline />
-                      </div>
-                      {i.status !== "en_evaluacion" && (
-                        <InjuryProgress
-                          startedOn={i.started_on}
-                          expectedReturnOn={i.expected_return_on}
-                        />
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className={`p-5 text-sm text-muted ${cardClass}`}>
-              No has registrado lesiones.
-            </p>
-          )}
-        </section>
-      )}
-
-      <h2 className="mb-3 text-sm font-medium text-muted">Plantel</h2>
-      {players && players.length > 0 ? (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
-          {players.map((p) => {
-            const status = p.availability as Availability;
-            return (
-              <li
-                key={p.id}
-                className="flex items-center justify-between gap-4 px-5 py-4"
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
-                  <div>
-                    <p className="font-medium text-ink">{p.full_name}</p>
-                    {(p.position || phaseByPlayer.has(p.id)) && (
-                      <p className="text-sm text-muted">
-                        {[p.position, phaseByPlayer.has(p.id) && `Fase: ${phaseByPlayer.get(p.id)}`]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {/* "En revisión" no se cambia a mano: lo resuelve la revisión de la lesión. */}
-                {canManage && status !== "en_revision" ? (
-                  <div className="flex flex-wrap items-center justify-end gap-3">
-                    <AvailabilitySelect
-                      playerId={p.id}
-                      playerName={p.full_name}
-                      value={status}
-                    />
-                    <Link
-                      href={`/lesiones/marcar/${p.id}`}
-                      className={`text-sm ${buttonSecondary}`}
-                    >
-                      Marca lesionado
-                    </Link>
-                  </div>
+                              <InjuryStatusBadge status={i.status as InjuryStatus} outline />
+                            </div>
+                            {i.status !== "en_evaluacion" && (
+                              <InjuryProgress
+                                startedOn={i.started_on}
+                                expectedReturnOn={i.expected_return_on}
+                              />
+                            )}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 ) : (
-                  <AvailabilityBadge status={status} />
+                  <p className={`p-5 text-sm text-muted ${cardClass}`}>
+                    No has registrado lesiones.
+                  </p>
                 )}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className={`p-8 text-center text-muted ${cardClass}`}>
-          Aún no hay jugadores registrados en tu club.
-        </p>
-      )}
+              </section>
+            )}
+          </div>
+        )}
+
+        <section className={hasSideColumn ? "lg:col-span-2" : "lg:col-span-3"}>
+          <h2 className="mb-3 text-sm font-medium text-muted">Plantel</h2>
+          {players && players.length > 0 ? (
+            <>
+              <div className="lg:hidden">
+                <SquadList
+                  players={players}
+                  avatarUrls={avatarUrls}
+                  phaseByPlayer={phaseByPlayer}
+                  canManage={canManage}
+                />
+              </div>
+              <div className="hidden lg:block">
+                <SquadTable
+                  players={players}
+                  avatarUrls={avatarUrls}
+                  phaseByPlayer={phaseByPlayer}
+                  canManage={canManage}
+                />
+              </div>
+            </>
+          ) : (
+            <p className={`p-8 text-center text-muted ${cardClass}`}>
+              Aún no hay jugadores registrados en tu club.
+            </p>
+          )}
+        </section>
+      </div>
     </main>
   );
 }
