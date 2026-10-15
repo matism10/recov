@@ -79,10 +79,10 @@ export default async function StaffPage() {
             {staff.map((p) => {
               const isMe = p.id === user.id;
               return (
-                // En escritorio: persona a la izquierda (1/3) y sus roles a la derecha (2/3).
+                // En escritorio: persona a la izquierda (1/4) y sus roles a la derecha (3/4).
                 <li
                   key={p.id}
-                  className="space-y-3 px-5 py-4 lg:grid lg:grid-cols-3 lg:items-center lg:gap-8 lg:space-y-0"
+                  className="space-y-3 px-5 py-4 lg:grid lg:grid-cols-4 lg:items-center lg:gap-8 lg:space-y-0"
                 >
                   <div className="flex items-center gap-3">
                     <Avatar name={p.full_name ?? ""} url={avatarUrls.get(p.id)} />
@@ -101,7 +101,7 @@ export default async function StaffPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="lg:col-span-2">
+                  <div className="lg:col-span-3">
                     {isMe ? (
                       <p className="text-xs text-muted">
                         No puedes cambiar tus propios roles.
