@@ -1,5 +1,5 @@
--- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0015)
--- Correr DESPUÉS de las migraciones 0001 a 0016. Autónomo: crea sus propios datos y termina en ROLLBACK.
+-- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0018)
+-- Correr DESPUÉS de las migraciones 0001 a 0018. Autónomo: crea sus propios datos y termina en ROLLBACK.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
 begin;
@@ -395,5 +395,37 @@ select pg_temp.expect_fail($q$select public.advance_injury_phase((select a7 from
 select pg_temp.expect_ok($q$select public.review_injury((select a7 from ids7), 'cerrar')$q$, 'alta de A1');
 select pg_temp.expect_fail($q$select public.set_injury_phases((select a7 from ids7), '[{"name":"Reposo"}]'::jsonb)$q$, 'fases de una lesión cerrada');
 select pg_temp.back();
+
+-- =======================================================================
+-- 7. Lugar de la lesión: 'externo' y obligatorio para el jugador (0018)
+-- =======================================================================
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');   -- jugador A1
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name) values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/ext.pdf')$q$, 'A1 sube su archivo');
+select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 1, 2, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/ext.pdf","name":"ext.pdf"}]'::jsonb, null)$q$, 'report_injury sin lugar');
+select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 1, 2, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/ext.pdf","name":"ext.pdf"}]'::jsonb, 'partido')$q$, 'report_injury con lugar inválido');
+select pg_temp.expect_ok($q$select public.report_injury('Esguince fuera del club', current_date - 1, 2, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/ext.pdf","name":"ext.pdf"}]'::jsonb, 'externo')$q$, 'report_injury con lugar externo');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000001'
+  and reported_by_player and status = 'activa' and occurred_during = 'externo'$q$, 1, 'la lesión del jugador guarda el lugar externo');
+
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A
+select pg_temp.expect_ok($q$select public.mark_player_injured('a1000000-1111-0000-0000-000000000004', 'externo', 'Golpe fuera del club')$q$, 'mark_player_injured con lugar externo');
+select pg_temp.expect_fail($q$select public.mark_player_injured('a1000000-1111-0000-0000-000000000002', 'partido', 'Golpe en la rodilla')$q$, 'mark_player_injured con lugar inválido');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000004'
+  and status = 'en_evaluacion' and occurred_during = 'externo'$q$, 1, 'la lesión marcada guarda el lugar externo');
+
+-- La firma vieja de report_injury (6 argumentos) ya no existe
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'report_injury' and p.pronargs = 6$q$, 0, 'no existe report_injury de 6 argumentos');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'report_injury' and p.pronargs = 7$q$, 1, 'existe report_injury de 7 argumentos');
+
+-- El CHECK rechaza lugares fuera de la lista, también en inserts directos
+select pg_temp.expect_fail($q$insert into public.injuries (club_id, player_id, type, severity, occurred_during)
+  values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', 'x', 'leve', 'otro')$q$, 'insert directo con lugar fuera del CHECK');
 
 rollback;

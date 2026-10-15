@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { NOTE_MAX, NOTE_MIN, OCCURRED_DURING_LABEL } from "@/lib/injuries";
+import { NOTE_MAX, NOTE_MIN, OCCURRED_DURING, type OccurredDuring } from "@/lib/injuries";
 
 export type MarkInjuredState = { error?: string };
 
@@ -20,8 +20,8 @@ export async function markPlayerInjured(
 
   // Mismas reglas que mark_player_injured, para responder con mensajes claros.
   if (!UUID_RE.test(playerId)) return { error: "Jugador no válido." };
-  if (!(occurredDuring in OCCURRED_DURING_LABEL)) {
-    return { error: "Indica si fue en entrenamiento o competencia." };
+  if (!OCCURRED_DURING.includes(occurredDuring as OccurredDuring)) {
+    return { error: "Indica si fue en entrenamiento, en competencia o externo al club." };
   }
   if (note.length < NOTE_MIN || note.length > NOTE_MAX) {
     return { error: `Describe brevemente qué pasó (${NOTE_MIN} a ${NOTE_MAX} caracteres).` };

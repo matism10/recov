@@ -2,7 +2,7 @@
 // Los límites replican los de public.report_injury (0006) y del ciclo de vida (0010).
 
 export type InjuryStatus = "en_evaluacion" | "activa" | "cerrada" | "descartada";
-export type OccurredDuring = "entrenamiento" | "competencia";
+export type OccurredDuring = "entrenamiento" | "competencia" | "externo";
 export type InjurySeverity = "leve" | "moderada" | "grave";
 export type DurationUnit = "semanas" | "meses";
 export type PhaseStatus = "pendiente" | "en_curso" | "completada";
@@ -35,9 +35,14 @@ export const INJURY_STATUS_LABEL: Record<InjuryStatus, string> = {
 };
 
 
+// Lugar de la lesión, en el orden en que se ofrece. Igual que el CHECK de
+// injuries.occurred_during y la validación de mark_player_injured y report_injury (0018).
+export const OCCURRED_DURING = ["entrenamiento", "competencia", "externo"] as const satisfies readonly OccurredDuring[];
+
 export const OCCURRED_DURING_LABEL: Record<OccurredDuring, string> = {
   entrenamiento: "Entrenamiento",
   competencia: "Competencia",
+  externo: "Externo al club",
 };
 
 export const SEVERITY_LABEL: Record<InjurySeverity, string> = {

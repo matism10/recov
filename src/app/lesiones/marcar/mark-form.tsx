@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { NOTE_MAX, NOTE_MIN, OCCURRED_DURING_LABEL } from "@/lib/injuries";
+import { NOTE_MAX, NOTE_MIN, OCCURRED_DURING, OCCURRED_DURING_LABEL } from "@/lib/injuries";
 import { markPlayerInjured, type MarkInjuredState } from "./actions";
 import { ErrorMessage, buttonPrimary, inputClass, labelClass } from "@/app/ui";
 
@@ -18,8 +18,8 @@ export function MarkForm({ playerId }: { playerId: string }) {
 
       <fieldset>
         <legend className={labelClass}>¿Dónde ocurrió?</legend>
-        <div className="mt-2 flex gap-6">
-          {Object.entries(OCCURRED_DURING_LABEL).map(([value, label]) => (
+        <div className="mt-2 flex flex-wrap gap-x-6">
+          {OCCURRED_DURING.map((value) => (
             <label key={value} className="flex min-h-11 items-center gap-2 text-sm text-ink">
               <input
                 type="radio"
@@ -28,7 +28,7 @@ export function MarkForm({ playerId }: { playerId: string }) {
                 required
                 className="size-4 accent-brand-strong"
               />
-              {label}
+              {OCCURRED_DURING_LABEL[value]}
             </label>
           ))}
         </div>
