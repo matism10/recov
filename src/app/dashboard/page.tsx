@@ -190,15 +190,15 @@ export default async function DashboardPage() {
             {profile.full_name} · {roles.map((r) => ROLE_LABEL[r]).join(", ")}
           </p>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-x-4">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {isDirection(roles) && (
             <Link
               href="/registros"
-              className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
+              className={`text-sm ${buttonSecondary}`}
             >
               Registros pendientes
               {pendingCount > 0 && (
-                <span className={`ml-1.5 ${chipClass}`}>
+                <span className={chipClass}>
                   {pendingCount}
                 </span>
               )}
@@ -207,7 +207,7 @@ export default async function DashboardPage() {
           {isDirection(roles) && (
             <Link
               href="/staff"
-              className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
+              className={`text-sm ${buttonSecondary}`}
             >
               Staff
             </Link>
