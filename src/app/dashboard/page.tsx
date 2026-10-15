@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import {
-  ROLE_LABEL,
   INJURED_AVAILABILITY,
   canManageInjuries,
   isDirection,
@@ -76,11 +75,12 @@ export default async function DashboardPage() {
     .eq("active", true)
     .eq("status", "confirmado")
     .order("full_name");
-  // Foto de perfil de los jugadores con cuenta.
-  const avatarUrls = await getAvatarUrls(
-    supabase,
-    (players ?? []).map((p) => p.user_id),
-  );
+  // Foto de perfil de los jugadores con cuenta y la propia (para el acceso a /perfil).
+  const avatarUrls = await getAvatarUrls(supabase, [
+    ...(players ?? []).map((p) => p.user_id),
+    user.id,
+  ]);
+  const myAvatarUrl = avatarUrls.get(user.id) ?? null;
   // Fase de recuperación en curso de cada jugador: solo el nombre, visible para
   // todo el club (los jugadores no ven el resto de la lesión de sus compañeros).
   const { data: currentPhases } = await supabase.rpc("squad_current_phases");
@@ -186,9 +186,16 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-semibold text-ink">
             Disponibilidad del plantel
           </h1>
-          <p className="mt-1 text-sm text-muted">
-            {profile.full_name} · {roles.map((r) => ROLE_LABEL[r]).join(", ")}
-          </p>
+          <Link
+            href="/perfil"
+            className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist"
+          >
+            <Avatar name={profile.full_name ?? ""} url={myAvatarUrl} />
+            <span>
+              <span className="sr-only">Tu perfil: </span>
+              {profile.full_name?.split(" ")[0]}
+            </span>
+          </Link>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {isDirection(roles) && (
@@ -212,11 +219,6 @@ export default async function DashboardPage() {
               Staff
             </Link>
           )}
-          <form action={signOut}>
-            <button className={textButton}>
-              Cerrar sesión
-            </button>
-          </form>
         </div>
       </header>
 
