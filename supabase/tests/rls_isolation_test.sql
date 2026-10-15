@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0019.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0020.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -629,5 +629,94 @@ select pg_temp.back();
 select pg_temp.as_anon();
 select pg_temp.expect_fail($q$select 1 from public.availability_log$q$, 'anónimo lee el historial');
 select pg_temp.back();
+
+-- =======================================================================
+-- 17. Métricas del dashboard: funciones dash_* (0020)
+-- =======================================================================
+-- Las 7 funciones deben fallar para quien no es staff confirmado.
+create function pg_temp.expect_dash_fail(who text) returns void language plpgsql as $$
+begin
+  perform pg_temp.expect_fail('select * from public.dash_summary()',              who || ' ejecuta dash_summary');
+  perform pg_temp.expect_fail('select * from public.dash_availability_series()',  who || ' ejecuta dash_availability_series');
+  perform pg_temp.expect_fail('select * from public.dash_injuries_by_week()',     who || ' ejecuta dash_injuries_by_week');
+  perform pg_temp.expect_fail('select * from public.dash_injuries_by_place()',    who || ' ejecuta dash_injuries_by_place');
+  perform pg_temp.expect_fail('select * from public.dash_injuries_by_position()', who || ' ejecuta dash_injuries_by_position');
+  perform pg_temp.expect_fail('select * from public.dash_recurring_players()',     who || ' ejecuta dash_recurring_players');
+  perform pg_temp.expect_fail('select * from public.dash_upcoming_returns()',      who || ' ejecuta dash_upcoming_returns');
+end $$;
+
+-- A esta altura del test, confirmados y activos: club A = A1, A2, A3 (confirmado en la
+-- sección 6) y "Sin posición" (sección 13) = 4; club B = B1 y "Hockey válido" = 2.
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A
+select pg_temp.expect_count($q$select 1 from public.dash_summary() where total = 4$q$, 1, 'kine A: dash_summary cuenta los 4 confirmados activos del club A');
+select pg_temp.back();
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_count($q$select 1 from public.dash_summary() where total = 4$q$, 1, 'head coach A: dash_summary del club A');
+select pg_temp.back();
+select pg_temp.as_user('20000000-0000-0000-0000-00000000000a');   -- manager A
+select pg_temp.expect_count($q$select 1 from public.dash_summary() where total = 4$q$, 1, 'manager A: dash_summary del club A');
+select pg_temp.back();
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');   -- entrenador A
+select pg_temp.expect_count($q$select 1 from public.dash_summary() where total = 4$q$, 1, 'entrenador A: dash_summary del club A');
+select pg_temp.back();
+
+-- Sin acceso: jugador, staff pendiente, jugador pendiente, cuenta sin perfil y anónimo.
+-- 8…a quedó sin roles en la sección 6: se vuelve a dejar pendiente con un puesto de staff.
+update public.profiles set status = 'pendiente', roles = '{nutricionista}' where id = '80000000-0000-0000-0000-00000000000a';
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_dash_fail('jugador A1');
+select pg_temp.back();
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_dash_fail('staff pendiente');
+select pg_temp.back();
+select pg_temp.as_user('c0000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_dash_fail('jugador pendiente');
+select pg_temp.back();
+select pg_temp.as_user('e0000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_dash_fail('cuenta sin perfil');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_dash_fail('anónimo');
+select pg_temp.back();
+
+-- Aislamiento: una lesión "externo" en el club A no aparece en los agregados del club B.
+insert into public.injuries (club_id, player_id, type, severity, occurred_during) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', 'Golpe fuera del club', 'leve', 'externo');
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A (control: en A sí cuenta)
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_place() where place_key = 'externo' and injuries_count = 1$q$, 1, 'kine A ve la lesión externa en su club');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');   -- kine B
+select pg_temp.expect_count($q$select 1 from public.dash_summary() where total = 2$q$, 1, 'kine B: dash_summary cuenta los 2 confirmados activos del club B');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_place() where place_key = 'externo' and injuries_count = 0$q$, 1, 'kine B no ve la lesión externa del club A');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_place()$q$, 4, 'by_place de B devuelve las 4 claves');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_position()
+  where position_name in (select name from public.positions where sport = 'rugby')$q$, 0, 'by_position de B no trae posiciones de rugby');
+select pg_temp.expect_count($q$select 1 from public.dash_recurring_players() where player_id::text like 'a1000000-%'$q$, 0, 'recurrentes de B no trae jugadores del club A');
+select pg_temp.expect_count($q$select 1 from public.dash_upcoming_returns() where player_id::text like 'a1000000-%'$q$, 0, 'próximas altas de B no trae jugadores del club A');
+select pg_temp.back();
+
+-- Rango de semanas
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select * from public.dash_availability_series(0)$q$, 'dash_availability_series con 0 semanas');
+select pg_temp.expect_fail($q$select * from public.dash_availability_series(53)$q$, 'dash_availability_series con 53 semanas');
+select pg_temp.expect_fail($q$select * from public.dash_injuries_by_week(0)$q$, 'dash_injuries_by_week con 0 semanas');
+select pg_temp.expect_fail($q$select * from public.dash_injuries_by_week(53)$q$, 'dash_injuries_by_week con 53 semanas');
+select pg_temp.expect_count($q$select 1 from public.dash_availability_series(4)$q$, 4, 'dash_availability_series(4) devuelve 4 semanas');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_week(4)$q$, 4, 'dash_injuries_by_week(4) devuelve 4 semanas');
+select pg_temp.back();
+
+-- Privilegios y search_path de las funciones
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname like 'dash\_%'$q$, 7, 'existen las 7 funciones dash_*');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname like 'dash\_%' and p.proacl is null$q$, 0, 'ninguna dash_* usa los permisos por defecto (PUBLIC)');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  cross join lateral aclexplode(p.proacl) a
+  where n.nspname = 'public' and p.proname like 'dash\_%' and (a.grantee = 0 or a.grantee = 'anon'::regrole)$q$, 0, 'ninguna dash_* da permisos a PUBLIC ni a anon');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  cross join lateral aclexplode(p.proacl) a
+  where n.nspname = 'public' and p.proname like 'dash\_%' and a.grantee = 'authenticated'::regrole and a.privilege_type = 'EXECUTE'$q$, 7, 'authenticated ejecuta las 7 dash_*');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname like 'dash\_%' and p.proconfig = array['search_path=""']$q$, 7, 'las 7 dash_* fijan search_path vacío');
 
 rollback;
