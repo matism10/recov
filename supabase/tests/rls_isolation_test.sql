@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0018.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0019.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -587,6 +587,47 @@ select pg_temp.as_anon();
 select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 6, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$,
   'anónimo ejecuta report_injury (7 argumentos)');
+select pg_temp.back();
+
+-- =======================================================================
+-- 16. availability_log: historial de disponibilidad (0019)
+-- =======================================================================
+-- Los fixtures insertan 3 jugadores en el club A y 1 en el B: cada uno deja al menos su fila inicial.
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A
+select pg_temp.expect_count($q$select 1 where (select count(*) from public.availability_log where club_id = 'aaaaaaaa-0000-0000-0000-000000000001') >= 3
+  and not exists (select 1 from public.availability_log where club_id <> 'aaaaaaaa-0000-0000-0000-000000000001')$q$, 1, 'kine A ve el historial del club A y nada del B');
+select pg_temp.expect_fail($q$insert into public.availability_log (club_id, player_id, to_status)
+  values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'lesionado')$q$, 'kine A inserta en el historial');
+select pg_temp.expect_fail($q$update public.availability_log set to_status = 'disponible'$q$, 'kine A edita el historial');
+select pg_temp.expect_fail($q$delete from public.availability_log$q$, 'kine A borra el historial');
+select pg_temp.expect_fail($q$select private.log_availability_change()$q$, 'authenticated ejecuta la función del trigger');
+select pg_temp.back();
+
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_count($q$select 1 where (select count(*) from public.availability_log where club_id = 'aaaaaaaa-0000-0000-0000-000000000001') >= 3
+  and not exists (select 1 from public.availability_log where club_id <> 'aaaaaaaa-0000-0000-0000-000000000001')$q$, 1, 'head coach A ve el historial del club A y nada del B');
+select pg_temp.back();
+
+select pg_temp.as_user('20000000-0000-0000-0000-00000000000a');   -- manager A
+select pg_temp.expect_count($q$select 1 where (select count(*) from public.availability_log where club_id = 'aaaaaaaa-0000-0000-0000-000000000001') >= 3
+  and not exists (select 1 from public.availability_log where club_id <> 'aaaaaaaa-0000-0000-0000-000000000001')$q$, 1, 'manager A ve el historial del club A y nada del B');
+select pg_temp.back();
+
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');   -- entrenador A
+select pg_temp.expect_count($q$select 1 where (select count(*) from public.availability_log where club_id = 'aaaaaaaa-0000-0000-0000-000000000001') >= 3
+  and not exists (select 1 from public.availability_log where club_id <> 'aaaaaaaa-0000-0000-0000-000000000001')$q$, 1, 'entrenador A (staff) lee el historial del club A');
+select pg_temp.back();
+
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');   -- kine B
+select pg_temp.expect_count($q$select 1 from public.availability_log where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'staff del club B no ve el historial del club A');
+select pg_temp.back();
+
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');   -- jugador A1
+select pg_temp.expect_count($q$select 1 from public.availability_log$q$, 0, 'el jugador no ve el historial');
+select pg_temp.back();
+
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select 1 from public.availability_log$q$, 'anónimo lee el historial');
 select pg_temp.back();
 
 rollback;

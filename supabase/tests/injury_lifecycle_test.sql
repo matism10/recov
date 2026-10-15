@@ -1,5 +1,5 @@
--- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0018)
--- Correr DESPUÉS de las migraciones 0001 a 0018. Autónomo: crea sus propios datos y termina en ROLLBACK.
+-- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0019)
+-- Correr DESPUÉS de las migraciones 0001 a 0019. Autónomo: crea sus propios datos y termina en ROLLBACK.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
 begin;
@@ -427,5 +427,99 @@ select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.
 -- El CHECK rechaza lugares fuera de la lista, también en inserts directos
 select pg_temp.expect_fail($q$insert into public.injuries (club_id, player_id, type, severity, occurred_during)
   values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', 'x', 'leve', 'otro')$q$, 'insert directo con lugar fuera del CHECK');
+
+-- =======================================================================
+-- 8. Historial de disponibilidad (0019)
+-- =======================================================================
+-- Jugador nuevo A5: el INSERT deja la fila inicial (sin estado anterior).
+insert into public.players (id, club_id, full_name, first_name, last_name, position, status) values
+  ('a1000000-1111-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A5', 'Jugador', 'A5', 'Centro', 'confirmado');
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 1, 'el insert del jugador deja 1 fila');
+select pg_temp.expect_count($q$select 1 from (select from_status, to_status from public.availability_log
+  where player_id = 'a1000000-1111-0000-0000-000000000005' order by id desc limit 1) l where from_status is null and to_status = 'disponible'$q$, 1, 'la fila inicial no tiene estado anterior y queda disponible');
+
+-- mark_player_injured: disponible -> en_revision, firmado por el kine
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.mark_player_injured('a1000000-1111-0000-0000-000000000005', 'entrenamiento', 'Golpe en la rodilla')$q$, 'kine marca a A5');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 2, 'marcar lesionado escribe 1 fila');
+select pg_temp.expect_count($q$select 1 from (select from_status, to_status from public.availability_log
+  where player_id = 'a1000000-1111-0000-0000-000000000005' order by id desc limit 1) l where from_status = 'disponible' and to_status = 'en_revision'$q$, 1, 'marcar pasa de disponible a en revisión');
+select pg_temp.expect_count($q$select 1 from (select changed_by from public.availability_log
+  where player_id = 'a1000000-1111-0000-0000-000000000005' order by id desc limit 1) l where changed_by = '30000000-0000-0000-0000-00000000000a'$q$, 1, 'la fila queda firmada por el kine');
+
+-- review_injury confirmar: en_revision -> lesionado
+create temp table ids8 as select id as a8 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000005' and status = 'en_evaluacion';
+grant select on ids8 to authenticated;
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_injury((select a8 from ids8), 'confirmar', 'moderada', current_date + 30)$q$, 'kine confirma la lesión de A5');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 3, 'confirmar escribe 1 fila');
+select pg_temp.expect_count($q$select 1 from (select from_status, to_status from public.availability_log
+  where player_id = 'a1000000-1111-0000-0000-000000000005' order by id desc limit 1) l where from_status = 'en_revision' and to_status = 'lesionado'$q$, 1, 'confirmar pasa de en revisión a lesionado');
+
+-- set_player_availability: escribe solo si el valor cambia
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach
+select pg_temp.expect_ok($q$select public.set_player_availability('a1000000-1111-0000-0000-000000000005', 'reintegro')$q$, 'head coach pasa a A5 a reintegro');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 4, 'el cambio manual escribe 1 fila');
+select pg_temp.expect_count($q$select 1 from (select from_status, to_status from public.availability_log
+  where player_id = 'a1000000-1111-0000-0000-000000000005' order by id desc limit 1) l where from_status = 'lesionado' and to_status = 'reintegro'$q$, 1, 'el cambio manual pasa de lesionado a reintegro');
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_player_availability('a1000000-1111-0000-0000-000000000005', 'reintegro')$q$, 'head coach repite el mismo estado');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 4, 'repetir el mismo estado no escribe fila');
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_player_availability('a1000000-1111-0000-0000-000000000005', 'lesionado')$q$, 'head coach vuelve a A5 a lesionado');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 5, 'volver a lesionado escribe 1 fila');
+
+-- advance_injury_phase hacia "Reintegro": lesionado -> reintegro
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_injury_phases((select a8 from ids8), format(
+  '[{"name":"Reposo","status":"en_curso","started_on":"%s"},{"name":"Reintegro"}]', current_date)::jsonb)$q$, 'kine define fases de A5');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 5, 'definir fases sin Reintegro en curso no escribe fila');
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.advance_injury_phase((select a8 from ids8))$q$, 'avanza a Reintegro');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 6, 'avanzar a Reintegro escribe 1 fila');
+select pg_temp.expect_count($q$select 1 from (select from_status, to_status from public.availability_log
+  where player_id = 'a1000000-1111-0000-0000-000000000005' order by id desc limit 1) l where from_status = 'lesionado' and to_status = 'reintegro'$q$, 1, 'la fase Reintegro pasa de lesionado a reintegro');
+
+-- descartar con otra lesión abierta: no escribe (la disponibilidad no cambia)
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.mark_player_injured('a1000000-1111-0000-0000-000000000005', 'competencia', 'Otro golpe', 'reintegro')$q$, 'kine marca a A5 otra vez sin cambiar su estado');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 6, 'marcar con el mismo estado no escribe fila');
+create temp table ids9 as select id as a9 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000005' and status = 'en_evaluacion';
+grant select on ids9 to authenticated;
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_injury((select a9 from ids9), 'descartar')$q$, 'kine descarta la segunda lesión');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 6, 'descartar con otra lesión abierta no escribe fila');
+
+-- cerrar la última lesión abierta: reintegro -> disponible
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_injury((select a8 from ids8), 'cerrar')$q$, 'alta de A5');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 7, 'el alta sin otras lesiones abiertas escribe 1 fila');
+select pg_temp.expect_count($q$select 1 from (select from_status, to_status from public.availability_log
+  where player_id = 'a1000000-1111-0000-0000-000000000005' order by id desc limit 1) l where from_status = 'reintegro' and to_status = 'disponible'$q$, 1, 'el alta pasa de reintegro a disponible');
+
+-- UPDATE directo como postgres: también queda registrado, sin autor.
+-- back() solo hace reset role; se limpian los claims para que auth.uid() sea null (como en el seed).
+select set_config('request.jwt.claims', '', true);
+update public.players set availability = 'lesionado' where id = 'a1000000-1111-0000-0000-000000000005';
+select pg_temp.expect_count($q$select 1 from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005'$q$, 8, 'el update directo escribe 1 fila');
+select pg_temp.expect_count($q$select 1 from (select from_status, to_status, changed_by from public.availability_log
+  where player_id = 'a1000000-1111-0000-0000-000000000005' order by id desc limit 1) l where from_status = 'disponible' and to_status = 'lesionado' and changed_by is null$q$, 1,
+  'el update directo pasa de disponible a lesionado y no tiene autor');
+
+-- El orden por id coincide con el orden por changed_at
+select pg_temp.expect_count($q$select 1 from (
+  select changed_at, lag(changed_at) over (order by id) as anterior
+    from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005') o
+  where anterior is not null and changed_at < anterior$q$, 0, 'el orden por id coincide con el orden por changed_at');
 
 rollback;
