@@ -2,15 +2,12 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  AVAILABILITY_LABEL,
-  AVAILABILITY_STYLE,
   isStaff,
   type Availability,
   type UserRole,
 } from "@/lib/roles";
 import {
   INJURY_STATUS_LABEL,
-  INJURY_STATUS_STYLE,
   OCCURRED_DURING_LABEL,
   PHASE_STATUS_LABEL,
   SEVERITY_LABEL,
@@ -24,6 +21,13 @@ import {
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
+import {
+  AvailabilityBadge,
+  InjuryStatusBadge,
+  PhaseDot,
+  cardClass,
+  textButton,
+} from "@/app/ui";
 
 const OPEN_STATUSES: InjuryStatus[] = ["en_evaluacion", "activa"];
 
@@ -98,21 +102,17 @@ export default async function PlayerPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/dashboard" className="text-sm text-slate-500 underline">
+        <Link href="/dashboard" className={textButton}>
           ← Volver
         </Link>
         <div className="mt-3 flex items-center gap-4">
           <Avatar name={player.full_name} url={avatarUrl} size="lg" />
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold text-slate-900">{player.full_name}</h1>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${AVAILABILITY_STYLE[availability]}`}
-              >
-                {AVAILABILITY_LABEL[availability]}
-              </span>
+              <h1 className="text-2xl font-semibold text-ink">{player.full_name}</h1>
+              <AvailabilityBadge status={availability} />
             </div>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
               {player.position && `${player.position} · `}
               {returnLabel(latestReturn ?? null)}
             </p>
@@ -122,7 +122,7 @@ export default async function PlayerPage({
 
       <div className="space-y-6">
         <section>
-          <h2 className="mb-3 text-sm font-medium text-slate-500">Lesión actual</h2>
+          <h2 className="mb-3 text-sm font-medium text-muted">Lesión actual</h2>
           {open.length > 0 ? (
             <div className="space-y-3">
               {open.map((i) => {
@@ -133,27 +133,23 @@ export default async function PlayerPage({
                 return (
                   <article
                     key={i.id}
-                    className="space-y-4 rounded-2xl bg-white p-5 ring-1 ring-slate-200"
+                    className={`space-y-4 p-5 ${cardClass}`}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="font-medium text-slate-900">{i.type}</p>
-                        <p className="text-sm text-slate-500">
+                        <p className="font-medium text-ink">{i.type}</p>
+                        <p className="text-sm text-muted">
                           Desde el {formatDate(i.started_on)}
                           {occurredDuring &&
                             ` · en ${OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}`}
                           {severity && ` · ${SEVERITY_LABEL[severity]}`}
                         </p>
                       </div>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${INJURY_STATUS_STYLE[status]}`}
-                      >
-                        {INJURY_STATUS_LABEL[status]}
-                      </span>
+                      <InjuryStatusBadge status={status} outline />
                     </div>
 
                     {status === "en_evaluacion" ? (
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-muted">
                         Esperando el diagnóstico del jugador.
                       </p>
                     ) : (
@@ -164,12 +160,12 @@ export default async function PlayerPage({
                     )}
 
                     {injuryPhases.length > 0 && (
-                      <ol className="space-y-2 border-l-2 border-slate-200 pl-5">
+                      <ol className="space-y-3 border-l-2 border-line pl-5">
                         {injuryPhases.map((ph) => (
                           <li key={ph.id} className="relative text-sm">
-                            <span className="absolute top-1.5 -left-[27px] size-3 rounded-full border-2 border-white bg-emerald-500" />
-                            <span className="font-medium text-slate-900">{ph.name}</span>
-                            <span className="text-slate-500">
+                            <PhaseDot status={ph.status as PhaseStatus} />
+                            <span className="font-medium text-ink">{ph.name}</span>
+                            <span className="text-muted">
                               {" · "}
                               {PHASE_STATUS_LABEL[ph.status as PhaseStatus]}
                               {ph.started_on && ` · desde ${formatDate(ph.started_on)}`}
@@ -182,7 +178,7 @@ export default async function PlayerPage({
 
                     <Link
                       href={`/lesiones/${i.id}`}
-                      className="inline-block text-sm font-medium text-emerald-700 underline"
+                      className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
                     >
                       Ver detalle de la lesión
                     </Link>
@@ -191,7 +187,7 @@ export default async function PlayerPage({
               })}
             </div>
           ) : (
-            <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
               {availability === "disponible"
                 ? "No tiene lesiones abiertas."
                 : "Sin lesión registrada: la disponibilidad se cambió a mano."}
@@ -200,23 +196,27 @@ export default async function PlayerPage({
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-medium text-slate-500">Línea de tiempo</h2>
+          <h2 className="mb-3 text-sm font-medium text-muted">Línea de tiempo</h2>
           {all.length > 0 ? (
-            <ol className="space-y-4 border-l-2 border-slate-200 pl-5">
+            <ol className="space-y-4 border-l-2 border-line pl-5">
               {all.map((i) => {
                 const status = i.status as InjuryStatus;
                 return (
                   <li key={i.id} className="relative">
-                    <span
-                      className={`absolute top-1.5 -left-[27px] size-3 rounded-full border-2 border-white ${
-                        OPEN_STATUSES.includes(status) ? "bg-amber-500" : "bg-slate-300"
-                      }`}
+                    <PhaseDot
+                      status={
+                        OPEN_STATUSES.includes(status)
+                          ? "en_curso"
+                          : status === "cerrada"
+                            ? "completada"
+                            : "pendiente"
+                      }
                     />
                     <Link href={`/lesiones/${i.id}`} className="group block">
-                      <p className="font-medium text-slate-900 group-hover:underline">
+                      <p className="font-medium text-ink group-hover:underline">
                         {i.type}
                       </p>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-muted">
                         {formatDate(i.started_on)}
                         {i.closed_on && ` – ${formatDate(i.closed_on)}`}
                         {" · "}
@@ -228,7 +228,7 @@ export default async function PlayerPage({
               })}
             </ol>
           ) : (
-            <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
               Sin lesiones registradas.
             </p>
           )}

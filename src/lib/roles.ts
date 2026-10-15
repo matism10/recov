@@ -85,9 +85,3 @@ export const AVAILABILITY_LABEL: Record<Availability, string> = {
   reintegro: "Reintegro",
 };
 
-export const AVAILABILITY_STYLE: Record<Availability, string> = {
-  disponible: "bg-emerald-100 text-emerald-800",
-  en_revision: "bg-sky-100 text-sky-800",
-  lesionado: "bg-red-100 text-red-800",
-  reintegro: "bg-amber-100 text-amber-800",
-};

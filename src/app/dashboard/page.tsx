@@ -3,8 +3,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import {
-  AVAILABILITY_LABEL,
-  AVAILABILITY_STYLE,
   ROLE_LABEL,
   INJURED_AVAILABILITY,
   canManageInjuries,
@@ -14,8 +12,6 @@ import {
   type UserRole,
 } from "@/lib/roles";
 import {
-  INJURY_STATUS_LABEL,
-  INJURY_STATUS_STYLE,
   formatDate,
   returnLabel,
   type InjuryStatus,
@@ -23,6 +19,15 @@ import {
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
+import {
+  AvailabilityBadge,
+  InjuryStatusBadge,
+  buttonPrimary,
+  buttonSecondary,
+  cardClass,
+  chipClass,
+  textButton,
+} from "@/app/ui";
 import { AvailabilitySelect } from "./availability-select";
 
 export default async function DashboardPage() {
@@ -48,14 +53,14 @@ export default async function DashboardPage() {
   if (!profile || profile.status !== "confirmado") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
-        <h1 className="text-xl font-semibold text-slate-900">
+        <h1 className="text-xl font-semibold text-ink">
           Tu cuenta aún no está asociada a un club
         </h1>
-        <p className="max-w-md text-slate-500">
+        <p className="max-w-md text-muted">
           Pide a la dirección de tu club que te agregue a Recov.
         </p>
         <form action={signOut}>
-          <button className="text-sm text-slate-500 underline">
+          <button className={textButton}>
             Cerrar sesión
           </button>
         </form>
@@ -177,35 +182,38 @@ export default async function DashboardPage() {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-slate-500">{club?.name}</p>
-          <h1 className="text-2xl font-semibold text-slate-900">
+          <p className="text-sm text-muted">{club?.name}</p>
+          <h1 className="text-2xl font-semibold text-ink">
             Disponibilidad del plantel
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted">
             {profile.full_name} · {roles.map((r) => ROLE_LABEL[r]).join(", ")}
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-end gap-x-4">
           {isDirection(roles) && (
             <Link
               href="/registros"
-              className="text-sm font-medium text-emerald-700 underline"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
             >
               Registros pendientes
               {pendingCount > 0 && (
-                <span className="ml-1.5 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
+                <span className={`ml-1.5 ${chipClass}`}>
                   {pendingCount}
                 </span>
               )}
             </Link>
           )}
           {isDirection(roles) && (
-            <Link href="/staff" className="text-sm font-medium text-emerald-700 underline">
+            <Link
+              href="/staff"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
+            >
               Staff
             </Link>
           )}
           <form action={signOut}>
-            <button className="text-sm text-slate-500 underline">
+            <button className={textButton}>
               Cerrar sesión
             </button>
           </form>
@@ -213,27 +221,29 @@ export default async function DashboardPage() {
       </header>
 
       {myPendingInjury && (
-        <Link
-          href={`/lesiones/${myPendingInjury.id}/completar`}
-          className="mb-8 block rounded-2xl bg-sky-50 p-5 ring-1 ring-sky-200 transition hover:bg-sky-100"
-        >
-          <p className="font-medium text-sky-900">
-            Tienes una lesión en evaluación: sube tu diagnóstico
-          </p>
-          <p className="mt-1 text-sm text-sky-800">
-            Agrega lo que te indicó el médico y tus documentos para que el kinesiólogo
-            la revise.
-          </p>
-        </Link>
+        <div className="mb-8 space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
+          <div>
+            <p className="font-medium text-ink">
+              Tienes una lesión en evaluación: sube tu diagnóstico
+            </p>
+            <p className="mt-1 text-sm text-ink">
+              Agrega lo que te indicó el médico y tus documentos para que el kinesiólogo
+              la revise.
+            </p>
+          </div>
+          <Link href={`/lesiones/${myPendingInjury.id}/completar`} className={buttonPrimary}>
+            Sube tu diagnóstico
+          </Link>
+        </div>
       )}
 
       {canManage && (
         <section className="mb-8">
           <div className="mb-3 flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-slate-500">
+            <h2 className="text-sm font-medium text-muted">
               Por revisar
               {toReview.length > 0 && (
-                <span className="ml-1.5 inline-block rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-800">
+                <span className={`ml-1.5 ${chipClass}`}>
                   {toReview.length}
                 </span>
               )}
@@ -248,28 +258,28 @@ export default async function DashboardPage() {
                 .filter((group) => group.items.length > 0)
                 .map((group) => (
                   <div key={group.title}>
-                    <h3 className="mb-2 text-xs font-medium tracking-wide text-slate-400 uppercase">
+                    <h3 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
                       {group.title} ({group.items.length})
                     </h3>
-                    <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+                    <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
                       {group.items.map((i) => {
                         const player = Array.isArray(i.players) ? i.players[0] : i.players;
                         return (
                           <li key={i.id}>
                             <Link
                               href={`/lesiones/${i.id}`}
-                              className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-slate-50"
+                              className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-white"
                             >
                               <div>
-                                <p className="font-medium text-slate-900">
+                                <p className="font-medium text-ink">
                                   {player ? `${player.full_name} · ${i.type}` : i.type}
                                 </p>
-                                <p className="text-sm text-slate-500">
+                                <p className="text-sm text-muted">
                                   Desde el {formatDate(i.started_on)}
                                 </p>
                               </div>
-                              <span className="text-sm font-medium text-emerald-700">
-                                Revisar
+                              <span className="text-sm font-medium text-brand-text underline">
+                                Revisa
                               </span>
                             </Link>
                           </li>
@@ -280,7 +290,7 @@ export default async function DashboardPage() {
                 ))}
             </div>
           ) : (
-            <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
               No hay lesiones por revisar.
             </p>
           )}
@@ -289,38 +299,34 @@ export default async function DashboardPage() {
 
       {staff && (
         <section className="mb-8">
-          <h2 className="mb-3 text-sm font-medium text-slate-500">Lesiones activas</h2>
+          <h2 className="mb-3 text-sm font-medium text-muted">Lesiones activas</h2>
           {injuredPlayers.length > 0 ? (
-            <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+            <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
               {injuredPlayers.map((p) => {
                 const status = p.availability as Availability;
                 return (
                   <li key={p.id}>
                     <Link
                       href={`/jugadores/${p.id}`}
-                      className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50"
+                      className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-white"
                     >
                       <div className="flex items-center gap-3">
                         <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
                         <div>
-                          <p className="font-medium text-slate-900">{p.full_name}</p>
-                          <p className="text-sm text-slate-500">
+                          <p className="font-medium text-ink">{p.full_name}</p>
+                          <p className="text-sm text-muted">
                             {returnLabel(returnByPlayer.get(p.id) ?? null)}
                           </p>
                         </div>
                       </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${AVAILABILITY_STYLE[status]}`}
-                      >
-                        {AVAILABILITY_LABEL[status]}
-                      </span>
+                      <AvailabilityBadge status={status} />
                     </Link>
                   </li>
                 );
               })}
             </ul>
           ) : (
-            <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
               No hay jugadores lesionados ni en reintegro.
             </p>
           )}
@@ -330,35 +336,31 @@ export default async function DashboardPage() {
       {isPlayer && (
         <section className="mb-8">
           <div className="mb-3 flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-slate-500">Mis lesiones</h2>
+            <h2 className="text-sm font-medium text-muted">Mis lesiones</h2>
             <Link
               href="/registrar-lesion"
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+              className={`text-sm ${buttonPrimary}`}
             >
-              Registrar lesión
+              Registra una lesión
             </Link>
           </div>
           {injuries && injuries.length > 0 ? (
-            <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+            <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
               {injuries.map((i) => {
                 return (
                   <li key={i.id}>
                     <Link
                       href={`/lesiones/${i.id}`}
-                      className="block space-y-2 px-5 py-4 transition hover:bg-slate-50"
+                      className="block space-y-2 px-5 py-4 transition hover:bg-white"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="font-medium text-slate-900">{i.type}</p>
-                          <p className="text-sm text-slate-500">
+                          <p className="font-medium text-ink">{i.type}</p>
+                          <p className="text-sm text-muted">
                             Desde el {formatDate(i.started_on)}
                           </p>
                         </div>
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${INJURY_STATUS_STYLE[i.status as InjuryStatus]}`}
-                        >
-                          {INJURY_STATUS_LABEL[i.status as InjuryStatus]}
-                        </span>
+                        <InjuryStatusBadge status={i.status as InjuryStatus} outline />
                       </div>
                       {i.status !== "en_evaluacion" && (
                         <InjuryProgress
@@ -372,16 +374,16 @@ export default async function DashboardPage() {
               })}
             </ul>
           ) : (
-            <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
               No has registrado lesiones.
             </p>
           )}
         </section>
       )}
 
-      <h2 className="mb-3 text-sm font-medium text-slate-500">Plantel</h2>
+      <h2 className="mb-3 text-sm font-medium text-muted">Plantel</h2>
       {players && players.length > 0 ? (
-        <ul className="divide-y divide-slate-200 overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+        <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
           {players.map((p) => {
             const status = p.availability as Availability;
             return (
@@ -392,9 +394,9 @@ export default async function DashboardPage() {
                 <div className="flex items-center gap-3">
                   <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
                   <div>
-                    <p className="font-medium text-slate-900">{p.full_name}</p>
+                    <p className="font-medium text-ink">{p.full_name}</p>
                     {(p.position || phaseByPlayer.has(p.id)) && (
-                      <p className="text-sm text-slate-500">
+                      <p className="text-sm text-muted">
                         {[p.position, phaseByPlayer.has(p.id) && `Fase: ${phaseByPlayer.get(p.id)}`]
                           .filter(Boolean)
                           .join(" · ")}
@@ -412,24 +414,20 @@ export default async function DashboardPage() {
                     />
                     <Link
                       href={`/lesiones/marcar/${p.id}`}
-                      className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                      className={`text-sm ${buttonSecondary}`}
                     >
-                      Marcar lesionado
+                      Marca lesionado
                     </Link>
                   </div>
                 ) : (
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${AVAILABILITY_STYLE[status]}`}
-                  >
-                    {AVAILABILITY_LABEL[status]}
-                  </span>
+                  <AvailabilityBadge status={status} />
                 )}
               </li>
             );
           })}
         </ul>
       ) : (
-        <p className="rounded-2xl bg-white p-8 text-center text-slate-500 ring-1 ring-slate-200">
+        <p className={`p-8 text-center text-muted ${cardClass}`}>
           Aún no hay jugadores registrados en tu club.
         </p>
       )}

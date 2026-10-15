@@ -10,30 +10,28 @@ import {
   type PhaseDraft,
 } from "@/lib/injuries";
 import { advancePhase, savePhases, type PhasesState } from "./actions";
+import {
+  ErrorMessage,
+  PhaseDot,
+  SuccessMessage,
+  buttonPrimary,
+  buttonSecondary,
+  cardClass,
+  fieldClass,
+  textButton,
+} from "@/app/ui";
 
-const fieldClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200";
-const primaryButton =
-  "rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60";
-const secondaryButton =
-  "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60";
-
-const DOT_STYLE: Record<PhaseDraft["status"], string> = {
-  completada: "bg-emerald-500",
-  en_curso: "bg-amber-500",
-  pendiente: "bg-slate-300",
-};
+const primaryButton = `text-sm ${buttonPrimary}`;
+const secondaryButton = `text-sm ${buttonSecondary}`;
 
 function Timeline({ phases }: { phases: PhaseDraft[] }) {
   return (
-    <ol className="space-y-3 border-l-2 border-slate-200 pl-5">
+    <ol className="space-y-3 border-l-2 border-line pl-5">
       {phases.map((ph) => (
         <li key={ph.id ?? ph.name} className="relative">
-          <span
-            className={`absolute top-1.5 -left-[27px] size-3 rounded-full border-2 border-white ${DOT_STYLE[ph.status]}`}
-          />
-          <p className="font-medium text-slate-900">{ph.name}</p>
-          <p className="text-sm text-slate-500">
+          <PhaseDot status={ph.status} />
+          <p className="font-medium text-ink">{ph.name}</p>
+          <p className="text-sm text-muted">
             {PHASE_STATUS_LABEL[ph.status]}
             {ph.started_on && ` · desde ${formatDate(ph.started_on)}`}
             {ph.ended_on && ` · hasta ${formatDate(ph.ended_on)}`}
@@ -46,18 +44,10 @@ function Timeline({ phases }: { phases: PhaseDraft[] }) {
 
 function Feedback({ state, pending }: { state: PhasesState; pending: boolean }) {
   if (state.error) {
-    return (
-      <p role="alert" className="text-sm text-red-600">
-        {state.error}
-      </p>
-    );
+    return <ErrorMessage>{state.error}</ErrorMessage>;
   }
   if (state.ok && !pending) {
-    return (
-      <p role="status" className="text-sm text-emerald-700">
-        Cambios guardados.
-      </p>
-    );
+    return <SuccessMessage>Cambios guardados.</SuccessMessage>;
   }
   return null;
 }
@@ -94,9 +84,9 @@ function Editor({
         {rows.map((row, i) => (
           <li
             key={row.id ?? `nueva-${i}`}
-            className="grid gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-[1fr_9rem_9rem_auto] sm:items-end"
+            className={`grid gap-2 p-3 sm:grid-cols-[1fr_9rem_9rem_auto] sm:items-end ${cardClass}`}
           >
-            <label className="text-xs font-medium text-slate-600">
+            <label className="text-xs font-medium text-muted">
               Fase · {PHASE_STATUS_LABEL[row.status]}
               <input
                 value={row.name}
@@ -106,7 +96,7 @@ function Editor({
                 className={`mt-1 ${fieldClass}`}
               />
             </label>
-            <label className="text-xs font-medium text-slate-600">
+            <label className="text-xs font-medium text-muted">
               Desde
               <input
                 type="date"
@@ -115,7 +105,7 @@ function Editor({
                 className={`mt-1 ${fieldClass}`}
               />
             </label>
-            <label className="text-xs font-medium text-slate-600">
+            <label className="text-xs font-medium text-muted">
               Hasta
               <input
                 type="date"
@@ -129,9 +119,9 @@ function Editor({
               type="button"
               onClick={() => setRows((r) => r.filter((_, j) => j !== i))}
               disabled={pending || rows.length === 1}
-              className="text-sm text-slate-500 underline disabled:opacity-40"
+              className={textButton}
             >
-              Quitar
+              Quita
             </button>
           </li>
         ))}
@@ -144,15 +134,15 @@ function Editor({
             setRows((r) => [...r, { name: "", status: "pendiente", started_on: "", ended_on: "" }])
           }
           disabled={pending}
-          className="text-sm font-medium text-emerald-700 underline"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
         >
-          + Agregar fase
+          + Agrega una fase
         </button>
       )}
 
       <div className="flex flex-wrap gap-3">
         <button type="submit" disabled={pending} className={primaryButton}>
-          {pending ? "Guardando…" : "Guardar fases"}
+          {pending ? "Guardando…" : "Guarda las fases"}
         </button>
         <button type="button" onClick={onDone} disabled={pending} className={secondaryButton}>
           Cancelar
@@ -201,7 +191,7 @@ export function PhasesPanel({
       {phases.length > 0 ? (
         <Timeline phases={phases} />
       ) : (
-        <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 ring-1 ring-slate-200">
+        <p className={`p-5 text-sm text-muted ${cardClass}`}>
           Sin fases registradas.
         </p>
       )}
@@ -210,7 +200,7 @@ export function PhasesPanel({
         <div className="flex flex-wrap items-center gap-3">
           {phases.length === 0 ? (
             <button type="button" onClick={() => setEditing(true)} className={primaryButton}>
-              Cargar fases sugeridas
+              Carga las fases sugeridas
             </button>
           ) : (
             <>
@@ -218,12 +208,12 @@ export function PhasesPanel({
                 <form action={advanceAction}>
                   <input type="hidden" name="injury_id" value={injuryId} />
                   <button type="submit" disabled={advancing} className={primaryButton}>
-                    {advancing ? "Guardando…" : "Avanzar a la siguiente fase"}
+                    {advancing ? "Guardando…" : "Avanza a la siguiente fase"}
                   </button>
                 </form>
               )}
               <button type="button" onClick={() => setEditing(true)} className={secondaryButton}>
-                Editar fases
+                Edita las fases
               </button>
             </>
           )}

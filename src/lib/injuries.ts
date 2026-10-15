@@ -34,12 +34,6 @@ export const INJURY_STATUS_LABEL: Record<InjuryStatus, string> = {
   descartada: "Descartada",
 };
 
-export const INJURY_STATUS_STYLE: Record<InjuryStatus, string> = {
-  en_evaluacion: "bg-sky-100 text-sky-800",
-  activa: "bg-amber-100 text-amber-800",
-  cerrada: "bg-slate-100 text-slate-700",
-  descartada: "bg-slate-100 text-slate-500",
-};
 
 export const OCCURRED_DURING_LABEL: Record<OccurredDuring, string> = {
   entrenamiento: "Entrenamiento",

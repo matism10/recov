@@ -3,19 +3,60 @@
 :root {
   /* La interfaz es solo en modo claro, aunque el sistema esté en modo oscuro. */
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, monospace;
+/* Sistema de marca. Regla de contraste: sobre brand (Sky 400) el texto y los
+   íconos van en ink, nunca en blanco; el texto de marca sobre blanco va en
+   brand-text (Sky 700), nunca en brand directo. */
+@theme {
+  /* Marca */
+  --color-brand: #38bdf8; /* Sky 400: botón primario y superficies de marca */
+  --color-brand-hover: #0ea5e9; /* Sky 500: hover del botón primario */
+  --color-brand-strong: #0284c7; /* Sky 600: pressed, progreso, trazos e íconos sobre blanco */
+  --color-brand-text: #0369a1; /* Sky 700: links y texto de marca sobre blanco */
+  --color-brand-soft: #e0f2fe; /* Sky 100: chips, avatares y fondos de selección */
+
+  /* Neutros */
+  --color-ink: #0e1b2c; /* texto y navegación */
+  --color-muted: #5b6675; /* texto secundario */
+  --color-mist: #f7f8fa; /* tarjetas y filas */
+  --color-line: #e3e7ee; /* bordes */
+
+  /* Estados de disponibilidad: fijos, nunca como color de marca */
+  --color-disponible: #16a34a;
+  --color-disponible-bg: #dcfce7;
+  --color-disponible-fg: #14532d;
+  --color-revision: #f59e0b;
+  --color-revision-bg: #fef3c7;
+  --color-revision-fg: #92400e;
+  --color-lesionado: #dc2626;
+  --color-lesionado-bg: #fee2e2;
+  --color-lesionado-fg: #7f1d1d;
+  --color-reintegro: #7c3aed;
+  --color-reintegro-bg: #ede9fe;
+  --color-reintegro-fg: #4c1d95;
+
+  /* Errores y acciones destructivas: token propio, separado de "lesionado" */
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+
+  /* Tipografía: Nunito para títulos y wordmark, Inter para cuerpo y datos */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
+@layer base {
+  body {
+    background: #ffffff;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Fechas, días de recuperación y porcentajes alineados en columna. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
 }

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
+import { textButton } from "@/app/ui";
 
 export default async function PendingPage() {
   const supabase = await createClient();
@@ -22,14 +23,14 @@ export default async function PendingPage() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
-      <h1 className="text-xl font-semibold text-slate-900">
+      <h1 className="text-xl font-semibold text-ink">
         Tu perfil está en revisión
       </h1>
-      <p className="max-w-md text-slate-500">
+      <p className="max-w-md text-muted">
         La dirección del club te confirmará pronto.
       </p>
       <form action={signOut}>
-        <button className="text-sm text-slate-500 underline">
+        <button className={textButton}>
           Cerrar sesión
         </button>
       </form>

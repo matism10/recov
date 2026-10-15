@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/roles";
 import { InjuryForm } from "./injury-form";
+import { textButton } from "@/app/ui";
 
 export default async function ReportInjuryPage() {
   const supabase = await createClient();
@@ -34,17 +35,17 @@ export default async function ReportInjuryPage() {
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/dashboard" className="text-sm text-slate-500 underline">
+        <Link href="/dashboard" className={textButton}>
           ← Volver
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">
+        <h1 className="mt-2 text-2xl font-semibold text-ink">
           Registrar lesión
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-muted">
           El kinesiólogo del club revisará tu reporte y tus documentos.
         </p>
       </header>
-      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <div className="rounded-xl bg-mist p-6 border border-line">
         <InjuryForm clubId={player.club_id} playerId={player.id} />
       </div>
     </main>
