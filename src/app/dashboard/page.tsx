@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import {
-  ROLE_LABEL,
   INJURED_AVAILABILITY,
   canManageInjuries,
   isDirection,
@@ -187,9 +186,16 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-semibold text-ink">
             Disponibilidad del plantel
           </h1>
-          <p className="mt-1 text-sm text-muted">
-            {profile.full_name} · {roles.map((r) => ROLE_LABEL[r]).join(", ")}
-          </p>
+          <Link
+            href="/perfil"
+            className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist"
+          >
+            <Avatar name={profile.full_name ?? ""} url={myAvatarUrl} />
+            <span>
+              <span className="sr-only">Tu perfil: </span>
+              {profile.full_name?.split(" ")[0]}
+            </span>
+          </Link>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {isDirection(roles) && (
@@ -213,16 +219,6 @@ export default async function DashboardPage() {
               Staff
             </Link>
           )}
-          <Link
-            href="/perfil"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist"
-          >
-            <Avatar name={profile.full_name ?? ""} url={myAvatarUrl} />
-            <span>
-              <span className="sr-only">Tu perfil: </span>
-              {profile.full_name?.split(" ")[0]}
-            </span>
-          </Link>
         </div>
       </header>
 
