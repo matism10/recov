@@ -15,6 +15,8 @@ import {
   MIN_FILES,
   addDays,
   todayInChile,
+  OCCURRED_DURING,
+  OCCURRED_DURING_LABEL,
 } from "@/lib/injuries";
 import { completeInjuryReport } from "@/app/lesiones/[id]/completar/actions";
 import { reportInjury, type ReportInjuryState } from "./actions";
@@ -112,17 +114,38 @@ export function InjuryForm({
       {injuryId ? (
         <input type="hidden" name="injury_id" value={injuryId} />
       ) : (
-        <label className={labelClass}>
-          Fecha en que ocurrió
-          <input
-            name="injury_date"
-            type="date"
-            required
-            max={today}
-            min={addDays(today, -MAX_INJURY_AGE_DAYS)}
-            className={inputClass}
-          />
-        </label>
+        <>
+          <label className={labelClass}>
+            Fecha en que ocurrió
+            <input
+              name="injury_date"
+              type="date"
+              required
+              max={today}
+              min={addDays(today, -MAX_INJURY_AGE_DAYS)}
+              className={inputClass}
+            />
+          </label>
+
+          {/* Obligatorio y sin opción preseleccionada (report_injury, 0018). */}
+          <fieldset>
+            <legend className={labelClass}>¿Dónde ocurrió?</legend>
+            <div className="mt-2 flex flex-wrap gap-x-6">
+              {OCCURRED_DURING.map((value) => (
+                <label key={value} className="flex min-h-11 items-center gap-2 text-sm text-ink">
+                  <input
+                    type="radio"
+                    name="occurred_during"
+                    value={value}
+                    required
+                    className="size-4 accent-brand-strong"
+                  />
+                  {OCCURRED_DURING_LABEL[value]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        </>
       )}
 
       <fieldset>

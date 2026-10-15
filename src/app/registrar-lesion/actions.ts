@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   MAX_INJURY_AGE_DAYS,
+  OCCURRED_DURING,
   addDays,
   parseIsoDate,
   todayInChile,
+  type OccurredDuring,
 } from "@/lib/injuries";
 import { filesInPlayerFolder, readReportFields } from "./report-fields";
 
@@ -28,6 +30,11 @@ export async function reportInjury(
     injuryDate < addDays(today, -MAX_INJURY_AGE_DAYS)
   ) {
     return { error: "La fecha debe ser de hoy o de los últimos 12 meses." };
+  }
+
+  const occurredDuring = String(formData.get("occurred_during") ?? "");
+  if (!OCCURRED_DURING.includes(occurredDuring as OccurredDuring)) {
+    return { error: "Indica si la lesión fue en entrenamiento, en competencia o externa al club." };
   }
 
   const supabase = await createClient();
@@ -55,6 +62,7 @@ export async function reportInjury(
     p_duration_unit: durationUnit,
     p_description: description || null,
     p_files: files,
+    p_occurred_during: occurredDuring,
   });
 
   if (error) {
