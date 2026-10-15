@@ -1,5 +1,5 @@
--- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0019)
--- Correr DESPUÉS de las migraciones 0001 a 0019. Autónomo: crea sus propios datos y termina en ROLLBACK.
+-- Recov · Test del ciclo de vida de la lesión (migraciones 0009 a 0020)
+-- Correr DESPUÉS de las migraciones 0001 a 0020. Autónomo: crea sus propios datos y termina en ROLLBACK.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
 begin;
@@ -521,5 +521,147 @@ select pg_temp.expect_count($q$select 1 from (
   select changed_at, lag(changed_at) over (order by id) as anterior
     from public.availability_log where player_id = 'a1000000-1111-0000-0000-000000000005') o
   where anterior is not null and changed_at < anterior$q$, 0, 'el orden por id coincide con el orden por changed_at');
+
+-- =======================================================================
+-- 9. Agregados del dashboard (0020)
+-- =======================================================================
+-- Punto de partida limpio: lo anterior del club A queda fuera de los agregados
+-- (jugadores inactivos, lesiones descartadas). Todo se revierte con el ROLLBACK.
+update public.players set active = false where club_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+update public.injuries set status = 'descartada' where club_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+-- Jugadores nuevos, uno por caso y cada uno con su propia posición. D4 está inactivo.
+insert into public.players (id, club_id, full_name, first_name, last_name, position, status, active) values
+  ('a1000000-1111-0000-0000-000000000011', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador D1', 'Jugador', 'D1', 'Octavo',        'confirmado', true),
+  ('a1000000-1111-0000-0000-000000000012', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador D2', 'Jugador', 'D2', 'Flanker',       'confirmado', true),
+  ('a1000000-1111-0000-0000-000000000013', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador D3', 'Jugador', 'D3', 'Segunda línea', 'confirmado', true),
+  ('a1000000-1111-0000-0000-000000000014', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador D4', 'Jugador', 'D4', 'Medio scrum',   'confirmado', false),
+  ('a1000000-1111-0000-0000-000000000015', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador D5', 'Jugador', 'D5', 'Fullback',      'confirmado', true),
+  ('a1000000-1111-0000-0000-000000000016', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador D6', 'Jugador', 'D6', 'Pilar',         'confirmado', true);
+
+-- 9.1 dash_summary sigue la disponibilidad (D1: marcar y confirmar)
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.dash_summary()
+  where total = 5 and disponibles = 5 and en_revision = 0 and lesionados = 0 and reintegro = 0$q$, 1, 'resumen inicial: 5 activos disponibles (D4 inactivo no cuenta)');
+select pg_temp.expect_ok($q$select public.mark_player_injured('a1000000-1111-0000-0000-000000000011', 'entrenamiento', 'Golpe en el hombro')$q$, 'kine marca a D1');
+select pg_temp.expect_count($q$select 1 from public.dash_summary()
+  where total = 5 and disponibles = 4 and en_revision = 1 and lesionados = 0 and reintegro = 0$q$, 1, 'marcar: en revisión sube a 1 y disponibles baja a 4');
+select pg_temp.back();
+create temp table ids10 as select id as d1 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000011' and status = 'en_evaluacion';
+grant select on ids10 to authenticated;
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_injury((select d1 from ids10), 'confirmar', 'leve', current_date + 60)$q$, 'kine confirma la lesión de D1');
+select pg_temp.expect_count($q$select 1 from public.dash_summary()
+  where total = 5 and disponibles = 4 and en_revision = 0 and lesionados = 1 and reintegro = 0$q$, 1, 'confirmar: lesionados sube a 1 y en revisión vuelve a 0');
+select pg_temp.back();
+
+-- 9.2 Jugador inactivo (D4): fuera del resumen, recurrentes y próximas altas; sus lesiones sí cuentan
+insert into public.injuries (club_id, player_id, type, severity, status, started_on, occurred_during, expected_return_on) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000014', 'Desgarro',    'moderada', 'activa',  current_date,     'competencia', current_date + 5),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000014', 'Contractura', 'leve',     'cerrada', current_date - 8, 'competencia', null);
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.dash_summary() where total = 5$q$, 1, 'D4 inactivo no cuenta en el total');
+select pg_temp.expect_count($q$select 1 from public.dash_recurring_players() where player_id = 'a1000000-1111-0000-0000-000000000014'$q$, 0, 'D4 inactivo no aparece en recurrentes');
+select pg_temp.expect_count($q$select 1 from public.dash_upcoming_returns() where player_id = 'a1000000-1111-0000-0000-000000000014'$q$, 0, 'D4 inactivo no aparece en próximas altas');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_position()
+  where position_name = 'Medio scrum' and injuries_count = 2 and players_count = 1$q$, 1, 'las lesiones de D4 cuentan por posición');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_place() where place_key = 'competencia' and injuries_count = 2$q$, 1, 'las lesiones de D4 cuentan por lugar');
+select pg_temp.back();
+
+-- 9.3 Lesión descartada (D2): no cuenta en ningún agregado
+insert into public.injuries (club_id, player_id, type, severity, status, started_on, occurred_during, expected_return_on) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000012', 'Esguince', 'leve', 'activa',     current_date,      'entrenamiento', null),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000012', 'Esguince', 'leve', 'cerrada',    current_date - 20, 'entrenamiento', null),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000012', 'Golpe',    null,   'descartada', current_date,      'competencia',   null);
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_week(4)
+  where week_start = date_trunc('week', current_date::timestamp)::date and injuries_count = 3$q$, 1, 'semana actual: D1, D4 y D2, sin la descartada');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_place() where place_key = 'competencia' and injuries_count = 2$q$, 1, 'la descartada no suma en competencia');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_position() where position_name = 'Flanker' and injuries_count = 2$q$, 1, 'la descartada no suma por posición');
+select pg_temp.expect_count($q$select 1 from public.dash_recurring_players()
+  where player_id = 'a1000000-1111-0000-0000-000000000012' and injuries_count = 2$q$, 1, 'la descartada no suma en recurrentes');
+select pg_temp.back();
+
+-- 9.4 Lesiones por semana: 4 filas, con semanas en cero; hoy - 8 cae en su semana
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_week(4)$q$, 4, 'dash_injuries_by_week(4) devuelve 4 filas');
+select pg_temp.expect_count($q$select 1 where exists (select 1 from public.dash_injuries_by_week(4) where injuries_count = 0)$q$, 1, 'incluye semanas en cero');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_week(4)
+  where week_start = date_trunc('week', (current_date - 8)::timestamp)::date and injuries_count = 1$q$, 1, 'la lesión de hace 8 días cae en su semana');
+select pg_temp.back();
+
+-- 9.5 Lugar: siempre 4 claves; externo, sin dato y ventana de 12 meses
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_place()
+  where place_key in ('entrenamiento', 'competencia', 'externo', 'sin_dato')$q$, 4, 'by_place devuelve las 4 claves');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_place() where place_key = 'externo' and injuries_count = 0$q$, 1, 'externo parte en 0');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');   -- A1 reporta una lesión externa
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name) values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/dash.pdf')$q$, 'A1 sube su archivo');
+select pg_temp.expect_ok($q$select public.report_injury('Golpe fuera del club', current_date - 60, 2, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/dash.pdf","name":"dash.pdf"}]'::jsonb, 'externo')$q$, 'A1 reporta una lesión externa');
+select pg_temp.back();
+insert into public.injuries (club_id, player_id, type, severity, status, started_on, occurred_during, expected_return_on) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000013', 'Sobrecarga',      null,   'activa',  current_date - 60,                          null,      null),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000013', 'Esguince antiguo', 'leve', 'cerrada', (current_date - interval '13 months')::date, 'externo', null);
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_place()
+  where (place_key, injuries_count) in (('entrenamiento', 3), ('competencia', 2), ('externo', 1), ('sin_dato', 1))$q$, 4,
+  'by_place: externo suma el reporte, null va a sin_dato y la de hace 13 meses no cuenta');
+select pg_temp.back();
+
+-- 9.6 Recurrentes: 2+ lesiones no descartadas en 12 meses
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.dash_recurring_players()
+  where player_id = 'a1000000-1111-0000-0000-000000000012' and injuries_count = 2 and last_injury_on = current_date$q$, 1, 'D2 aparece con 2 lesiones');
+select pg_temp.expect_count($q$select 1 from public.dash_recurring_players() where player_id = 'a1000000-1111-0000-0000-000000000011'$q$, 0, 'D1 con 1 lesión no aparece');
+select pg_temp.expect_count($q$select 1 from public.dash_recurring_players() where player_id = 'a1000000-1111-0000-0000-000000000013'$q$, 0, 'D3 no aparece: su segunda lesión es de hace 13 meses');
+select pg_temp.expect_count($q$select 1 from public.dash_recurring_players()$q$, 1, 'solo D2 es recurrente');
+select pg_temp.back();
+
+-- 9.7 Próximas altas (D5): activas hasta hoy + 30, vencidas primero
+insert into public.injuries (club_id, player_id, type, severity, status, started_on, occurred_during, expected_return_on) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000015', 'Fractura', 'grave', 'activa',        current_date - 60, null, current_date + 10),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000015', 'Luxación', 'grave', 'activa',        current_date - 60, null, current_date - 3),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000015', 'Rotura',   'grave', 'activa',        current_date - 60, null, current_date + 45),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000015', 'Golpe',    null,    'en_evaluacion', current_date - 60, null, current_date + 5),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000015', 'Esguince', 'leve',  'cerrada',       current_date - 60, null, current_date + 5);
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.dash_upcoming_returns()
+  where player_id = 'a1000000-1111-0000-0000-000000000015' and return_on = current_date + 10 and days_left = 10$q$, 1, 'la activa a 10 días aparece con days_left = 10');
+select pg_temp.expect_count($q$select 1 from public.dash_upcoming_returns()
+  where player_id = 'a1000000-1111-0000-0000-000000000015' and return_on = current_date - 3 and days_left = -3$q$, 1, 'la vencida aparece con days_left = -3');
+select pg_temp.expect_count($q$select 1 from (select days_left, row_number() over () as n from public.dash_upcoming_returns()) t
+  where (n = 1 and days_left = -3) or (n = 2 and days_left = 10)$q$, 2, 'la vencida va antes que la próxima');
+select pg_temp.expect_count($q$select 1 from public.dash_upcoming_returns() where days_left = 45$q$, 0, 'la de 45 días no aparece');
+select pg_temp.expect_count($q$select 1 from public.dash_upcoming_returns()$q$, 2, 'en evaluación, cerrada, sin fecha o a más de 30 días no aparecen');
+select pg_temp.back();
+
+-- 9.8 Serie de disponibilidad (D6). Las filas de historial escritas dentro de esta
+-- transacción tienen changed_at > now() (inicio de la transacción) y no entran en ningún
+-- corte, así que solo cuentan las filas con fechas pasadas que se fijan aquí.
+-- La fila inicial de D6 (null → disponible) pasa a ser de hace 20 días.
+update public.availability_log set changed_at = now() - interval '20 days'
+ where player_id = 'a1000000-1111-0000-0000-000000000016';
+insert into public.availability_log (club_id, player_id, from_status, to_status, changed_at) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000016', 'disponible', 'lesionado',  now() - interval '10 days'),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000016', 'lesionado',  'disponible', now() - interval '3 days');
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.dash_availability_series(4)$q$, 4, 'dash_availability_series(4) devuelve 4 filas');
+select pg_temp.expect_count($q$select 1 from public.dash_availability_series(4)
+  where week_start = date_trunc('week', current_date::timestamp)::date
+    and disponible = 1 and en_revision = 0 and lesionado = 0 and reintegro = 0$q$, 1, 'la semana actual refleja el último estado (disponible)');
+-- La semana que cierra entre hace 10 y hace 3 días lo muestra lesionado; es la única.
+select pg_temp.expect_count($q$select 1 from public.dash_availability_series(4)
+  where week_start = date_trunc('week', now() - interval '3 days')::date - 7 and lesionado = 1 and disponible = 0$q$, 1, 'la semana anterior al alta lo muestra lesionado');
+select pg_temp.expect_count($q$select 1 from public.dash_availability_series(4) where lesionado = 1$q$, 1, 'solo una semana lo muestra lesionado');
+-- La semana que cierra entre hace 20 y hace 10 días lo muestra disponible.
+select pg_temp.expect_count($q$select 1 from public.dash_availability_series(4)
+  where week_start = date_trunc('week', now() - interval '10 days')::date - 7 and disponible = 1 and lesionado = 0$q$, 1, 'antes de lesionarse aparece disponible');
+-- Antes de su primera fila no cuenta en ningún estado.
+select pg_temp.expect_count($q$select 1 from public.dash_availability_series(5)
+  where week_start = date_trunc('week', current_date::timestamp)::date - 28
+    and disponible + en_revision + lesionado + reintegro = 0$q$, 1, 'antes de su primera fila no cuenta');
+select pg_temp.back();
 
 rollback;
