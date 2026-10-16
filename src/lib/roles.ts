@@ -44,6 +44,14 @@ export function canManageInjuries(
   );
 }
 
+// Crean, editan y cancelan eventos del calendario: head coach, manager y
+// entrenador. Igual que private.events_actor_club() en la base (0022).
+export const EVENT_ROLES = ["head_coach", "manager", "entrenador"] as const satisfies readonly UserRole[];
+
+export function canManageEvents(roles: readonly UserRole[]) {
+  return EVENT_ROLES.some((r) => roles.includes(r));
+}
+
 // Puestos que se pueden solicitar al registrarse por el link del club.
 export const STAFF_SIGNUP_ROLES = [
   "kinesiologo",
