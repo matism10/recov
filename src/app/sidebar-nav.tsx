@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, UserCheck, Users, UsersRound, type LucideIcon } from "lucide-react";
+import {
+  Activity,
+  LayoutDashboard,
+  Settings,
+  UserCheck,
+  Users,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
 import { Avatar } from "@/app/avatar";
+import { ClubLogo } from "@/app/club-logo";
 import { chipClass } from "@/app/ui";
 
 type Item = {
@@ -17,12 +26,18 @@ type Item = {
 const startsWith = (path: string, prefix: string) =>
   path === prefix || path.startsWith(`${prefix}/`);
 
-const PLANTEL: Item = {
+const RESUMEN: Item = {
   href: "/dashboard",
+  label: "Resumen",
+  Icon: LayoutDashboard,
+  isActive: (p) => startsWith(p, "/dashboard"),
+};
+const PLANTEL: Item = {
+  href: "/plantel",
   label: "Plantel",
   Icon: Users,
   isActive: (p) =>
-    startsWith(p, "/dashboard") || startsWith(p, "/jugadores") || startsWith(p, "/lesiones/marcar"),
+    startsWith(p, "/plantel") || startsWith(p, "/jugadores") || startsWith(p, "/lesiones/marcar"),
 };
 const LESIONES: Item = {
   href: "/lesiones",
@@ -44,6 +59,12 @@ const STAFF: Item = {
   Icon: UsersRound,
   isActive: (p) => startsWith(p, "/staff"),
 };
+const CONFIGURACION: Item = {
+  href: "/configuracion",
+  label: "Configuración",
+  Icon: Settings,
+  isActive: (p) => startsWith(p, "/configuracion"),
+};
 
 // Pantallas sin navegación de la app (entrada y registro).
 const HIDDEN_ON = ["/login", "/c", "/pendiente"];
@@ -55,12 +76,14 @@ const itemClass = (active: boolean) =>
 
 export function SidebarNav({
   clubName,
+  clubLogoUrl,
   fullName,
   avatarUrl,
   direction,
   pendingCount,
 }: {
   clubName: string;
+  clubLogoUrl: string | null;
   fullName: string;
   avatarUrl: string | null;
   direction: boolean;
@@ -69,15 +92,20 @@ export function SidebarNav({
   const pathname = usePathname();
   if (HIDDEN_ON.some((prefix) => startsWith(pathname, prefix))) return null;
 
-  // Registros pendientes y Staff: solo la dirección (head coach y manager).
-  const items = direction ? [PLANTEL, LESIONES, REGISTROS, STAFF] : [PLANTEL, LESIONES];
+  // Registros pendientes, Staff y Configuración: solo la dirección (head coach y manager).
+  const items = direction
+    ? [RESUMEN, PLANTEL, LESIONES, REGISTROS, STAFF, CONFIGURACION]
+    : [RESUMEN, PLANTEL, LESIONES];
   const profileActive = startsWith(pathname, "/perfil");
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-mist px-3 py-6 lg:flex">
-      <div className="px-3">
-        <p className="font-display text-xl font-extrabold text-ink">Recov</p>
-        <p className="mt-0.5 truncate text-sm text-muted">{clubName}</p>
+      <div className="flex items-center gap-3 px-3">
+        <ClubLogo name={clubName} url={clubLogoUrl} />
+        <div className="min-w-0">
+          <p className="font-display text-xl leading-tight font-extrabold text-ink">Recov</p>
+          <p className="truncate text-sm text-muted">{clubName}</p>
+        </div>
       </div>
 
       <nav aria-label="Principal" className="mt-8 flex-1">

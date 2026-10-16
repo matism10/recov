@@ -99,7 +99,7 @@ export default async function RegistrosPage() {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
         <Link href="/dashboard" className={textButton}>
-          ← Volver al plantel
+          ← Volver al resumen
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-ink">
           Registros pendientes
