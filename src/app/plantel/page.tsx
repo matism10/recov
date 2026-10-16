@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canManageInjuries, isStaff, type UserRole } from "@/lib/roles";
 import { getSquad } from "@/lib/squad";
-import { Squad } from "@/app/dashboard/squad";
+import { FilterableSquad } from "@/app/dashboard/squad-browser";
 import { cardClass, textButton } from "@/app/ui";
 
 // Plantel completo del club: los mismos datos, acciones y reglas por rol que la
-// lista del Resumen, pero con todos los jugadores confirmados.
+// lista del Resumen, pero con todos los jugadores confirmados, con búsqueda y
+// filtros por posición y disponibilidad.
 export default async function SquadPage() {
   const supabase = await createClient();
 
@@ -19,7 +20,7 @@ export default async function SquadPage() {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("roles, status, clubs!profiles_club_id_fkey(name, kine_delegate_id)")
+    .select("roles, status, clubs!profiles_club_id_fkey(name, sport, kine_delegate_id)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -30,7 +31,11 @@ export default async function SquadPage() {
   const roles = (profile.roles ?? []) as UserRole[];
   // Solo decide qué se muestra; las funciones de la base validan el permiso real.
   const canManage = canManageInjuries(roles, user.id, club?.kine_delegate_id);
-  const { players, avatarUrls, phaseByPlayer } = await getSquad(supabase);
+  const [{ players, avatarUrls, phaseByPlayer }, { data: positions }] = await Promise.all([
+    getSquad(supabase),
+    // Orden de las posiciones según el deporte del club, para el filtro.
+    supabase.from("positions").select("name").eq("sport", club?.sport ?? "").order("sort"),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
@@ -46,7 +51,8 @@ export default async function SquadPage() {
       </header>
 
       {players.length > 0 ? (
-        <Squad
+        <FilterableSquad
+          positions={(positions ?? []).map((p) => p.name as string)}
           players={players}
           avatarUrls={avatarUrls}
           phaseByPlayer={phaseByPlayer}
