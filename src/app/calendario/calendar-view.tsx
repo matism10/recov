@@ -17,8 +17,16 @@ import {
   weekStart,
   type CalendarEvent,
   type EventAvailabilitySummary,
+  type SummaryPlayer,
 } from "@/lib/events";
-import { ErrorMessage, buttonDanger, buttonPrimary, buttonSecondary, cardClass, textButton } from "@/app/ui";
+import {
+  ErrorMessage,
+  buttonDanger,
+  buttonPrimary,
+  buttonSecondary,
+  cardClass,
+  textButton,
+} from "@/app/ui";
 import { cancelEvent } from "./actions";
 
 type Props = {
@@ -61,11 +69,9 @@ export function CalendarView({
   };
 
   return (
-    <div className="lg:flex lg:items-start lg:gap-6">
-      <div className="min-w-0 flex-1">
-        <MonthGrid anchor={anchor} today={today} days={days} byDay={byDay} {...chipProps} />
-        <WeekList anchor={anchor} today={today} byDay={byDay} {...chipProps} />
-      </div>
+    <div>
+      <MonthGrid anchor={anchor} today={today} days={days} byDay={byDay} {...chipProps} />
+      <WeekList anchor={anchor} today={today} byDay={byDay} {...chipProps} />
       {selected && (
         <EventPanel
           key={selected.id}
@@ -96,7 +102,12 @@ function MonthGrid({
   days,
   byDay,
   ...chipProps
-}: { anchor: string; today: string; days: string[]; byDay: Map<string, CalendarEvent[]> } & ChipProps) {
+}: {
+  anchor: string;
+  today: string;
+  days: string[];
+  byDay: Map<string, CalendarEvent[]>;
+} & ChipProps) {
   const month = anchor.slice(0, 7);
   return (
     <section aria-label="Mes" className="hidden lg:block">
@@ -326,14 +337,17 @@ function EventPanel({
   canManage: boolean;
   onClose: () => void;
 }) {
+  const panelRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  // Al abrir el detalle (cada evento monta su propio panel), foco en el título.
+  // Al abrir el detalle (cada evento monta su propio panel): en escritorio queda
+  // bajo la grilla, así que se desplaza hasta él; el foco va al título.
   useEffect(() => {
-    titleRef.current?.focus();
+    panelRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    titleRef.current?.focus({ preventScroll: true });
   }, []);
 
   useEffect(() => {
@@ -351,12 +365,13 @@ function EventPanel({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end bg-ink/30 lg:sticky lg:top-6 lg:z-auto lg:block lg:w-80 lg:shrink-0 lg:bg-transparent"
+      className="fixed inset-0 z-40 flex items-end bg-ink/30 lg:static lg:z-auto lg:mt-6 lg:block lg:bg-transparent"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <aside
+        ref={panelRef}
         aria-labelledby="event-panel-title"
-        className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl border border-line bg-white p-5 shadow-lg lg:max-h-[calc(100vh-3rem)] lg:rounded-xl lg:shadow-none"
+        className="max-h-[85vh] w-full scroll-mt-6 overflow-y-auto rounded-t-2xl border border-line bg-white p-5 shadow-lg lg:max-h-none lg:overflow-visible lg:rounded-xl lg:p-6 lg:shadow-none"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">
@@ -397,88 +412,96 @@ function EventPanel({
           </button>
         </div>
 
-        <dl className="mt-4 space-y-2 text-sm">
+        {/* Escritorio: datos y acciones a la izquierda, plantel a la derecha. */}
+        <div className="lg:mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-8">
           <div>
-            <dt className="sr-only">Fecha y hora</dt>
-            <dd className="text-ink">
-              {longDayLabel(event.day)}
-              <br />
-              {event.start} – {event.end}
-            </dd>
-          </div>
-          {event.location && (
-            <div className="flex items-start gap-2">
-              <dt>
-                <MapPin aria-hidden="true" className="mt-0.5 size-4 text-muted" />
-                <span className="sr-only">Lugar</span>
-              </dt>
-              <dd className="text-ink">{event.location}</dd>
-            </div>
-          )}
-          {event.opponent && (
-            <div className="flex items-start gap-2">
-              <dt>
-                <Swords aria-hidden="true" className="mt-0.5 size-4 text-muted" />
-                <span className="sr-only">Rival</span>
-              </dt>
-              <dd className="text-ink">{event.opponent}</dd>
-            </div>
-          )}
-          {event.notes && (
-            <div className="pt-1">
-              <dt className="text-xs font-medium text-muted">Notas</dt>
-              <dd className="mt-0.5 whitespace-pre-line text-ink">{event.notes}</dd>
-            </div>
-          )}
-        </dl>
-
-        {staff && !event.cancelled && (
-          <SquadSummary eventId={event.id} summary={summary} past={event.past} />
-        )}
-
-        {canManage && !event.cancelled && (
-          <div className="mt-6 space-y-3 border-t border-line pt-4">
-            {confirming ? (
-              <div className="space-y-3">
-                <p className="text-sm text-ink">
-                  ¿Cancelar este evento? Seguirá en el calendario marcado como cancelado.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={cancel}
-                    disabled={pending}
-                    className={`text-sm ${buttonDanger}`}
-                  >
-                    {pending ? "Cancelando…" : "Sí, cancelar evento"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirming(false)}
-                    disabled={pending}
-                    className={textButton}
-                  >
-                    No, volver
-                  </button>
-                </div>
+            <dl className="mt-4 space-y-2 text-sm lg:mt-0">
+              <div>
+                <dt className="sr-only">Fecha y hora</dt>
+                <dd className="text-ink">
+                  {longDayLabel(event.day)}
+                  <br />
+                  {event.start} – {event.end}
+                </dd>
               </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                <Link href={`/calendario/${event.id}/editar`} className={`text-sm ${buttonSecondary}`}>
-                  Editar
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setConfirming(true)}
-                  className={`text-sm ${buttonSecondary}`}
-                >
-                  Cancelar evento
-                </button>
+              {event.location && (
+                <div className="flex items-start gap-2">
+                  <dt>
+                    <MapPin aria-hidden="true" className="mt-0.5 size-4 text-muted" />
+                    <span className="sr-only">Lugar</span>
+                  </dt>
+                  <dd className="text-ink">{event.location}</dd>
+                </div>
+              )}
+              {event.opponent && (
+                <div className="flex items-start gap-2">
+                  <dt>
+                    <Swords aria-hidden="true" className="mt-0.5 size-4 text-muted" />
+                    <span className="sr-only">Rival</span>
+                  </dt>
+                  <dd className="text-ink">{event.opponent}</dd>
+                </div>
+              )}
+              {event.notes && (
+                <div className="pt-1">
+                  <dt className="text-xs font-medium text-muted">Notas</dt>
+                  <dd className="mt-0.5 whitespace-pre-line text-ink">{event.notes}</dd>
+                </div>
+              )}
+            </dl>
+
+            {canManage && !event.cancelled && (
+              <div className="mt-6 space-y-3 border-t border-line pt-4">
+                {confirming ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-ink">
+                      ¿Cancelar este evento? Seguirá en el calendario marcado como cancelado.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={cancel}
+                        disabled={pending}
+                        className={`text-sm ${buttonDanger}`}
+                      >
+                        {pending ? "Cancelando…" : "Sí, cancelar evento"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirming(false)}
+                        disabled={pending}
+                        className={textButton}
+                      >
+                        No, volver
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/calendario/${event.id}/editar`}
+                      className={`text-sm ${buttonSecondary}`}
+                    >
+                      Editar
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setConfirming(true)}
+                      className={`text-sm ${buttonSecondary}`}
+                    >
+                      Cancelar evento
+                    </button>
+                  </div>
+                )}
+                {error && <ErrorMessage>{error}</ErrorMessage>}
               </div>
             )}
-            {error && <ErrorMessage>{error}</ErrorMessage>}
           </div>
-        )}
+
+          {staff && !event.cancelled && (
+            <SquadSummary eventId={event.id} summary={summary} past={event.past} />
+          )}
+        </div>
       </aside>
     </div>
   );
@@ -502,13 +525,15 @@ function SquadSummary({
 }) {
   if (!summary) {
     return (
-      <ErrorMessage className="mt-6">No se pudo cargar la disponibilidad del plantel.</ErrorMessage>
+      <ErrorMessage className="mt-6 lg:mt-0">
+        No se pudo cargar la disponibilidad del plantel.
+      </ErrorMessage>
     );
   }
   // Evento pasado sin registros de disponibilidad anteriores a su inicio.
   if (summary.total === 0) {
     return (
-      <section className="mt-6 border-t border-line pt-4">
+      <section className="mt-6 border-t border-line pt-4 lg:mt-0 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
         <h3 className="text-sm font-medium text-ink">Plantel</h3>
         <p className="mt-1 text-sm text-muted">
           No hay registros de disponibilidad del plantel para esa fecha.
@@ -517,10 +542,12 @@ function SquadSummary({
     );
   }
   return (
-    <section className="mt-6 border-t border-line pt-4">
+    <section className="mt-6 border-t border-line pt-4 lg:mt-0 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
       <h3 className="text-sm font-medium text-ink">Plantel</h3>
       <p className="text-xs text-muted">
-        {past ? "Disponibilidad registrada al momento del evento." : "Disponibilidad proyectada para esa fecha."}
+        {past
+          ? "Disponibilidad registrada al momento del evento."
+          : "Disponibilidad proyectada para esa fecha."}
       </p>
       <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
         {(
@@ -530,33 +557,52 @@ function SquadSummary({
             ["no", "No disponibles", summary.no],
           ] as const
         ).map(([key, label, value]) => (
-          <div key={key} className={`flex flex-col-reverse rounded-xl px-2 py-2 ${COUNT_STYLE[key]}`}>
+          <div
+            key={key}
+            className={`flex flex-col-reverse rounded-xl px-2 py-2 ${COUNT_STYLE[key]}`}
+          >
             <dt className="text-xs">{label}</dt>
             <dd className="font-display text-xl font-bold">{value}</dd>
           </div>
         ))}
       </dl>
 
-      <NameList title="No disponibles" names={summary.noNames} total={summary.no} />
-      <NameList title="En duda" names={summary.dudaNames} total={summary.duda} />
+      <div className="sm:grid sm:grid-cols-2 sm:gap-6">
+        <NameList title="No disponibles" players={summary.no_players} total={summary.no} />
+        <NameList title="En duda" players={summary.duda_players} total={summary.duda} />
+      </div>
 
-      <Link href={`/calendario/${eventId}/disponibles`} className={`mt-4 w-full text-sm ${buttonPrimary}`}>
+      <Link
+        href={`/calendario/${eventId}/disponibles`}
+        className={`mt-4 w-full text-sm lg:w-auto ${buttonPrimary}`}
+      >
         Ver jugadores disponibles para esa fecha
       </Link>
     </section>
   );
 }
 
-function NameList({ title, names, total }: { title: string; names: string[]; total: number }) {
+function NameList({
+  title,
+  players,
+  total,
+}: {
+  title: string;
+  players: SummaryPlayer[];
+  total: number;
+}) {
   if (total === 0) return null;
   return (
     <div className="mt-4">
       <h4 className="text-xs font-medium text-muted">{title}</h4>
       <ul className="mt-1 space-y-1 text-sm text-ink">
-        {names.map((n, i) => (
-          <li key={i}>{n}</li>
+        {players.map((p, i) => (
+          <li key={i}>
+            {p.name}
+            {p.position && <span className="text-muted"> · {p.position}</span>}
+          </li>
         ))}
-        {total > names.length && <li className="text-muted">y {total - names.length} más</li>}
+        {total > players.length && <li className="text-muted">y {total - players.length} más</li>}
       </ul>
     </div>
   );
