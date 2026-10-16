@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0020.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0021.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -718,5 +718,62 @@ select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.
   where n.nspname = 'public' and p.proname like 'dash\_%' and a.grantee = 'authenticated'::regrole and a.privilege_type = 'EXECUTE'$q$, 7, 'authenticated ejecuta las 7 dash_*');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname like 'dash\_%' and p.proconfig = array['search_path=""']$q$, 7, 'las 7 dash_* fijan search_path vacío');
+
+-- =======================================================================
+-- 18. Logo del club (0021)
+-- =======================================================================
+-- Head coach A: sube a la carpeta de su club y fija el logo.
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
+  values ('club-logos', 'aaaaaaaa-0000-0000-0000-000000000001/logo.png')$q$, 'head coach A sube el logo de su club');
+select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name)
+  values ('club-logos', 'bbbbbbbb-0000-0000-0000-000000000002/logo.png')$q$, 'head coach A sube a la carpeta del club B');
+select pg_temp.expect_fail($q$select public.set_club_logo('bbbbbbbb-0000-0000-0000-000000000002/logo.png')$q$, 'fijar una ruta de otro club');
+select pg_temp.expect_fail($q$select public.set_club_logo('aaaaaaaa-0000-0000-0000-000000000001/no-existe.png')$q$, 'fijar un logo que no se subió');
+select pg_temp.expect_ok($q$select public.set_club_logo('aaaaaaaa-0000-0000-0000-000000000001/logo.png')$q$, 'head coach A fija el logo');
+select pg_temp.expect_count($q$select 1 from public.clubs where logo_path = 'aaaaaaaa-0000-0000-0000-000000000001/logo.png'$q$, 1, 'el logo quedó guardado');
+select pg_temp.expect_no_rows($q$update public.clubs set logo_path = null$q$, 'head coach A edita el club directo');
+select pg_temp.back();
+
+-- El link de registro lee la ruta del logo sin sesión.
+select pg_temp.as_anon();
+select pg_temp.expect_count($q$select 1 where public.club_logo_path('club-a') = 'aaaaaaaa-0000-0000-0000-000000000001/logo.png'$q$, 1, 'anónimo lee el logo del link de registro');
+select pg_temp.expect_count($q$select 1 where public.club_logo_path('no-existe') is null$q$, 1, 'un link inexistente no tiene logo');
+select pg_temp.expect_fail($q$select public.set_club_logo(null)$q$, 'anónimo cambia el logo');
+select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name)
+  values ('club-logos', 'aaaaaaaa-0000-0000-0000-000000000001/anon.png')$q$, 'anónimo sube un logo');
+select pg_temp.back();
+
+-- Sin permiso: kine, jugador y staff de otro club.
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A
+select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name)
+  values ('club-logos', 'aaaaaaaa-0000-0000-0000-000000000001/kine.png')$q$, 'kine A sube un logo');
+select pg_temp.expect_fail($q$select public.set_club_logo(null)$q$, 'kine A cambia el logo');
+select pg_temp.expect_no_rows($q$delete from storage.objects where bucket_id = 'club-logos'$q$, 'kine A borra el logo');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');   -- jugador A1
+select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name)
+  values ('club-logos', 'aaaaaaaa-0000-0000-0000-000000000001/jugador.png')$q$, 'jugador A1 sube un logo');
+select pg_temp.expect_fail($q$select public.set_club_logo(null)$q$, 'jugador A1 cambia el logo');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');   -- kine B
+select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name)
+  values ('club-logos', 'aaaaaaaa-0000-0000-0000-000000000001/b.png')$q$, 'kine B sube a la carpeta del club A');
+select pg_temp.back();
+
+-- Manager A también puede; NULL quita el logo.
+select pg_temp.as_user('20000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_club_logo(null)$q$, 'manager A quita el logo');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001' and logo_path is null$q$, 1, 'el club queda sin logo');
+
+-- La ruta debe estar en la carpeta del propio club, también en un update directo.
+select pg_temp.expect_fail($q$update public.clubs set logo_path = 'bbbbbbbb-0000-0000-0000-000000000002/x.png'
+  where id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 'logo con ruta de otro club (CHECK)');
+
+-- Permisos de las funciones y del bucket
+select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.set_club_logo(text)', 'EXECUTE')$q$, 0, 'anon no ejecuta set_club_logo');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.club_logo_path(text)', 'EXECUTE')$q$, 1, 'anon ejecuta club_logo_path');
+select pg_temp.expect_count($q$select 1 from storage.buckets where id = 'club-logos' and public and file_size_limit = 1048576$q$, 1, 'bucket club-logos público y de 1 MB');
 
 rollback;

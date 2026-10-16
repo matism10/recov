@@ -1,17 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Availability } from "@/lib/roles";
+import type { SquadPlayer } from "@/lib/squad";
 import { Avatar } from "@/app/avatar";
 import { AvailabilityBadge, buttonSecondary } from "@/app/ui";
 import { AvailabilitySelect } from "./availability-select";
 
-export type SquadPlayer = {
-  id: string;
-  full_name: string;
-  position: string | null;
-  availability: string;
-  user_id: string | null;
-};
 
 export type SquadProps = {
   players: SquadPlayer[];

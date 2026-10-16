@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isDirection, type UserRole } from "@/lib/roles";
 import { getAvatarUrls } from "@/lib/avatars";
+import { clubLogoUrl } from "@/lib/club-logo";
 import { SidebarNav } from "./sidebar-nav";
 
 // Navegación lateral de escritorio (lg+). Solo para usuarios confirmados: sin sesión,
@@ -15,7 +16,7 @@ export async function Sidebar() {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name)")
+    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, logo_path)")
     .eq("id", user.id)
     .maybeSingle();
   if (profile?.status !== "confirmado") return null;
@@ -37,6 +38,7 @@ export async function Sidebar() {
   return (
     <SidebarNav
       clubName={club?.name ?? ""}
+      clubLogoUrl={clubLogoUrl(supabase, club?.logo_path)}
       fullName={profile.full_name ?? ""}
       avatarUrl={avatarUrl}
       direction={direction}

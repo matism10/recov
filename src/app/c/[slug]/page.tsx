@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { clubLogoUrl } from "@/lib/club-logo";
+import { ClubLogo } from "@/app/club-logo";
 import { RegisterForm } from "./register-form";
 
 export default async function ClubSignupPage({
@@ -23,6 +25,10 @@ export default async function ClubSignupPage({
     );
   }
 
+  // Sin sesión: club_logo_path solo devuelve la ruta del logo (bucket público).
+  const { data: logoPath } = await supabase.rpc("club_logo_path", { p_slug: slug });
+  const logoUrl = clubLogoUrl(supabase, logoPath as string | null);
+
   const { data: positions } = await supabase
     .from("positions")
     .select("name")
@@ -34,6 +40,11 @@ export default async function ClubSignupPage({
       <div className="w-full max-w-sm space-y-5 rounded-xl bg-mist p-8 border border-line">
         <div>
           <p className="font-display text-sm font-extrabold text-ink">Recov</p>
+          {logoUrl && (
+            <div className="mt-3">
+              <ClubLogo name={club.name} url={logoUrl} size="lg" />
+            </div>
+          )}
           <h1 className="text-2xl font-semibold text-ink">{club.name}</h1>
           <p className="mt-1 text-sm text-muted">
             Crea tu cuenta para unirte al club.

@@ -17,7 +17,7 @@ import {
 } from "@/lib/injuries";
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
 import { Avatar } from "@/app/avatar";
-import { getAvatarUrls } from "@/lib/avatars";
+import { getSquad } from "@/lib/squad";
 import {
   AvailabilityBadge,
   InjuryStatusBadge,
@@ -27,9 +27,11 @@ import {
   chipClass,
   textButton,
 } from "@/app/ui";
-import { SquadList } from "./squad-list";
-import { SquadTable } from "./squad-table";
+import { Squad } from "./squad";
 import { MetricsStrip } from "./metrics-strip";
+
+// Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
+const RESUMEN_AVAILABLE = 10;
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -69,29 +71,14 @@ export default async function DashboardPage() {
     );
   }
 
-  // RLS: solo jugadores del club del usuario. La dirección también ve los
-  // pendientes, así que se filtra el plantel confirmado.
-  const { data: players } = await supabase
-    .from("players")
-    .select("id, full_name, position, availability, user_id")
-    .eq("active", true)
-    .eq("status", "confirmado")
-    .order("full_name");
-  // Foto de perfil de los jugadores con cuenta y la propia (para el acceso a /perfil).
-  const avatarUrls = await getAvatarUrls(supabase, [
-    ...(players ?? []).map((p) => p.user_id),
-    user.id,
-  ]);
+  // Plantel confirmado y activo, con fotos (también la propia, para el acceso a
+  // /perfil) y la fase en curso de cada jugador.
+  const { players, avatarUrls, phaseByPlayer } = await getSquad(supabase, [user.id]);
   const myAvatarUrl = avatarUrls.get(user.id) ?? null;
-  // Fase de recuperación en curso de cada jugador: solo el nombre, visible para
-  // todo el club (los jugadores no ven el resto de la lesión de sus compañeros).
-  const { data: currentPhases } = await supabase.rpc("squad_current_phases");
-  const phaseByPlayer = new Map(
-    ((currentPhases ?? []) as { player_id: string; phase_name: string }[]).map((p) => [
-      p.player_id,
-      p.phase_name,
-    ]),
-  );
+  // En el Resumen, solo los primeros disponibles; el plantel completo está en /plantel.
+  const availablePlayers = players
+    .filter((p) => p.availability === "disponible")
+    .slice(0, RESUMEN_AVAILABLE);
 
   const club = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
   const roles = (profile.roles ?? []) as UserRole[];
@@ -114,7 +101,7 @@ export default async function DashboardPage() {
 
   // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con el inicio y
   // la fecha de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
-  const injuredPlayers = (players ?? []).filter((p) =>
+  const injuredPlayers = players.filter((p) =>
     (INJURED_AVAILABILITY as readonly string[]).includes(p.availability),
   );
   const openByPlayer = new Map<string, { startedOn: string; expectedReturnOn: string | null }>();
@@ -325,7 +312,7 @@ export default async function DashboardPage() {
                       >
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3">
-                            <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
+                            <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
                             <div>
                               <p className="font-medium text-ink">{p.full_name}</p>
                               <p className="text-sm text-muted">
@@ -378,7 +365,7 @@ export default async function DashboardPage() {
                               href={`/jugadores/${p.id}`}
                               className="inline-flex min-h-11 items-center gap-3 font-medium text-ink hover:underline"
                             >
-                              <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
+                              <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
                               {p.full_name}
                             </Link>
                           </td>
@@ -464,31 +451,27 @@ export default async function DashboardPage() {
 
       <section>
         <h2 className="mb-3 text-sm font-medium text-muted">Plantel</h2>
-        {players && players.length > 0 ? (
-          <>
-            <div className="lg:hidden">
-              <SquadList
-                players={players}
-                avatarUrls={avatarUrls}
-                phaseByPlayer={phaseByPlayer}
-                canManage={canManage}
-                linkToProfile={staff}
-              />
-            </div>
-            <div className="hidden lg:block">
-              <SquadTable
-                players={players}
-                avatarUrls={avatarUrls}
-                phaseByPlayer={phaseByPlayer}
-                canManage={canManage}
-                linkToProfile={staff}
-              />
-            </div>
-          </>
-        ) : (
+        {players.length === 0 ? (
           <p className={`p-8 text-center text-muted ${cardClass}`}>
             Aún no hay jugadores registrados en tu club.
           </p>
+        ) : availablePlayers.length > 0 ? (
+          <Squad
+            players={availablePlayers}
+            avatarUrls={avatarUrls}
+            phaseByPlayer={phaseByPlayer}
+            canManage={canManage}
+            linkToProfile={staff}
+          />
+        ) : (
+          <p className={`p-5 text-sm text-muted ${cardClass}`}>
+            No hay jugadores disponibles.
+          </p>
+        )}
+        {players.length > 0 && (
+          <Link href="/plantel" className={`mt-4 text-sm ${buttonSecondary}`}>
+            Ver plantel completo
+          </Link>
         )}
       </section>
     </main>
