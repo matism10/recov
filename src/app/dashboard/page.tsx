@@ -110,8 +110,6 @@ export default async function DashboardPage() {
 
   const staff = isStaff(roles);
   const isPlayer = roles.includes("jugador");
-  // Por revisar, Lesiones activas y Mis lesiones: columna lateral en escritorio.
-  const hasSideColumn = canManage || staff || isPlayer;
 
   // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con la fecha
   // de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
@@ -225,6 +223,9 @@ export default async function DashboardPage() {
         </div>
       </header>
 
+      {/* Franja de métricas (PR posterior): va aquí, entre el encabezado y "Por revisar",
+          como un bloque más con mb-8, sin mover el resto. */}
+
       {myPendingInjury && (
         <div className="mb-8 space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
           <div>
@@ -242,184 +243,224 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* En escritorio: bandejas a la izquierda (1/3) y plantel a la derecha (2/3). */}
-      <div className="lg:grid lg:grid-cols-3 lg:items-start lg:gap-8">
-        {hasSideColumn && (
-          <div>
-            {canManage && (
-              <section className="mb-8">
-                <div className="mb-3 flex items-center justify-between gap-4">
-                  <h2 className="text-sm font-medium text-muted">
-                    Por revisar
-                    {toReview.length > 0 && (
-                      <span className={`ml-1.5 ${chipClass}`}>
-                        {toReview.length}
-                      </span>
-                    )}
-                  </h2>
-                </div>
-                {toReview.length > 0 ? (
-                  <div className="space-y-3">
-                    {[
-                      { title: "Diagnóstico por revisar", items: diagnosisToReview },
-                      { title: "Esperando el diagnóstico del jugador", items: awaitingDiagnosis },
-                    ]
-                      .filter((group) => group.items.length > 0)
-                      .map((group) => (
-                        <div key={group.title}>
-                          <h3 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
-                            {group.title} ({group.items.length})
-                          </h3>
-                          <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
-                            {group.items.map((i) => {
-                              const player = Array.isArray(i.players) ? i.players[0] : i.players;
-                              return (
-                                <li key={i.id}>
-                                  <Link
-                                    href={`/lesiones/${i.id}`}
-                                    className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-white"
-                                  >
-                                    <div>
-                                      <p className="font-medium text-ink">
-                                        {player ? `${player.full_name} · ${i.type}` : i.type}
-                                      </p>
-                                      <p className="text-sm text-muted">
-                                        Desde el {formatDate(i.started_on)}
-                                      </p>
-                                    </div>
-                                    <span className="text-sm font-medium text-brand-text underline">
-                                      Revisa
-                                    </span>
-                                  </Link>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <p className={`p-5 text-sm text-muted ${cardClass}`}>
-                    No hay lesiones por revisar.
-                  </p>
-                )}
-              </section>
-            )}
-
-            {staff && (
-              <section className="mb-8">
-                <h2 className="mb-3 text-sm font-medium text-muted">Lesiones activas</h2>
-                {injuredPlayers.length > 0 ? (
-                  <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
-                    {injuredPlayers.map((p) => {
-                      const status = p.availability as Availability;
-                      return (
-                        <li key={p.id}>
-                          <Link
-                            href={`/jugadores/${p.id}`}
-                            className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-white"
-                          >
-                            <div className="flex items-center gap-3">
-                              <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
+      {canManage && (
+        <section className="mb-8">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-sm font-medium text-muted">
+              Por revisar
+              {toReview.length > 0 && (
+                <span className={`ml-1.5 ${chipClass}`}>
+                  {toReview.length}
+                </span>
+              )}
+            </h2>
+          </div>
+          {toReview.length > 0 ? (
+            <div className="space-y-3">
+              {[
+                { title: "Diagnóstico por revisar", items: diagnosisToReview },
+                { title: "Esperando el diagnóstico del jugador", items: awaitingDiagnosis },
+              ]
+                .filter((group) => group.items.length > 0)
+                .map((group) => (
+                  <div key={group.title}>
+                    <h3 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
+                      {group.title} ({group.items.length})
+                    </h3>
+                    <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
+                      {group.items.map((i) => {
+                        const player = Array.isArray(i.players) ? i.players[0] : i.players;
+                        return (
+                          <li key={i.id}>
+                            <Link
+                              href={`/lesiones/${i.id}`}
+                              className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-white"
+                            >
                               <div>
-                                <p className="font-medium text-ink">{p.full_name}</p>
-                                <p className="text-sm text-muted">
-                                  {returnLabel(returnByPlayer.get(p.id) ?? null)}
+                                <p className="font-medium text-ink">
+                                  {player ? `${player.full_name} · ${i.type}` : i.type}
                                 </p>
-                              </div>
-                            </div>
-                            <AvailabilityBadge status={status} />
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className={`p-5 text-sm text-muted ${cardClass}`}>
-                    No hay jugadores lesionados ni en reintegro.
-                  </p>
-                )}
-              </section>
-            )}
-
-            {isPlayer && (
-              <section className="mb-8">
-                <div className="mb-3 flex items-center justify-between gap-4">
-                  <h2 className="text-sm font-medium text-muted">Mis lesiones</h2>
-                  <Link
-                    href="/registrar-lesion"
-                    className={`text-sm ${buttonPrimary}`}
-                  >
-                    Registra una lesión
-                  </Link>
-                </div>
-                {injuries && injuries.length > 0 ? (
-                  <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
-                    {injuries.map((i) => {
-                      return (
-                        <li key={i.id}>
-                          <Link
-                            href={`/lesiones/${i.id}`}
-                            className="block space-y-2 px-5 py-4 transition hover:bg-white"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <p className="font-medium text-ink">{i.type}</p>
                                 <p className="text-sm text-muted">
                                   Desde el {formatDate(i.started_on)}
                                 </p>
                               </div>
-                              <InjuryStatusBadge status={i.status as InjuryStatus} outline />
-                            </div>
-                            {i.status !== "en_evaluacion" && (
-                              <InjuryProgress
-                                startedOn={i.started_on}
-                                expectedReturnOn={i.expected_return_on}
-                              />
-                            )}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className={`p-5 text-sm text-muted ${cardClass}`}>
-                    No has registrado lesiones.
-                  </p>
-                )}
-              </section>
-            )}
-          </div>
-        )}
-
-        <section className={hasSideColumn ? "lg:col-span-2" : "lg:col-span-3"}>
-          <h2 className="mb-3 text-sm font-medium text-muted">Plantel</h2>
-          {players && players.length > 0 ? (
-            <>
-              <div className="lg:hidden">
-                <SquadList
-                  players={players}
-                  avatarUrls={avatarUrls}
-                  phaseByPlayer={phaseByPlayer}
-                  canManage={canManage}
-                />
-              </div>
-              <div className="hidden lg:block">
-                <SquadTable
-                  players={players}
-                  avatarUrls={avatarUrls}
-                  phaseByPlayer={phaseByPlayer}
-                  canManage={canManage}
-                />
-              </div>
-            </>
+                              <span className="text-sm font-medium text-brand-text underline">
+                                Revisa
+                              </span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+            </div>
           ) : (
-            <p className={`p-8 text-center text-muted ${cardClass}`}>
-              Aún no hay jugadores registrados en tu club.
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
+              No hay lesiones por revisar.
             </p>
           )}
         </section>
-      </div>
+      )}
+
+      {staff && (
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-medium text-muted">Lesiones activas</h2>
+          {injuredPlayers.length > 0 ? (
+            <>
+              <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line lg:hidden">
+                {injuredPlayers.map((p) => {
+                  const status = p.availability as Availability;
+                  return (
+                    <li key={p.id}>
+                      <Link
+                        href={`/jugadores/${p.id}`}
+                        className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-white"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
+                          <div>
+                            <p className="font-medium text-ink">{p.full_name}</p>
+                            <p className="text-sm text-muted">
+                              {returnLabel(returnByPlayer.get(p.id) ?? null)}
+                            </p>
+                          </div>
+                        </div>
+                        <AvailabilityBadge status={status} />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              {/* En escritorio, la misma lista como tabla. */}
+              <div className="hidden overflow-x-auto rounded-xl border border-line bg-mist lg:block">
+                <table className="w-full text-left">
+                  <thead className="text-sm text-muted">
+                    <tr className="border-b border-line">
+                      <th scope="col" className="py-3 pr-3 pl-5 font-medium">
+                        Jugador
+                      </th>
+                      <th scope="col" className="px-3 py-3 font-medium">
+                        Fase en curso
+                      </th>
+                      <th scope="col" className="px-3 py-3 font-medium">
+                        Regreso estimado
+                      </th>
+                      <th scope="col" className="py-3 pr-5 pl-3 font-medium">
+                        Estado
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {injuredPlayers.map((p) => (
+                      <tr key={p.id} className="transition hover:bg-white">
+                        <td className="py-3 pr-3 pl-5">
+                          <Link
+                            href={`/jugadores/${p.id}`}
+                            className="inline-flex min-h-11 items-center gap-3 font-medium text-ink hover:underline"
+                          >
+                            <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
+                            {p.full_name}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-3 text-sm text-muted">
+                          {phaseByPlayer.get(p.id)}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-muted">
+                          {returnLabel(returnByPlayer.get(p.id) ?? null)}
+                        </td>
+                        <td className="py-3 pr-5 pl-3">
+                          <AvailabilityBadge status={p.availability as Availability} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
+              No hay jugadores lesionados ni en reintegro.
+            </p>
+          )}
+        </section>
+      )}
+
+      {isPlayer && (
+        <section className="mb-8">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h2 className="text-sm font-medium text-muted">Mis lesiones</h2>
+            <Link
+              href="/registrar-lesion"
+              className={`text-sm ${buttonPrimary}`}
+            >
+              Registra una lesión
+            </Link>
+          </div>
+          {injuries && injuries.length > 0 ? (
+            <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
+              {injuries.map((i) => {
+                return (
+                  <li key={i.id}>
+                    <Link
+                      href={`/lesiones/${i.id}`}
+                      className="block space-y-2 px-5 py-4 transition hover:bg-white"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-medium text-ink">{i.type}</p>
+                          <p className="text-sm text-muted">
+                            Desde el {formatDate(i.started_on)}
+                          </p>
+                        </div>
+                        <InjuryStatusBadge status={i.status as InjuryStatus} outline />
+                      </div>
+                      {i.status !== "en_evaluacion" && (
+                        <InjuryProgress
+                          startedOn={i.started_on}
+                          expectedReturnOn={i.expected_return_on}
+                        />
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>
+              No has registrado lesiones.
+            </p>
+          )}
+        </section>
+      )}
+
+      <section>
+        <h2 className="mb-3 text-sm font-medium text-muted">Plantel</h2>
+        {players && players.length > 0 ? (
+          <>
+            <div className="lg:hidden">
+              <SquadList
+                players={players}
+                avatarUrls={avatarUrls}
+                phaseByPlayer={phaseByPlayer}
+                canManage={canManage}
+              />
+            </div>
+            <div className="hidden lg:block">
+              <SquadTable
+                players={players}
+                avatarUrls={avatarUrls}
+                phaseByPlayer={phaseByPlayer}
+                canManage={canManage}
+              />
+            </div>
+          </>
+        ) : (
+          <p className={`p-8 text-center text-muted ${cardClass}`}>
+            Aún no hay jugadores registrados en tu club.
+          </p>
+        )}
+      </section>
     </main>
   );
 }
