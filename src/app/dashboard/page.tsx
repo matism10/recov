@@ -29,6 +29,7 @@ import {
 } from "@/app/ui";
 import { SquadList } from "./squad-list";
 import { SquadTable } from "./squad-table";
+import { MetricsStrip } from "./metrics-strip";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -223,8 +224,8 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      {/* Franja de métricas (PR posterior): va aquí, entre el encabezado y "Por revisar",
-          como un bloque más con mb-8, sin mover el resto. */}
+      {/* Franja de métricas: solo staff y solo en escritorio. */}
+      {staff && <MetricsStrip supabase={supabase} />}
 
       {myPendingInjury && (
         <div className="mb-8 space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
