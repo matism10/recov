@@ -15,6 +15,7 @@ function text(formData: FormData, name: string) {
 function done() {
   revalidatePath("/perfil");
   revalidatePath("/dashboard");
+  revalidatePath("/", "layout"); // nombre y foto del sidebar
   return { ok: true };
 }
 

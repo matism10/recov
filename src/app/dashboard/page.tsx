@@ -202,7 +202,8 @@ export default async function DashboardPage() {
             </span>
           </Link>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        {/* En escritorio, Registros pendientes y Staff están en el sidebar. */}
+        <div className="flex flex-wrap items-center justify-end gap-2 lg:hidden">
           {isDirection(roles) && (
             <Link
               href="/registros"

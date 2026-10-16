@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,11 +14,14 @@ export async function signIn(formData: FormData) {
   if (error) {
     redirect("/login?error=1");
   }
+  // El layout (sidebar) no se vuelve a renderizar al navegar: se refresca al entrar.
+  revalidatePath("/", "layout");
   redirect("/dashboard");
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  revalidatePath("/", "layout");
   redirect("/login");
 }
