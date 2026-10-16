@@ -48,9 +48,12 @@ export type EventAvailabilitySummary = {
   duda: number;
   no: number;
   total: number;
-  dudaNames: string[];
-  noNames: string[];
+  // Primeros jugadores en duda y no disponibles, con su posición.
+  duda_players: SummaryPlayer[];
+  no_players: SummaryPlayer[];
 };
+
+export type SummaryPlayer = { name: string; position: string | null };
 
 export const SUMMARY_NAMES = 5;
 
@@ -95,6 +98,11 @@ export type EventAvailabilityRow = {
   state: EventState;
 };
 
+const toSummaryPlayer = (r: EventAvailabilityRow): SummaryPlayer => ({
+  name: r.full_name,
+  position: r.player_position,
+});
+
 export function summarizeAvailability(rows: EventAvailabilityRow[]): EventAvailabilitySummary {
   const sorted = [...rows].sort((a, b) => a.full_name.localeCompare(b.full_name, "es"));
   const byState = (state: EventState) => sorted.filter((r) => r.state === state);
@@ -105,8 +113,8 @@ export function summarizeAvailability(rows: EventAvailabilityRow[]): EventAvaila
     duda: duda.length,
     no: no.length,
     total: rows.length,
-    dudaNames: duda.slice(0, SUMMARY_NAMES).map((r) => r.full_name),
-    noNames: no.slice(0, SUMMARY_NAMES).map((r) => r.full_name),
+    duda_players: duda.slice(0, SUMMARY_NAMES).map(toSummaryPlayer),
+    no_players: no.slice(0, SUMMARY_NAMES).map(toSummaryPlayer),
   };
 }
 
