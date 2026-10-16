@@ -26,6 +26,13 @@ Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` 
 
 **Deportes y posiciones:** el catálogo vive en `sports` y `positions` (0005 y 0016). Desde 0016, el trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club (en todo insert o update, también directo); la posición puede ser nula.
 
+**Calendario de eventos (0022):** tabla `events` (`type` `entrenamiento` | `competencia`, `starts_at`/`ends_at`, `location`, `opponent` solo en competencias, `notes`, `series_id` para repeticiones, anulación con `cancelled_at`/`cancelled_by`; no se borran).
+- Lectura: todos los confirmados del club (también jugadores), por RLS. Sin escritura directa: `authenticated` solo tiene `SELECT`.
+- `create_event` (con `p_weeks` 1–12 para repetir entrenamientos cada semana en hora de Chile, mismo `series_id`), `update_event` y `cancel_event`: solo `head_coach`, `manager` y `entrenador`.
+- `event_availability(event_id)`: solo staff. Devuelve por jugador confirmado y activo `ok` | `duda` | `no`, nunca fechas ni diagnóstico.
+  - Evento pasado: último `availability_log.to_status` antes de `starts_at` (`disponible` → ok, `lesionado` → no, resto → duda); sin registro previo, el jugador no aparece.
+  - Evento futuro: con lesión abierta y alta estimada, antes del alta → no, el día del alta o alta vencida → duda, después → ok. Sin lesión abierta o con alguna sin fecha, según la disponibilidad actual (`disponible` → ok; `lesionado` → no hasta 14 días y duda después; resto → duda). Gana el estado más restrictivo.
+
 **Convención:** las escrituras sensibles van por funciones `SECURITY DEFINER` con permisos explícitos (`mark_player_injured`, `review_injury`, `set_injury_phases`, `set_player_availability`, etc.), no por updates directos desde la app. En la app, `canManageInjuries` e `isDirection` (`src/lib/roles.ts`) solo deciden qué se muestra.
 
 ### Reglas que no se rompen
@@ -33,7 +40,7 @@ Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` 
 - **Aislamiento por club:** toda tabla lleva `club_id` y la seguridad la define RLS en la base de datos, no el frontend. Nunca usar la service role key en código de cliente.
 - **Datos de salud:** de sus compañeros, el jugador solo ve la disponibilidad y el nombre de la fase de recuperación en curso (`squad_current_phases`); nunca el tipo de lesión, fechas ni documentos de otros. De sus propias lesiones ve todo, incluidas las fases. Los documentos médicos los revisa solo el kinesiólogo. El entrenador ve disponibilidad, lesiones y fases.
 - **Cambios de base de datos:** el agente escribe y aplica las migraciones por el MCP de Supabase (proyecto "Recov"). Por cada cambio:
-  1. Migración nueva en `supabase/migrations/` (siguiente número de cuatro dígitos) y sus pruebas en `supabase/tests/`: `rls_isolation_test.sql` (aislamiento y permisos) o `injury_lifecycle_test.sql` (ciclo de la lesión y fases).
+  1. Migración nueva en `supabase/migrations/` (siguiente número de cuatro dígitos) y sus pruebas en `supabase/tests/`: `rls_isolation_test.sql` (aislamiento y permisos) , `injury_lifecycle_test.sql` (ciclo de la lesión y fases) o `events_test.sql` (calendario de eventos).
   2. Aplicarla con `apply_migration`, con el mismo contenido del archivo.
   3. Correr los tests con `execute_sql` (terminan en `ROLLBACK`). Si hay un "FAIL", corregir con una migración nueva y avisar a Mati.
   4. Revisar `get_advisors` (seguridad) y avisar si aparece algo nuevo.
