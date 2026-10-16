@@ -112,16 +112,16 @@ export default async function DashboardPage() {
   const staff = isStaff(roles);
   const isPlayer = roles.includes("jugador");
 
-  // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con la fecha
-  // de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
+  // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con el inicio y
+  // la fecha de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
   const injuredPlayers = (players ?? []).filter((p) =>
     (INJURED_AVAILABILITY as readonly string[]).includes(p.availability),
   );
-  const returnByPlayer = new Map<string, string | null>();
+  const openByPlayer = new Map<string, { startedOn: string; expectedReturnOn: string | null }>();
   if (staff && injuredPlayers.length > 0) {
     const { data: open } = await supabase
       .from("injuries")
-      .select("player_id, expected_return_on")
+      .select("player_id, started_on, expected_return_on")
       .in("status", ["en_evaluacion", "activa"])
       .in(
         "player_id",
@@ -129,9 +129,12 @@ export default async function DashboardPage() {
       );
     // Si tiene más de una lesión abierta, manda la que termina más tarde.
     for (const i of open ?? []) {
-      const current = returnByPlayer.get(i.player_id);
+      const current = openByPlayer.get(i.player_id)?.expectedReturnOn;
       if (!current || (i.expected_return_on && i.expected_return_on > current)) {
-        returnByPlayer.set(i.player_id, i.expected_return_on);
+        openByPlayer.set(i.player_id, {
+          startedOn: i.started_on,
+          expectedReturnOn: i.expected_return_on,
+        });
       }
     }
   }
@@ -312,22 +315,31 @@ export default async function DashboardPage() {
               <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line lg:hidden">
                 {injuredPlayers.map((p) => {
                   const status = p.availability as Availability;
+                  const injury = openByPlayer.get(p.id);
                   return (
                     <li key={p.id}>
                       <Link
                         href={`/jugadores/${p.id}`}
-                        className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-white"
+                        className="block space-y-3 px-5 py-4 transition hover:bg-white"
                       >
-                        <div className="flex items-center gap-3">
-                          <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
-                          <div>
-                            <p className="font-medium text-ink">{p.full_name}</p>
-                            <p className="text-sm text-muted">
-                              {returnLabel(returnByPlayer.get(p.id) ?? null)}
-                            </p>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
+                            <div>
+                              <p className="font-medium text-ink">{p.full_name}</p>
+                              <p className="text-sm text-muted">
+                                {returnLabel(injury?.expectedReturnOn ?? null)}
+                              </p>
+                            </div>
                           </div>
+                          <AvailabilityBadge status={status} />
                         </div>
-                        <AvailabilityBadge status={status} />
+                        {injury?.expectedReturnOn && (
+                          <InjuryProgress
+                            startedOn={injury.startedOn}
+                            expectedReturnOn={injury.expectedReturnOn}
+                          />
+                        )}
                       </Link>
                     </li>
                   );
@@ -347,34 +359,48 @@ export default async function DashboardPage() {
                       <th scope="col" className="px-3 py-3 font-medium">
                         Regreso estimado
                       </th>
+                      <th scope="col" className="px-3 py-3 font-medium">
+                        Progreso
+                      </th>
                       <th scope="col" className="py-3 pr-5 pl-3 font-medium">
                         Estado
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {injuredPlayers.map((p) => (
-                      <tr key={p.id} className="transition hover:bg-white">
-                        <td className="py-3 pr-3 pl-5">
-                          <Link
-                            href={`/jugadores/${p.id}`}
-                            className="inline-flex min-h-11 items-center gap-3 font-medium text-ink hover:underline"
-                          >
-                            <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
-                            {p.full_name}
-                          </Link>
-                        </td>
-                        <td className="px-3 py-3 text-sm text-muted">
-                          {phaseByPlayer.get(p.id)}
-                        </td>
-                        <td className="px-3 py-3 text-sm text-muted">
-                          {returnLabel(returnByPlayer.get(p.id) ?? null)}
-                        </td>
-                        <td className="py-3 pr-5 pl-3">
-                          <AvailabilityBadge status={p.availability as Availability} />
-                        </td>
-                      </tr>
-                    ))}
+                    {injuredPlayers.map((p) => {
+                      const injury = openByPlayer.get(p.id);
+                      return (
+                        <tr key={p.id} className="transition hover:bg-white">
+                          <td className="py-3 pr-3 pl-5">
+                            <Link
+                              href={`/jugadores/${p.id}`}
+                              className="inline-flex min-h-11 items-center gap-3 font-medium text-ink hover:underline"
+                            >
+                              <Avatar name={p.full_name} url={avatarUrls.get(p.user_id)} />
+                              {p.full_name}
+                            </Link>
+                          </td>
+                          <td className="px-3 py-3 text-sm text-muted">
+                            {phaseByPlayer.get(p.id)}
+                          </td>
+                          <td className="px-3 py-3 text-sm text-muted">
+                            {returnLabel(injury?.expectedReturnOn ?? null)}
+                          </td>
+                          <td className="w-56 px-3 py-3">
+                            {injury?.expectedReturnOn && (
+                              <InjuryProgress
+                                startedOn={injury.startedOn}
+                                expectedReturnOn={injury.expectedReturnOn}
+                              />
+                            )}
+                          </td>
+                          <td className="py-3 pr-5 pl-3">
+                            <AvailabilityBadge status={p.availability as Availability} />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -445,6 +471,7 @@ export default async function DashboardPage() {
                 avatarUrls={avatarUrls}
                 phaseByPlayer={phaseByPlayer}
                 canManage={canManage}
+                linkToProfile={staff}
               />
             </div>
             <div className="hidden lg:block">
@@ -453,6 +480,7 @@ export default async function DashboardPage() {
                 avatarUrls={avatarUrls}
                 phaseByPlayer={phaseByPlayer}
                 canManage={canManage}
+                linkToProfile={staff}
               />
             </div>
           </>

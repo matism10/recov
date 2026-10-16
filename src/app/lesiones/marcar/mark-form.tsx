@@ -53,7 +53,7 @@ export function MarkForm({ playerId }: { playerId: string }) {
         disabled={pending}
         className={`w-full ${buttonPrimary}`}
       >
-        {pending ? "Guardando…" : "Marca lesionado"}
+        {pending ? "Guardando…" : "Marcar lesión"}
       </button>
     </form>
   );

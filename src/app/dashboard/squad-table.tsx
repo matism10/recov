@@ -3,7 +3,7 @@ import type { Availability } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
 import { AvailabilityBadge, buttonSecondary } from "@/app/ui";
 import { AvailabilitySelect } from "./availability-select";
-import type { SquadProps } from "./squad-list";
+import { PlayerIdentity, type SquadProps } from "./squad-list";
 
 const th = "px-3 py-3 font-medium";
 const td = "px-3 py-3";
@@ -12,7 +12,13 @@ const td = "px-3 py-3";
 // SquadList. Quien cambia la disponibilidad necesita las columnas del selector y
 // la acción, así que la fase va bajo el nombre (y la posición también, hasta xl).
 // Quien solo ve badges tiene espacio para posición y fase en columnas propias.
-export function SquadTable({ players, avatarUrls, phaseByPlayer, canManage }: SquadProps) {
+export function SquadTable({
+  players,
+  avatarUrls,
+  phaseByPlayer,
+  canManage,
+  linkToProfile,
+}: SquadProps) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-mist">
       <table className="w-full text-left">
@@ -48,10 +54,10 @@ export function SquadTable({ players, avatarUrls, phaseByPlayer, canManage }: Sq
             return (
               <tr key={p.id}>
                 <td className={`${td} pl-5`}>
-                  <div className="flex items-center gap-3">
+                  <PlayerIdentity playerId={p.id} linkToProfile={linkToProfile}>
                     <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
                     <div>
-                      <p className="font-medium text-ink">{p.full_name}</p>
+                      <p className="font-medium text-ink group-hover:underline">{p.full_name}</p>
                       {canManage && (p.position || phase) && (
                         <p className="text-sm text-muted xl:hidden">
                           {[p.position, phase && `Fase: ${phase}`].filter(Boolean).join(" · ")}
@@ -61,7 +67,7 @@ export function SquadTable({ players, avatarUrls, phaseByPlayer, canManage }: Sq
                         <p className="hidden text-sm text-muted xl:block">Fase: {phase}</p>
                       )}
                     </div>
-                  </div>
+                  </PlayerIdentity>
                 </td>
                 <td
                   className={`text-sm text-muted ${canManage ? `hidden ${td} xl:table-cell` : td}`}
@@ -89,7 +95,7 @@ export function SquadTable({ players, avatarUrls, phaseByPlayer, canManage }: Sq
                         href={`/lesiones/marcar/${p.id}`}
                         className={`text-sm whitespace-nowrap ${buttonSecondary}`}
                       >
-                        Marca lesionado
+                        Marcar lesión
                       </Link>
                     )}
                   </td>
