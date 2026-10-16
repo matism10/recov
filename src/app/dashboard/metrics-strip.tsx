@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { createClient } from "@/lib/supabase/server";
 import { getAvailabilitySeries, getDashSummary } from "@/lib/metrics";
-import { AvailabilityChart, MetricsError, StatCard, percentOf } from "@/app/metrics";
+import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
 import { buttonSecondary } from "@/app/ui";
 
 // Franja de métricas del dashboard: solo en escritorio (lg+) y solo para el staff.
@@ -34,7 +34,7 @@ export async function MetricsStrip({
             description="Sin alta médica"
             percent={percentOf(summary.data.lesionados, summary.data.total)}
           />
-          <section className="col-span-2 rounded-xl border border-line bg-white p-5">
+          <section className={`col-span-2 ${metricCardClass}`}>
             <AvailabilityChart
               heading="Disponibilidad en el tiempo"
               weeks={series.data}

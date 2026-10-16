@@ -1,9 +1,12 @@
 // Piezas compartidas de métricas: la franja de /dashboard y la página /metricas.
 import type { ReactNode } from "react";
-import type { AvailabilityWeek } from "@/lib/metrics";
+import { formatShortDate, type AvailabilityWeek } from "@/lib/metrics";
 import { Users } from "lucide-react";
 import { AVAILABILITY_ICON } from "@/app/ui";
 import { LineChart, type ChartColor } from "@/app/line-chart";
+
+// Tarjeta de métricas: la misma en la franja de /dashboard y en /metricas.
+export const metricCardClass = "rounded-xl border border-line bg-white p-5";
 
 // Tono de la tarjeta: el color fijo del estado que cuenta, o neutro para el total.
 // Clases literales: Tailwind solo genera las que aparecen escritas en el código.
@@ -55,7 +58,7 @@ export function StatCard({
 }) {
   const t = TONES[tone];
   return (
-    <div className="flex flex-col justify-between gap-4 rounded-xl border border-line bg-white p-5">
+    <div className={`flex flex-col justify-between gap-4 ${metricCardClass}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm text-muted">{label}</p>
@@ -94,12 +97,55 @@ export function MetricsError() {
   return <p className="text-sm text-muted">No se pudieron cargar las métricas.</p>;
 }
 
-// "2026-10-05" → "5 oct". Se arma la fecha con sus partes locales para que la
-// zona horaria no la corra un día.
-const weekFormat = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short" });
-export function formatWeek(isoDate: string) {
-  const [year, month, day] = isoDate.slice(0, 10).split("-").map(Number);
-  return weekFormat.format(new Date(year, month - 1, day));
+// Bloque de /metricas: título, subtítulo opcional, contenido y pie.
+export function MetricsBlock({
+  heading,
+  subtitle,
+  footer,
+  children,
+}: {
+  heading: string;
+  subtitle?: string;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className={metricCardClass}>
+      <h2 className="text-sm font-medium text-muted">{heading}</h2>
+      {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
+      <div className="mt-4">{children}</div>
+      {footer && <p className="mt-4 text-xs text-muted">{footer}</p>}
+    </section>
+  );
+}
+
+export type BarRow = {
+  key: string;
+  label: string;
+  value: number;
+  valueLabel: string;
+  muted?: boolean; // "Sin dato": barra gris y etiqueta apagada
+};
+
+// Barras horizontales en HTML: etiqueta | barra | valor. El ancho es relativo al máximo.
+export function BarList({ rows }: { rows: BarRow[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <ul className="space-y-3">
+      {rows.map((r) => (
+        <li key={r.key} className="grid grid-cols-[7.5rem_1fr_auto] items-center gap-3 text-sm">
+          <span className={`truncate ${r.muted ? "text-muted" : "text-ink"}`}>{r.label}</span>
+          <span aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-line/60">
+            <span
+              className={`block h-full rounded-full ${r.muted ? "bg-muted/40" : "bg-brand-strong"}`}
+              style={{ width: `${(r.value / max) * 100}%` }}
+            />
+          </span>
+          <span className="text-right font-medium whitespace-nowrap text-ink">{r.valueLabel}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 type AvailabilityKey = "disponible" | "en_revision" | "lesionado" | "reintegro";
@@ -145,7 +191,7 @@ export function AvailabilityChart({
       <LineChart
         label={heading}
         height={height}
-        xLabels={weeks.map((w) => formatWeek(w.week_start))}
+        xLabels={weeks.map((w) => formatShortDate(w.week_start))}
         series={keys.map((key) => ({
           key,
           ...SERIES[key],
@@ -154,7 +200,7 @@ export function AvailabilityChart({
       />
       {weeksWithData < SHORT_HISTORY_WEEKS && (
         <p className="mt-1 text-xs text-muted">
-          El historial empieza el {formatWeek(weeks[firstWithData].week_start)}
+          El historial empieza el {formatShortDate(weeks[firstWithData].week_start)}
         </p>
       )}
     </>
