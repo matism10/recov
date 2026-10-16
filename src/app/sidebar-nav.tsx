@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  CalendarDays,
   LayoutDashboard,
   Settings,
   UserCheck,
@@ -46,6 +47,12 @@ const LESIONES: Item = {
   isActive: (p) =>
     (startsWith(p, "/lesiones") && !startsWith(p, "/lesiones/marcar")) ||
     startsWith(p, "/registrar-lesion"),
+};
+const CALENDARIO: Item = {
+  href: "/calendario",
+  label: "Calendario",
+  Icon: CalendarDays,
+  isActive: (p) => startsWith(p, "/calendario"),
 };
 const REGISTROS: Item = {
   href: "/registros",
@@ -94,8 +101,8 @@ export function SidebarNav({
 
   // Registros pendientes, Staff y Configuración: solo la dirección (head coach y manager).
   const items = direction
-    ? [RESUMEN, PLANTEL, LESIONES, REGISTROS, STAFF, CONFIGURACION]
-    : [RESUMEN, PLANTEL, LESIONES];
+    ? [RESUMEN, PLANTEL, LESIONES, CALENDARIO, REGISTROS, STAFF, CONFIGURACION]
+    : [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
   const profileActive = startsWith(pathname, "/perfil");
 
   return (

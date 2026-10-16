@@ -189,8 +189,11 @@ export default async function DashboardPage() {
             </span>
           </Link>
         </div>
-        {/* En escritorio, Registros pendientes y Staff están en el sidebar. */}
+        {/* En escritorio, Calendario, Registros pendientes y Staff están en el sidebar. */}
         <div className="flex flex-wrap items-center justify-end gap-2 lg:hidden">
+          <Link href="/calendario" className={`text-sm ${buttonSecondary}`}>
+            Calendario
+          </Link>
           {isDirection(roles) && (
             <Link
               href="/registros"
