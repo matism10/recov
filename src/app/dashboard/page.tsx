@@ -27,7 +27,8 @@ import {
   chipClass,
   textButton,
 } from "@/app/ui";
-import { Squad } from "./squad";
+import { SummarySquad } from "./squad-browser";
+import { NextMatch } from "./next-match";
 import { MetricsStrip } from "./metrics-strip";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
@@ -95,6 +96,17 @@ export default async function DashboardPage() {
       .eq("status", "pendiente");
     pendingCount = count ?? 0;
   }
+
+  // Próximo partido: la competencia no cancelada más cercana. RLS: eventos del club.
+  const { data: nextMatch } = await supabase
+    .from("events")
+    .select("id, starts_at, opponent")
+    .eq("type", "competencia")
+    .is("cancelled_at", null)
+    .gte("starts_at", new Date().toISOString())
+    .order("starts_at")
+    .limit(1)
+    .maybeSingle();
 
   const staff = isStaff(roles);
   const isPlayer = roles.includes("jugador");
@@ -189,6 +201,8 @@ export default async function DashboardPage() {
             </span>
           </Link>
         </div>
+        {/* Escritorio: próximo partido arriba a la derecha. */}
+        {nextMatch && <NextMatch match={nextMatch} className="hidden lg:inline-flex" />}
         {/* En escritorio, Calendario, Registros pendientes y Staff están en el sidebar. */}
         <div className="flex flex-wrap items-center justify-end gap-2 lg:hidden">
           <Link href="/calendario" className={`text-sm ${buttonSecondary}`}>
@@ -217,6 +231,9 @@ export default async function DashboardPage() {
           )}
         </div>
       </header>
+
+      {/* Celular: el próximo partido bajo el encabezado, a lo ancho. */}
+      {nextMatch && <NextMatch match={nextMatch} className="mb-6 flex w-full lg:hidden" />}
 
       {/* Franja de métricas: solo staff y solo en escritorio. */}
       {staff && <MetricsStrip supabase={supabase} />}
@@ -458,18 +475,17 @@ export default async function DashboardPage() {
           <p className={`p-8 text-center text-muted ${cardClass}`}>
             Aún no hay jugadores registrados en tu club.
           </p>
-        ) : availablePlayers.length > 0 ? (
-          <Squad
-            players={availablePlayers}
+        ) : (
+          // Sin búsqueda: los primeros disponibles. Al escribir: todo el plantel.
+          <SummarySquad
+            players={players}
+            shown={availablePlayers}
+            emptyText="No hay jugadores disponibles."
             avatarUrls={avatarUrls}
             phaseByPlayer={phaseByPlayer}
             canManage={canManage}
             linkToProfile={staff}
           />
-        ) : (
-          <p className={`p-5 text-sm text-muted ${cardClass}`}>
-            No hay jugadores disponibles.
-          </p>
         )}
         {players.length > 0 && (
           <Link href="/plantel" className={`mt-4 text-sm ${buttonSecondary}`}>

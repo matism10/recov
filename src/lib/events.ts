@@ -244,6 +244,13 @@ export function shortDayLabel(date: string) {
   return shortDayFormat.format(utcDate(date));
 }
 
+// "Sáb 24 oct"
+export function compactDayLabel(date: string) {
+  const parts = shortDayFormat.formatToParts(utcDate(date));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return capitalize(`${part("weekday")} ${part("day")} ${part("month")}`.replace(/\./g, ""));
+}
+
 // "Sábado, 24 de octubre de 2026"
 export function longDayLabel(date: string) {
   return capitalize(longDayFormat.format(utcDate(date)));

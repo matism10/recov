@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Ban, CircleCheck, CircleHelp, Search, type LucideIcon } from "lucide-react";
+import { matchesName } from "@/lib/search";
 import { EVENT_STATE_LABEL, type EventAvailabilityRow, type EventState } from "@/lib/events";
 import { Avatar } from "@/app/avatar";
 import { cardClass, fieldClass } from "@/app/ui";
@@ -35,10 +36,6 @@ const ROW_TINT: Record<EventState, string> = {
 
 const NO_POSITION = "Sin posición";
 
-// Sin tildes ni mayúsculas, para buscar "martin" y encontrar "Martín".
-const normalize = (s: string) =>
-  s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-
 // Filtro y búsqueda en el cliente: el plantel llega completo una sola vez.
 export function AvailablePlayers({
   players,
@@ -57,10 +54,10 @@ export function AvailablePlayers({
     todos: players.length,
   };
 
-  const q = normalize(query.trim());
+  const q = query.trim();
   const visible = players
     .filter((p) => filter === "todos" || p.state === filter)
-    .filter((p) => !q || normalize(p.full_name).includes(q))
+    .filter((p) => matchesName(p.full_name, q))
     .sort((a, b) => a.full_name.localeCompare(b.full_name, "es"));
 
   // Agrupados por posición en el orden del deporte; las que no están en el
