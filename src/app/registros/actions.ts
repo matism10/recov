@@ -40,5 +40,6 @@ export async function reviewMember(
 
   revalidatePath("/registros");
   revalidatePath("/dashboard");
+  revalidatePath("/", "layout"); // contador de pendientes del sidebar
   return {};
 }
