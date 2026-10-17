@@ -17,14 +17,17 @@ export function Avatar({
   name,
   url,
   size = "sm",
+  onTint = false,
 }: {
   name: string;
   url?: string | null;
   size?: keyof typeof SIZES;
+  // Sobre un fondo celeste (sidebar), el círculo va en blanco para no perderse.
+  onTint?: boolean;
 }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-soft font-medium text-brand-text ${SIZES[size]}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full ${onTint ? "bg-white" : "bg-brand-soft"} font-medium text-brand-text ${SIZES[size]}`}
     >
       {url ? (
         // URL firmada de Storage que vence: no pasa por next/image.
