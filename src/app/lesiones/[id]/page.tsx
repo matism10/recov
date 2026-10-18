@@ -150,30 +150,31 @@ export default async function InjuryPage({
             guarda de /jugadores/[id]); el jugador ve su propia lesión sin enlace. */}
         {player &&
           (staff ? (
+            // flex (no inline-flex): ocupa su propia línea, bajo "← Volver".
             <Link
               href={`/jugadores/${injury.player_id}`}
-              className="mt-3 inline-flex min-h-11 items-center gap-3 rounded-xl font-medium text-ink hover:underline"
+              className="mt-3 flex w-fit max-w-full min-h-11 items-center gap-3 rounded-xl font-medium text-ink hover:underline"
             >
               <Avatar name={player.full_name} url={playerAvatarUrl} />
-              {player.full_name}
+              <span className="min-w-0 break-words">{player.full_name}</span>
             </Link>
           ) : (
             <div className="mt-3 flex min-h-11 items-center gap-3 font-medium text-ink">
               <Avatar name={player.full_name} url={playerAvatarUrl} />
-              {player.full_name}
+              <span className="min-w-0 break-words">{player.full_name}</span>
             </div>
           ))}
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <PageTitle>{injury.type}</PageTitle>
+          <PageTitle className="min-w-0 break-words">{injury.type}</PageTitle>
           <InjuryStatusBadge status={status} />
         </div>
       </header>
 
       {/* Móvil: un bloque bajo otro, en el mismo orden de siempre. Escritorio:
           detalle, revisión y fases (2/3) y documentos al costado (1/3). */}
-      <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
         {showBanner && (
-          <div className="space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5 lg:col-span-2">
+          <div className="min-w-0 space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5 lg:col-span-2">
             <p className="text-sm text-ink">
               Agrega lo que te indicó el médico y tus documentos para que el
               kinesiólogo revise la lesión.
@@ -184,23 +185,23 @@ export default async function InjuryPage({
           </div>
         )}
 
-        <section className={`space-y-4 p-5 lg:col-span-2 ${cardClass}`}>
+        <section className={`min-w-0 space-y-4 p-5 lg:col-span-2 ${cardClass}`}>
           {/* Grilla de etiqueta y valor. */}
-          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-            <div>
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+            <div className="min-w-0">
               <dt className="text-muted">Ocurrió</dt>
-              <dd className="mt-0.5 text-ink">{formatDate(injury.started_on)}</dd>
+              <dd className="mt-0.5 break-words text-ink">{formatDate(injury.started_on)}</dd>
             </div>
             {occurredDuring && (
-              <div>
+              <div className="min-w-0">
                 <dt className="text-muted">Ocurrió en</dt>
-                <dd className="mt-0.5 text-ink">{OCCURRED_DURING_LABEL[occurredDuring]}</dd>
+                <dd className="mt-0.5 break-words text-ink">{OCCURRED_DURING_LABEL[occurredDuring]}</dd>
               </div>
             )}
             {!inEvaluation && (
-              <div>
+              <div className="min-w-0">
                 <dt className="text-muted">Alta estimada</dt>
-                <dd className="mt-0.5 text-ink">
+                <dd className="mt-0.5 break-words text-ink">
                   {injury.expected_return_on
                     ? formatDate(injury.expected_return_on)
                     : "Sin definir"}
@@ -213,15 +214,15 @@ export default async function InjuryPage({
                 </dd>
               </div>
             )}
-            <div>
+            <div className="min-w-0">
               <dt className="text-muted">Gravedad</dt>
-              <dd className="mt-0.5 text-ink">
+              <dd className="mt-0.5 break-words text-ink">
                 {severity ? SEVERITY_LABEL[severity] : "Por definir"}
               </dd>
             </div>
-            <div>
+            <div className="min-w-0">
               <dt className="text-muted">Revisión</dt>
-              <dd className="mt-0.5 text-ink">
+              <dd className="mt-0.5 break-words text-ink">
                 {inEvaluation
                   ? "Esperando el diagnóstico del jugador"
                   : injury.reviewed_at
@@ -233,7 +234,7 @@ export default async function InjuryPage({
             </div>
           </dl>
           {injury.description && (
-            <p className="text-sm whitespace-pre-line text-ink">
+            <p className="text-sm break-words whitespace-pre-line text-ink">
               {injury.description}
             </p>
           )}
@@ -246,7 +247,7 @@ export default async function InjuryPage({
         </section>
 
         {showReview && (
-          <section className={`p-5 lg:col-span-2 ${cardClass}`}>
+          <section className={`min-w-0 p-5 lg:col-span-2 ${cardClass}`}>
             <SectionTitle className="mb-4">Revisión</SectionTitle>
             <ReviewForm
               injuryId={injury.id}
@@ -260,7 +261,7 @@ export default async function InjuryPage({
         )}
 
         {showPhases && (
-          <section className="lg:col-span-2">
+          <section className="min-w-0 lg:col-span-2">
             <SectionTitle className="mb-3">Fases de recuperación</SectionTitle>
             <PhasesPanel
               injuryId={injury.id}
@@ -278,7 +279,7 @@ export default async function InjuryPage({
           </section>
         )}
 
-        <section className={`lg:col-start-3 ${DOCUMENTS_ROW[documentsRow]}`}>
+        <section className={`min-w-0 lg:col-start-3 ${DOCUMENTS_ROW[documentsRow]}`}>
           <SectionTitle className="mb-3">Documentos</SectionTitle>
           {!canSeeDocuments ? (
             <p className={`p-5 text-sm text-muted ${cardClass}`}>
