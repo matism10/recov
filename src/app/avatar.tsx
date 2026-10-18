@@ -1,6 +1,7 @@
 // Foto de perfil redonda; sin foto, muestra las iniciales.
 const SIZES = {
   sm: "size-9 text-xs",
+  md: "size-10 text-sm",
   lg: "size-16 text-lg",
 };
 
