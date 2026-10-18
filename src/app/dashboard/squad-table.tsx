@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { Availability } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
-import { AvailabilityBadge, buttonSecondary } from "@/app/ui";
+import { AvailabilityBadge } from "@/app/ui";
 import { AvailabilitySelect } from "./availability-select";
-import { PlayerIdentity, type SquadProps } from "./squad-list";
+import { PlayerIdentity, markInjuryClass, type SquadProps } from "./squad-list";
 
 const th = "px-3 py-3 font-medium";
 const td = "px-3 py-3";
@@ -91,10 +91,7 @@ export function SquadTable({
                 {canManage && (
                   <td className={`${td} pr-5`}>
                     {editable && (
-                      <Link
-                        href={`/lesiones/marcar/${p.id}`}
-                        className={`text-sm whitespace-nowrap ${buttonSecondary}`}
-                      >
+                      <Link href={`/lesiones/marcar/${p.id}`} className={markInjuryClass}>
                         Marcar lesión
                       </Link>
                     )}
