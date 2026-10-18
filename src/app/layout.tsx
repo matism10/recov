@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Nunito } from "next/font/google";
 import "./globals.css";
 import { MobileHeader, MobileNav, Sidebar } from "./sidebar";
@@ -21,6 +21,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Recov",
   description: "Seguimiento de lesiones para clubes deportivos amateur",
+};
+
+// viewport-fit=cover: el contenido llega hasta los bordes del celular y la barra
+// inferior usa env(safe-area-inset-bottom) para no quedar bajo la barra de gestos.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
