@@ -12,6 +12,7 @@ import {
 } from "@/lib/roles";
 import {
   formatDate,
+  formatDayMonth,
   returnLabel,
   type InjuryStatus,
 } from "@/lib/injuries";
@@ -102,6 +103,11 @@ export default async function DashboardPage() {
 
   const staff = isStaff(roles);
   const isPlayer = roles.includes("jugador");
+  // Estado propio (rol jugador): su fila del plantel que ya trae getSquad, y la
+  // fase en curso de squad_current_phases. Sin consultas nuevas.
+  const me = isPlayer ? players.find((p) => p.user_id === user.id) : undefined;
+  const myStatus = me?.availability as Availability | undefined;
+  const myPhase = me && myStatus === "lesionado" ? phaseByPlayer.get(me.id) : undefined;
 
   // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con el inicio y
   // la fecha de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
@@ -140,7 +146,9 @@ export default async function DashboardPage() {
   if (isPlayer) {
     ({ data: injuries } = await supabase
       .from("injuries")
-      .select("id, type, status, started_on, expected_return_on, players!inner(user_id)")
+      .select(
+        "id, type, status, started_on, expected_return_on, closed_on, players!inner(user_id)",
+      )
       .eq("players.user_id", user.id)
       .order("started_on", { ascending: false }));
   }
@@ -183,6 +191,13 @@ export default async function DashboardPage() {
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <PageTitle>Disponibilidad del plantel</PageTitle>
+          {myStatus && (
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink">
+              Tu estado
+              <AvailabilityBadge status={myStatus} />
+              {myPhase && <span className="text-muted">· {myPhase}</span>}
+            </p>
+          )}
           <Link
             href="/perfil"
             className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist"
@@ -199,7 +214,7 @@ export default async function DashboardPage() {
       </header>
 
       {/* Celular: el próximo partido bajo el encabezado, a lo ancho. */}
-      {nextMatch && <NextMatch match={nextMatch} className="mb-6 flex w-full lg:hidden" />}
+      {nextMatch && <NextMatch match={nextMatch} stacked className="mb-6 flex w-full lg:hidden" />}
 
       {/* Franja de métricas: solo staff y solo en escritorio. */}
       {staff && <MetricsStrip supabase={supabase} />}
@@ -427,11 +442,16 @@ export default async function DashboardPage() {
                         </div>
                         <InjuryStatusBadge status={i.status as InjuryStatus} />
                       </div>
-                      {i.status !== "en_evaluacion" && (
-                        <InjuryProgress
-                          startedOn={i.started_on}
-                          expectedReturnOn={i.expected_return_on}
-                        />
+                      {i.status === "cerrada" && i.closed_on ? (
+                        // Cerrada: la fecha de alta en vez de la barra al 100 %.
+                        <p className="text-sm text-muted">Alta el {formatDayMonth(i.closed_on)}</p>
+                      ) : (
+                        i.status !== "en_evaluacion" && (
+                          <InjuryProgress
+                            startedOn={i.started_on}
+                            expectedReturnOn={i.expected_return_on}
+                          />
+                        )
                       )}
                     </Link>
                   </li>
