@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0021.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0023.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -775,5 +775,64 @@ select pg_temp.expect_fail($q$update public.clubs set logo_path = 'bbbbbbbb-0000
 select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.set_club_logo(text)', 'EXECUTE')$q$, 0, 'anon no ejecuta set_club_logo');
 select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.club_logo_path(text)', 'EXECUTE')$q$, 1, 'anon ejecuta club_logo_path');
 select pg_temp.expect_count($q$select 1 from storage.buckets where id = 'club-logos' and public and file_size_limit = 1048576$q$, 1, 'bucket club-logos público y de 1 MB');
+
+-- =======================================================================
+-- 19. Métricas del Resumen (0023)
+-- =======================================================================
+-- Por defecto (NULL), y cualquier miembro confirmado del club lo lee.
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');   -- entrenador A
+select pg_temp.expect_count($q$select 1 from public.clubs where dashboard_metrics is null$q$, 1, 'entrenador A lee las métricas del Resumen (por defecto)');
+select pg_temp.back();
+
+-- Head coach A elige, en orden; puede dejarlas vacías o volver a las de siempre.
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics(array['lesionados', 'proximas_altas', 'total'])$q$, 'head coach A elige métricas');
+select pg_temp.expect_count($q$select 1 from public.clubs
+  where id = 'aaaaaaaa-0000-0000-0000-000000000001' and dashboard_metrics = array['lesionados', 'proximas_altas', 'total']$q$, 1, 'quedan guardadas y en orden');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics(array['total', 'inventada'])$q$, 'clave fuera del catálogo');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics(array['total', 'total'])$q$, 'clave repetida');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics(array['total', null])$q$, 'clave nula');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics(array[]::text[])$q$, 'head coach A deja el Resumen sin métricas');
+select pg_temp.expect_count($q$select 1 from public.clubs where cardinality(dashboard_metrics) = 0$q$, 1, 'queda vacío');
+select pg_temp.expect_no_rows($q$update public.clubs set dashboard_metrics = array['total']$q$, 'head coach A edita el club directo');
+select pg_temp.back();
+
+-- Nadie más puede cambiarlas: manager, kine, jugador, pendiente, anónimo ni otro club.
+select pg_temp.as_user('20000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics(null)$q$, 'manager A cambia las métricas');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics(null)$q$, 'kine A cambia las métricas');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics(null)$q$, 'jugador A1 cambia las métricas');
+select pg_temp.back();
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics(null)$q$, 'staff pendiente A cambia las métricas');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics(null)$q$, 'anónimo cambia las métricas');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');   -- kine B
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics(null)$q$, 'kine B cambia las métricas');
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve las métricas del club A');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'bbbbbbbb-0000-0000-0000-000000000002' and dashboard_metrics is null$q$, 1, 'el club B no cambió');
+
+-- Head coach A vuelve a las de siempre (NULL).
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics(null)$q$, 'head coach A vuelve a las métricas por defecto');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001' and dashboard_metrics is null$q$, 1, 'vuelve a NULL');
+
+-- El CHECK rechaza claves fuera del catálogo también en un update directo (como postgres).
+select pg_temp.expect_fail($q$update public.clubs set dashboard_metrics = array['inventada']
+  where id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 'clave fuera del catálogo (CHECK)');
+
+-- Permisos de la función
+select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.set_dashboard_metrics(text[])', 'EXECUTE')$q$, 0, 'anon no ejecuta set_dashboard_metrics');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'public.set_dashboard_metrics(text[])', 'EXECUTE')$q$, 1, 'authenticated ejecuta set_dashboard_metrics');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'set_dashboard_metrics' and p.prosecdef and p.proconfig = array['search_path=""']$q$, 1, 'set_dashboard_metrics es SECURITY DEFINER con search_path vacío');
 
 rollback;
