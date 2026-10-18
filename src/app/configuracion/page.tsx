@@ -5,6 +5,8 @@ import { isDirection, type UserRole } from "@/lib/roles";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { cardClass, textButton } from "@/app/ui";
 import { LogoForm } from "./logo-form";
+import { MetricsForm } from "./metrics-form";
+import { dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
 // Configuración del club: solo la dirección (head coach y manager).
 export default async function SettingsPage() {
@@ -18,7 +20,7 @@ export default async function SettingsPage() {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: me } = await supabase
     .from("profiles")
-    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path)")
+    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, dashboard_metrics)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -27,6 +29,8 @@ export default async function SettingsPage() {
     redirect("/dashboard");
   }
   const club = Array.isArray(me.clubs) ? me.clubs[0] : me.clubs;
+  // Las métricas del Resumen las elige solo el head coach (set_dashboard_metrics lo valida).
+  const isHeadCoach = ((me.roles ?? []) as UserRole[]).includes("head_coach");
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
@@ -49,6 +53,18 @@ export default async function SettingsPage() {
           folder={me.club_id}
         />
       </section>
+
+      {isHeadCoach && (
+        <section className={`mt-6 p-5 ${cardClass}`}>
+          <h2 className="font-medium text-ink">Métricas del Resumen</h2>
+          <p className="mt-1 mb-4 text-sm text-muted">
+            Elige qué métricas ve el staff del club en el Resumen.
+          </p>
+          <MetricsForm
+            selected={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
+          />
+        </section>
+      )}
     </main>
   );
 }

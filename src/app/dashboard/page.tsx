@@ -33,6 +33,7 @@ import {
 import { SummarySquad } from "./squad-browser";
 import { NextMatch } from "./next-match";
 import { MetricsStrip } from "./metrics-strip";
+import { dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
 const RESUMEN_AVAILABLE = 10;
@@ -50,7 +51,9 @@ export default async function DashboardPage() {
   // hay que nombrar la FK o PostgREST responde PGRST201 y profile queda null.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, kine_delegate_id)")
+    .select(
+      "full_name, roles, status, clubs!profiles_club_id_fkey(name, kine_delegate_id, dashboard_metrics)",
+    )
     .eq("id", user.id)
     .maybeSingle();
 
@@ -216,7 +219,12 @@ export default async function DashboardPage() {
 
       {/* Franja de métricas: solo staff. En celular, disponibles y lesionados, justo
           bajo el título. */}
-      {staff && <MetricsStrip supabase={supabase} />}
+      {staff && (
+        <MetricsStrip
+          supabase={supabase}
+          metrics={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
+        />
+      )}
 
       {/* Celular: el próximo partido a lo ancho. */}
       {nextMatch && <NextMatch match={nextMatch} stacked className="mb-6 flex w-full lg:hidden" />}
