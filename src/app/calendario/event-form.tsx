@@ -93,12 +93,13 @@ export function EventForm({
         <input type="date" name="date" required defaultValue={v.date} className={inputClass} />
       </label>
 
+      {/* min-w-0: cada celda puede encogerse a la mitad del ancho. */}
       <div className="grid grid-cols-2 gap-3">
-        <label className={labelClass}>
+        <label className={`min-w-0 ${labelClass}`}>
           Hora de inicio
           <input type="time" name="start" required defaultValue={v.start} className={inputClass} />
         </label>
-        <label className={labelClass}>
+        <label className={`min-w-0 ${labelClass}`}>
           Hora de término
           <input type="time" name="end" required defaultValue={v.end} className={inputClass} />
         </label>

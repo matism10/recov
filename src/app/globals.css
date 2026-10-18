@@ -69,4 +69,21 @@
       font-size: 16px;
     }
   }
+
+  /* Safari en iPhone dibuja fecha y hora con un control nativo de ancho mínimo
+     propio, que ignora width: 100% y se sale de la pantalla. Solo en iOS
+     (-webkit-touch-callout): sin apariencia nativa, pueden encogerse y el valor va
+     a la izquierda. Al tocarlos se sigue abriendo el selector del sistema. */
+  @supports (-webkit-touch-callout: none) {
+    input[type="date"],
+    input[type="time"] {
+      -webkit-appearance: none;
+      appearance: none;
+      min-width: 0;
+    }
+    input[type="date"]::-webkit-date-and-time-value,
+    input[type="time"]::-webkit-date-and-time-value {
+      text-align: left;
+    }
+  }
 }
