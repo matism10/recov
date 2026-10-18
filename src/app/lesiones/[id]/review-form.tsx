@@ -119,7 +119,7 @@ export function ReviewForm({
         <button
           type="submit"
           disabled={pending}
-          className={buttonPrimary}
+          className={`w-full ${buttonPrimary}`}
         >
           {pending ? "Guardando…" : "Confirma la lesión"}
         </button>

@@ -20,6 +20,7 @@
   --color-ink: #0e1b2c; /* texto y navegación */
   --color-muted: #5b6675; /* texto secundario */
   --color-mist: #f7f8fa; /* tarjetas y filas */
+  --color-surface-2: #e6ebf0; /* bloque destacado (encabezado del detalle de lesión) */
   --color-line: #e3e7ee; /* bordes */
 
   /* Estados de disponibilidad: fijos, nunca como color de marca */
