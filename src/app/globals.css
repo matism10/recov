@@ -40,9 +40,9 @@
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
 
-  /* Tipografía: Nunito para títulos y wordmark, Inter para cuerpo y datos */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  /* Tipografía: Archivo semicondensada para títulos, cuerpo y wordmark */
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
@@ -50,6 +50,7 @@
     background: #ffffff;
     color: var(--color-ink);
     font-family: var(--font-sans);
+    font-stretch: 87.5%;
     /* Fechas, días de recuperación y porcentajes alineados en columna. */
     font-variant-numeric: tabular-nums;
   }
