@@ -5,6 +5,7 @@ import { getAvatarUrls } from "@/lib/avatars";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { MobileNavBar } from "./mobile-nav";
+import { MobileHeaderBar } from "./mobile-header";
 
 // Datos de la navegación (sidebar de escritorio y barra móvil). Solo para usuarios
 // confirmados: sin sesión, pendientes o rechazados no ven navegación. Las páginas
@@ -64,6 +65,15 @@ export async function Sidebar() {
       direction={nav.direction}
       pendingCount={nav.pendingCount}
     />
+  );
+}
+
+// Encabezado móvil (hasta lg): logo, club y avatar al perfil.
+export async function MobileHeader() {
+  const nav = await getNavData();
+  if (!nav) return null;
+  return (
+    <MobileHeaderBar clubName={nav.clubName} fullName={nav.fullName} avatarUrl={nav.avatarUrl} />
   );
 }
 

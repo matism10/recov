@@ -33,7 +33,7 @@ export default async function CalendarPage({
   const anchor = typeof fecha === "string" && parseIsoDate(fecha) !== null ? fecha : today;
   const selectedId = typeof evento === "string" && UUID_RE.test(evento) ? evento : null;
 
-  const { supabase, roles, club } = await requireMember();
+  const { supabase, roles } = await requireMember();
   // Solo deciden qué se muestra; las funciones de la base validan el permiso real.
   const staff = isStaff(roles);
   const canManage = canManageEvents(roles);
@@ -71,7 +71,7 @@ export default async function CalendarPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-6 flex items-start justify-between gap-4">
-        <PageTitle club={club?.name}>Calendario</PageTitle>
+        <PageTitle>Calendario</PageTitle>
         {canManage && (
           <Link href={`/calendario/nuevo?fecha=${anchor}`} className={`text-sm ${buttonPrimary}`}>
             <Plus aria-hidden="true" className="size-4" />

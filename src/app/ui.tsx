@@ -42,20 +42,17 @@ export const chipClass =
 // ---------------------------------------------------------------------------
 // Títulos: PageTitle (uno por página) y SectionTitle (secciones de la página)
 // ---------------------------------------------------------------------------
-// Nunito ExtraBold, 28 px en móvil y 32 px desde lg. El nombre del club va sobre
-// el título solo en móvil: en escritorio ya lo muestra la sidebar.
+// Nunito ExtraBold, 28 px en móvil y 32 px desde lg. El club ya se ve en la
+// sidebar (escritorio) y en el encabezado móvil.
 export function PageTitle({
   children,
-  club,
   className = "",
 }: {
   children: ReactNode;
-  club?: string | null;
   className?: string;
 }) {
   return (
     <div className={className}>
-      {club && <p className="mb-1 text-sm text-muted lg:hidden">{club}</p>}
       <h1 className="font-display text-[28px] leading-tight font-extrabold tracking-[-0.02em] text-ink lg:text-[32px]">
         {children}
       </h1>

@@ -44,7 +44,7 @@ export default async function SquadPage() {
         <Link href="/dashboard" className={`${textButton} lg:hidden`}>
           ← Volver al resumen
         </Link>
-        <PageTitle club={club?.name} className="mt-2 lg:mt-0">
+        <PageTitle className="mt-2 lg:mt-0">
           Plantel
         </PageTitle>
         <p className="mt-1 text-sm text-muted">

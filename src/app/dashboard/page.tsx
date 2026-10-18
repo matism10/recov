@@ -188,7 +188,7 @@ export default async function DashboardPage() {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <PageTitle club={club?.name}>Disponibilidad del plantel</PageTitle>
+          <PageTitle>Disponibilidad del plantel</PageTitle>
           <Link
             href="/perfil"
             className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist"
