@@ -112,19 +112,19 @@ export default async function DashboardPage() {
   const myStatus = me?.availability as Availability | undefined;
   const myPhase = me && myStatus === "lesionado" ? phaseByPlayer.get(me.id) : undefined;
 
-  // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con el inicio y
-  // la fecha de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
+  // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con el id, el
+  // inicio y la fecha de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
   const injuredPlayers = players.filter((p) =>
     (INJURED_AVAILABILITY as readonly string[]).includes(p.availability),
   );
   const openByPlayer = new Map<
     string,
-    { type: string; startedOn: string; expectedReturnOn: string | null }
+    { id: string; type: string; startedOn: string; expectedReturnOn: string | null }
   >();
   if (staff && injuredPlayers.length > 0) {
     const { data: open } = await supabase
       .from("injuries")
-      .select("player_id, type, started_on, expected_return_on")
+      .select("id, player_id, type, started_on, expected_return_on")
       .in("status", ["en_evaluacion", "activa"])
       .in(
         "player_id",
@@ -135,6 +135,7 @@ export default async function DashboardPage() {
       const current = openByPlayer.get(i.player_id)?.expectedReturnOn;
       if (!current || (i.expected_return_on && i.expected_return_on > current)) {
         openByPlayer.set(i.player_id, {
+          id: i.id,
           type: i.type,
           startedOn: i.started_on,
           expectedReturnOn: i.expected_return_on,
@@ -142,6 +143,12 @@ export default async function DashboardPage() {
       }
     }
   }
+
+  // Cada fila de "Lesiones activas" lleva directo al detalle de su lesión. Si el
+  // jugador figura lesionado sin una lesión abierta (cambio manual de disponibilidad),
+  // va a su ficha.
+  const injuryHref = (playerId: string, injury?: { id: string }) =>
+    injury ? `/lesiones/${injury.id}` : `/jugadores/${playerId}`;
 
   // "Mis lesiones" (jugador). RLS: el jugador ve solo las suyas; se filtra por
   // si además es staff.
@@ -318,7 +325,7 @@ export default async function DashboardPage() {
                   return (
                     <li key={p.id}>
                       <Link
-                        href={`/jugadores/${p.id}`}
+                        href={injuryHref(p.id, injury)}
                         className="block space-y-3 px-5 py-4 transition hover:bg-white"
                       >
                         <div className="flex items-center gap-3">
@@ -376,7 +383,7 @@ export default async function DashboardPage() {
                         <tr key={p.id} className="relative transition hover:bg-white">
                           <td className="py-3 pr-3 pl-5">
                             <Link
-                              href={`/jugadores/${p.id}`}
+                              href={injuryHref(p.id, injury)}
                               className="flex min-h-11 items-center gap-3 after:absolute after:inset-0 after:content-['']"
                             >
                               <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
