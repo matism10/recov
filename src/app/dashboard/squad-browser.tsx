@@ -6,6 +6,7 @@ import { AVAILABILITY_LABEL, type Availability } from "@/lib/roles";
 import { matchesName } from "@/lib/search";
 import { cardClass, fieldClass, labelClass, textButton } from "@/app/ui";
 import { Squad } from "./squad";
+import { PlayerRow } from "./player-row";
 import type { SquadProps } from "./squad-list";
 
 const AVAILABILITY_FILTERS: Availability[] = ["disponible", "en_revision", "lesionado", "reintegro"];
@@ -63,7 +64,8 @@ export function SummarySquad({
 }
 
 // Plantel completo: búsqueda, filtro por posición (orden del deporte) y por
-// disponibilidad. Todo en el cliente: el plantel llega completo una vez.
+// disponibilidad. Todo en el cliente: el plantel llega completo una vez. Cada
+// jugador va en una fila con franja de estado (PlayerRow), en celular y escritorio.
 export function FilterableSquad({
   positions,
   ...props
@@ -157,7 +159,18 @@ export function FilterableSquad({
       )}
 
       {players.length > 0 ? (
-        <Squad {...props} players={players} />
+        <ul className="space-y-2">
+          {players.map((p) => (
+            <PlayerRow
+              key={p.id}
+              player={p}
+              avatarUrl={p.user_id ? props.avatarUrls.get(p.user_id) : null}
+              phase={props.phaseByPlayer.get(p.id)}
+              canManage={props.canManage}
+              linkToProfile={props.linkToProfile}
+            />
+          ))}
+        </ul>
       ) : (
         <p className={`p-5 text-sm text-muted ${cardClass}`}>
           Ningún jugador coincide con los filtros.

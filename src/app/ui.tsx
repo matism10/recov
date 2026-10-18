@@ -42,8 +42,8 @@ export const chipClass =
 // ---------------------------------------------------------------------------
 // Títulos: PageTitle (uno por página) y SectionTitle (secciones de la página)
 // ---------------------------------------------------------------------------
-// Nunito ExtraBold, 28 px en móvil y 32 px desde lg. El club ya se ve en la
-// sidebar (escritorio) y en el encabezado móvil.
+// Archivo 700, 30/34 px. El club ya se ve en la sidebar (escritorio) y en el
+// encabezado móvil.
 export function PageTitle({
   children,
   className = "",
@@ -53,14 +53,14 @@ export function PageTitle({
 }) {
   return (
     <div className={className}>
-      <h1 className="font-display text-[28px] leading-tight font-extrabold tracking-[-0.02em] text-ink lg:text-[32px]">
+      <h1 className="font-display text-[30px] leading-[34px] font-bold text-ink">
         {children}
       </h1>
     </div>
   );
 }
 
-// Inter 500, 18 px, en tinta. Los h2 heredan Nunito de la base: aquí se fuerza Inter.
+// Archivo 700, 18 px, en tinta.
 export function SectionTitle({
   children,
   className = "",
@@ -68,7 +68,7 @@ export function SectionTitle({
   children: ReactNode;
   className?: string;
 }) {
-  return <h2 className={`font-sans text-lg font-medium text-ink ${className}`}>{children}</h2>;
+  return <h2 className={`font-sans text-lg font-bold text-ink ${className}`}>{children}</h2>;
 }
 
 // ---------------------------------------------------------------------------
