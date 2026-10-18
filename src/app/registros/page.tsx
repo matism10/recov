@@ -83,6 +83,7 @@ export default async function RegistrosPage() {
       detailsLabel: "Posición y medidas",
       items: pendingPlayers,
       details: (p: PendingProfile) => playerDetails(playerByUser.get(p.id)!),
+      tableDetails: (p: PendingProfile) => playerDetails(playerByUser.get(p.id)!),
     },
     {
       title: "Staff",
@@ -92,6 +93,9 @@ export default async function RegistrosPage() {
         p.requested_role
           ? `Solicita: ${ROLE_LABEL[p.requested_role]}`
           : "Sin puesto solicitado",
+      // En la tabla la columna ya dice "Puesto solicitado": sin prefijo.
+      tableDetails: (p: PendingProfile) =>
+        p.requested_role ? ROLE_LABEL[p.requested_role] : "Sin puesto solicitado",
     },
   ];
 
@@ -165,7 +169,7 @@ export default async function RegistrosPage() {
                           <td className="py-4 pr-3 pl-5 font-medium text-ink">
                             {p.full_name}
                           </td>
-                          <td className="px-3 py-4 text-sm text-muted">{s.details(p)}</td>
+                          <td className="px-3 py-4 text-sm text-muted">{s.tableDetails(p)}</td>
                           <td className="px-3 py-4 text-sm whitespace-nowrap text-muted">
                             {dateFormat.format(new Date(p.created_at))}
                           </td>

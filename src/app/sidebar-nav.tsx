@@ -55,7 +55,7 @@ const CALENDARIO: Item = {
 };
 const REGISTROS: Item = {
   href: "/registros",
-  label: "Registros pendientes",
+  label: "Registros",
   Icon: UserCheck,
   isActive: (p) => startsWith(p, "/registros"),
 };

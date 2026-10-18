@@ -144,7 +144,9 @@ export default async function PlayerPage({
                         <p className="text-sm text-muted">
                           Desde el {formatDate(i.started_on)}
                           {occurredDuring &&
-                            ` · en ${OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}`}
+                            (occurredDuring === "externo"
+                              ? " · fuera del club"
+                              : ` · en ${OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}`)}
                           {severity && ` · ${SEVERITY_LABEL[severity]}`}
                         </p>
                       </div>
