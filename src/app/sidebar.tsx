@@ -71,5 +71,7 @@ export async function Sidebar() {
 export async function MobileNav() {
   const nav = await getNavData();
   if (!nav) return null;
-  return <MobileNavBar />;
+  return (
+    <MobileNavBar direction={nav.direction} staff={nav.staff} pendingCount={nav.pendingCount} />
+  );
 }
