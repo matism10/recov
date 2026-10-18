@@ -6,7 +6,6 @@ import { clubLogoUrl } from "@/lib/club-logo";
 import { cardClass, textButton } from "@/app/ui";
 import { LogoForm } from "./logo-form";
 import { CoverForm } from "./cover-form";
-import { CategoryForm } from "./category-form";
 import { clubCoverUrl } from "@/lib/club-identity";
 import { MetricsForm } from "./metrics-form";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
@@ -23,7 +22,7 @@ export default async function SettingsPage() {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: me } = await supabase
     .from("profiles")
-    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, cover_path, category, dashboard_metrics, dashboard_metrics_mobile)")
+    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, cover_path, cover_position_x, cover_position_y, dashboard_metrics, dashboard_metrics_mobile)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -58,19 +57,16 @@ export default async function SettingsPage() {
       </section>
 
       <section className={`mt-6 p-5 ${cardClass}`}>
-        <h2 className="font-medium text-ink">Portada y categoría</h2>
+        <h2 className="font-medium text-ink">Portada</h2>
         <p className="mt-1 mb-4 text-sm text-muted">
-          La portada se muestra arriba del Resumen; la categoría, junto al deporte en el
-          encabezado.
+          Se muestra arriba del Resumen. Arrastra la foto para encuadrarla.
         </p>
         <CoverForm
           clubName={club?.name ?? ""}
           url={await clubCoverUrl(supabase, club?.cover_path)}
+          position={{ x: club?.cover_position_x ?? 50, y: club?.cover_position_y ?? 50 }}
           folder={me.club_id}
         />
-        <div className="mt-6">
-          <CategoryForm category={club?.category ?? null} />
-        </div>
       </section>
 
       {isHeadCoach && (

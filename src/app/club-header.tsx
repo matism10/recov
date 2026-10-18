@@ -91,7 +91,10 @@ export function ClubHeader({
           // URL firmada de Storage (cambia cada hora): sin optimizar.
           unoptimized
           sizes="(min-width: 1024px) calc(100vw - 15rem), 100vw"
-          className="object-cover object-[50%_22%]"
+          className="object-cover"
+          style={{
+            objectPosition: `${identity.coverPosition.x}% ${identity.coverPosition.y}%`,
+          }}
         />
         <div
           aria-hidden="true"

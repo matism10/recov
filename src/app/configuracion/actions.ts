@@ -38,23 +38,18 @@ export async function setClubCover(path: string | null): Promise<CoverState> {
   return { ok: true };
 }
 
-export type CategoryState = { ok?: boolean; error?: string };
-
-// Categoría del club (Adulta, Sub-18…), opcional: vacía la quita.
-// set_club_category valida que quien llama sea de la dirección y el largo.
-export async function setClubCategory(
-  _prevState: CategoryState,
-  formData: FormData,
-): Promise<CategoryState> {
-  const category = String(formData.get("category") ?? "").trim();
-  if (category.length === 1 || category.length > 40) {
-    return { error: "La categoría debe tener entre 2 y 40 caracteres." };
-  }
+// Encuadre de la portada (object-position en %, 0–100). set_club_cover_position
+// valida que quien llama sea de la dirección y que el club tenga portada.
+export async function setClubCoverPosition(x: number, y: number): Promise<CoverState> {
+  const clamp = (n: number) => Math.min(100, Math.max(0, Math.round(n)));
   const supabase = await createClient();
-  const { error } = await supabase.rpc("set_club_category", { p_category: category });
+  const { error } = await supabase.rpc("set_club_cover_position", {
+    p_x: clamp(x),
+    p_y: clamp(y),
+  });
   if (error) {
     return {
-      error: error.code === "P0001" ? error.message : "No se pudo guardar la categoría.",
+      error: error.code === "P0001" ? error.message : "No se pudo guardar el encuadre.",
     };
   }
   revalidatePath("/configuracion");
