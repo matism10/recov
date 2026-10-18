@@ -1,12 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { REGISTROS, isNavHidden, sidebarItems } from "@/app/nav-items";
+import { Avatar } from "@/app/avatar";
+import { REGISTROS, isNavHidden, sidebarItems, startsWith } from "@/app/nav-items";
+import recovLogo from "@/app/recov-logo.png";
 
-// Sidebar en el celeste suave de marca (Sky 100), solo con la navegación: la
-// identidad del club y el perfil van en el encabezado (ClubHeader). El ítem activo
-// lleva una barra izquierda de 3 px en celeste de marca.
+// Sidebar en el celeste suave de marca (Sky 100): la marca Recov arriba, la
+// navegación y el perfil abajo. La identidad del club va en el encabezado
+// (ClubHeader). El ítem activo lleva una barra izquierda de 3 px en celeste de marca.
 const itemClass = (active: boolean) =>
   `relative flex min-h-11 items-center gap-3 px-4 text-sm text-ink transition ${
     active
@@ -15,9 +18,13 @@ const itemClass = (active: boolean) =>
   }`;
 
 export function SidebarNav({
+  fullName,
+  avatarUrl,
   direction,
   pendingCount,
 }: {
+  fullName: string;
+  avatarUrl: string | null;
   direction: boolean;
   pendingCount: number;
 }) {
@@ -25,10 +32,17 @@ export function SidebarNav({
   if (isNavHidden(pathname)) return null;
 
   const items = sidebarItems(direction);
+  const profileActive = startsWith(pathname, "/perfil");
 
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-brand/40 bg-brand-soft py-6 lg:flex">
-      <nav aria-label="Principal">
+      <Link href="/dashboard" className="flex min-h-11 items-center gap-3 px-4">
+        {/* Decorativo: el nombre del enlace lo da el wordmark. */}
+        <Image src={recovLogo} alt="" width={36} height={36} className="size-9 shrink-0" />
+        <span className="font-display text-xl leading-tight font-extrabold text-ink">Recov</span>
+      </Link>
+
+      <nav aria-label="Principal" className="mt-8 flex-1">
         <ul className="space-y-1">
           {items.map((item) => {
             const active = item.isActive(pathname);
@@ -52,6 +66,18 @@ export function SidebarNav({
           })}
         </ul>
       </nav>
+
+      <Link
+        href="/perfil"
+        aria-current={profileActive ? "page" : undefined}
+        className={`${itemClass(profileActive)} py-2`}
+      >
+        <Avatar name={fullName} url={avatarUrl} onTint />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">{fullName}</span>
+          <span className="block text-xs font-normal text-muted">Perfil</span>
+        </span>
+      </Link>
     </aside>
   );
 }

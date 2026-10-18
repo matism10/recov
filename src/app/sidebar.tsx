@@ -22,7 +22,7 @@ const getNavData = cache(async () => {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, logo_path, sport)")
+    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, logo_path, sport, category, cover_path)")
     .eq("id", user.id)
     .maybeSingle();
   if (profile?.status !== "confirmado") return null;
@@ -43,9 +43,11 @@ const getNavData = cache(async () => {
   const avatarUrl = (await getAvatarUrls(supabase, [user.id])).get(user.id) ?? null;
 
   return {
-    identity: getClubIdentity({
+    identity: await getClubIdentity(supabase, {
       name: club?.name ?? "",
       sport: club?.sport ?? null,
+      category: club?.category ?? null,
+      coverPath: club?.cover_path ?? null,
       uploadedLogoUrl: clubLogoUrl(supabase, club?.logo_path),
     }),
     fullName: profile.full_name ?? "",
@@ -56,12 +58,19 @@ const getNavData = cache(async () => {
   };
 });
 
-// Navegación lateral de escritorio (lg+): solo los ítems; la identidad del club y
-// el perfil van en el encabezado (ClubHeader).
+// Navegación lateral de escritorio (lg+): marca Recov, ítems y perfil; la identidad
+// del club va en el encabezado (ClubHeader).
 export async function Sidebar() {
   const nav = await getNavData();
   if (!nav) return null;
-  return <SidebarNav direction={nav.direction} pendingCount={nav.pendingCount} />;
+  return (
+    <SidebarNav
+      fullName={nav.fullName}
+      avatarUrl={nav.avatarUrl}
+      direction={nav.direction}
+      pendingCount={nav.pendingCount}
+    />
+  );
 }
 
 // Encabezado con la identidad del club (celular y escritorio).

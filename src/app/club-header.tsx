@@ -64,7 +64,8 @@ function ProfileLink({
 }
 
 // Encabezado con la identidad del club (en vez del logo de Recov), en celular y
-// escritorio. "hero": portada con degradado, solo en el Resumen y si hay portada.
+// escritorio. El avatar del perfil va solo en celular (en escritorio está en la
+// sidebar). "hero": portada con degradado, solo en el Resumen y si hay portada.
 // "compact": barra blanca, en el resto. Respeta HIDDEN_ON.
 export function ClubHeader({
   identity,
@@ -87,6 +88,8 @@ export function ClubHeader({
           alt={`Portada de ${identity.name}`}
           fill
           priority
+          // La portada del club es una URL firmada de Storage: sin optimizar.
+          unoptimized={!identity.coverUrl.startsWith("/")}
           sizes="(min-width: 1024px) calc(100vw - 15rem), 100vw"
           className="object-cover object-[50%_22%]"
         />
@@ -98,7 +101,8 @@ export function ClubHeader({
               "linear-gradient(to top, rgba(11,23,38,.90) 0%, rgba(11,23,38,.78) 55%, rgba(11,23,38,.35) 100%)",
           }}
         />
-        <div className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-3 lg:top-3 lg:right-5">
+        {/* En escritorio el perfil va abajo en la sidebar. */}
+        <div className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-3 lg:hidden">
           <ProfileLink fullName={fullName} avatarUrl={avatarUrl} ring />
         </div>
         <div className="absolute bottom-4 left-4 flex min-w-0 items-center gap-3 pr-4 lg:left-8">
@@ -132,7 +136,9 @@ export function ClubHeader({
           {subtitle && <p className="truncate text-sm leading-4 text-[#475569]">{subtitle}</p>}
         </div>
       </div>
-      <ProfileLink fullName={fullName} avatarUrl={avatarUrl} />
+      <span className="lg:hidden">
+        <ProfileLink fullName={fullName} avatarUrl={avatarUrl} />
+      </span>
     </header>
   );
 }

@@ -78,10 +78,8 @@ export default async function DashboardPage() {
     );
   }
 
-  // Plantel confirmado y activo, con fotos (también la propia, para el acceso a
-  // /perfil) y la fase en curso de cada jugador.
-  const { players, avatarUrls, phaseByPlayer } = await getSquad(supabase, [user.id]);
-  const myAvatarUrl = avatarUrls.get(user.id) ?? null;
+  // Plantel confirmado y activo, con fotos y la fase en curso de cada jugador.
+  const { players, avatarUrls, phaseByPlayer } = await getSquad(supabase);
   // En el Resumen, solo los primeros disponibles; el plantel completo está en /plantel.
   const availablePlayers = players
     .filter((p) => p.availability === "disponible")
@@ -208,17 +206,6 @@ export default async function DashboardPage() {
               {myPhase && <span className="text-muted">· {myPhase}</span>}
             </p>
           )}
-          <Link
-            href="/perfil"
-            // En celular el perfil ya está en el avatar del encabezado móvil.
-            className="-mx-2 mt-1 hidden min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist lg:inline-flex"
-          >
-            <Avatar name={profile.full_name ?? ""} url={myAvatarUrl} />
-            <span>
-              <span className="sr-only">Tu perfil: </span>
-              {profile.full_name?.split(" ")[0]}
-            </span>
-          </Link>
         </div>
         {/* Escritorio: próximo partido arriba a la derecha. */}
         {nextMatch && <NextMatch match={nextMatch} className="hidden lg:inline-flex" />}
