@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import {
@@ -107,11 +108,14 @@ export default async function DashboardPage() {
   const injuredPlayers = players.filter((p) =>
     (INJURED_AVAILABILITY as readonly string[]).includes(p.availability),
   );
-  const openByPlayer = new Map<string, { startedOn: string; expectedReturnOn: string | null }>();
+  const openByPlayer = new Map<
+    string,
+    { type: string; startedOn: string; expectedReturnOn: string | null }
+  >();
   if (staff && injuredPlayers.length > 0) {
     const { data: open } = await supabase
       .from("injuries")
-      .select("player_id, started_on, expected_return_on")
+      .select("player_id, type, started_on, expected_return_on")
       .in("status", ["en_evaluacion", "activa"])
       .in(
         "player_id",
@@ -122,6 +126,7 @@ export default async function DashboardPage() {
       const current = openByPlayer.get(i.player_id)?.expectedReturnOn;
       if (!current || (i.expected_return_on && i.expected_return_on > current)) {
         openByPlayer.set(i.player_id, {
+          type: i.type,
           startedOn: i.started_on,
           expectedReturnOn: i.expected_return_on,
         });
@@ -291,17 +296,17 @@ export default async function DashboardPage() {
                         href={`/jugadores/${p.id}`}
                         className="block space-y-3 px-5 py-4 transition hover:bg-white"
                       >
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
-                            <div>
-                              <p className="font-medium text-ink">{p.full_name}</p>
-                              <p className="text-sm text-muted">
-                                {returnLabel(injury?.expectedReturnOn ?? null)}
-                              </p>
-                            </div>
+                        <div className="flex items-center gap-3">
+                          <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-ink">{p.full_name}</p>
+                            {injury && <p className="text-sm text-ink">{injury.type}</p>}
+                            <p className="text-sm text-muted">
+                              {returnLabel(injury?.expectedReturnOn ?? null)}
+                            </p>
                           </div>
                           <AvailabilityBadge status={status} />
+                          <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
                         </div>
                         {injury?.expectedReturnOn && (
                           <InjuryProgress
@@ -331,23 +336,31 @@ export default async function DashboardPage() {
                       <th scope="col" className="px-3 py-3 font-medium">
                         Progreso
                       </th>
-                      <th scope="col" className="py-3 pr-5 pl-3 font-medium">
+                      <th scope="col" className="py-3 pl-3 font-medium">
                         Estado
                       </th>
+                      {/* Columna del chevron: decorativa. */}
+                      <td aria-hidden="true" className="w-10 pr-5" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
                     {injuredPlayers.map((p) => {
                       const injury = openByPlayer.get(p.id);
                       return (
-                        <tr key={p.id} className="transition hover:bg-white">
+                        // Fila clicable: el único enlace (el nombre) se extiende sobre toda la fila.
+                        <tr key={p.id} className="relative transition hover:bg-white">
                           <td className="py-3 pr-3 pl-5">
                             <Link
                               href={`/jugadores/${p.id}`}
-                              className="inline-flex min-h-11 items-center gap-3 font-medium text-ink hover:underline"
+                              className="flex min-h-11 items-center gap-3 after:absolute after:inset-0 after:content-['']"
                             >
                               <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
-                              {p.full_name}
+                              <span>
+                                <span className="block font-medium text-ink">{p.full_name}</span>
+                                {injury && (
+                                  <span className="block text-sm text-ink">{injury.type}</span>
+                                )}
+                              </span>
                             </Link>
                           </td>
                           <td className="px-3 py-3 text-sm text-muted">
@@ -364,8 +377,11 @@ export default async function DashboardPage() {
                               />
                             )}
                           </td>
-                          <td className="py-3 pr-5 pl-3">
+                          <td className="py-3 pl-3">
                             <AvailabilityBadge status={p.availability as Availability} />
+                          </td>
+                          <td aria-hidden="true" className="w-10 py-3 pr-5">
+                            <ChevronRight className="size-5 text-muted" />
                           </td>
                         </tr>
                       );

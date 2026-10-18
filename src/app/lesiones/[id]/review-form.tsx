@@ -21,9 +21,9 @@ import {
 
 const CONFIRM_MESSAGE = {
   descartar:
-    "¿Descartar esta lesión? Quedará como descartada y, si el jugador no tiene otra lesión abierta, volverá a estar disponible.",
+    "¿Descartar esta lesión? Quedará como descartada y, si el jugador no tiene otra lesión actual, volverá a estar disponible.",
   cerrar:
-    "¿Dar de alta esta lesión? Quedará cerrada y, si el jugador no tiene otra lesión abierta, volverá a estar disponible.",
+    "¿Dar de alta esta lesión? Quedará cerrada y, si el jugador no tiene otra lesión actual, volverá a estar disponible.",
 };
 
 export function ReviewForm({
