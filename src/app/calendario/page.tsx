@@ -23,12 +23,14 @@ const UUID_RE =
 // los crean, editan y cancelan.
 //   ?fecha=YYYY-MM-DD  día de referencia: su mes (escritorio) y su semana (celular)
 //   ?evento=<id>       evento con el detalle abierto
+//   ?vista=mes         celular: vista mensual (por defecto, la semana)
 export default async function CalendarPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { fecha, evento } = await searchParams;
+  const { fecha, evento, vista } = await searchParams;
+  const mobileView = vista === "mes" ? "mes" : "semana";
   const today = todayInChile();
   const anchor = typeof fecha === "string" && parseIsoDate(fecha) !== null ? fecha : today;
   const selectedId = typeof evento === "string" && UUID_RE.test(evento) ? evento : null;
@@ -81,7 +83,8 @@ export default async function CalendarPage({
       </header>
 
       <CalendarView
-        key={`${anchor}-${selectedId ?? ""}`}
+        key={`${anchor}-${selectedId ?? ""}-${mobileView}`}
+        mobileView={mobileView}
         anchor={anchor}
         today={today}
         days={days}
