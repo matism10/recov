@@ -1,5 +1,6 @@
-// Métricas que el head coach puede mostrar en el Resumen (clubs.dashboard_metrics,
-// migración 0023). Las claves y su orden replican private.dashboard_metric_keys().
+// Métricas que el head coach puede mostrar en el Resumen, por separado en computador
+// (clubs.dashboard_metrics, 0023) y en celular (clubs.dashboard_metrics_mobile, 0024).
+// Las claves y su orden replican private.dashboard_metric_keys().
 
 export const DASHBOARD_METRICS = [
   "total",
@@ -37,15 +38,19 @@ export const CARD_METRICS: readonly DashboardMetric[] = [
   "reintegro",
 ];
 
-// Lo que el Resumen mostraba antes de poder elegir (clubs.dashboard_metrics NULL).
+// Lo que el Resumen mostraba antes de poder elegir (columna en NULL).
 export const DEFAULT_DASHBOARD_METRICS: DashboardMetric[] = [
   "disponibles",
   "lesionados",
   "disponibilidad",
 ];
+export const DEFAULT_DASHBOARD_METRICS_MOBILE: DashboardMetric[] = ["disponibles", "lesionados"];
 
 // Lo guardado en el club, en el orden del catálogo; NULL = las de siempre.
-export function dashboardMetricsOf(saved: string[] | null | undefined): DashboardMetric[] {
-  if (!saved) return DEFAULT_DASHBOARD_METRICS;
+export function dashboardMetricsOf(
+  saved: string[] | null | undefined,
+  defaults: DashboardMetric[] = DEFAULT_DASHBOARD_METRICS,
+): DashboardMetric[] {
+  if (!saved) return defaults;
   return DASHBOARD_METRICS.filter((m) => saved.includes(m));
 }

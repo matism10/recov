@@ -15,32 +15,50 @@ const GROUPS = [
   { legend: "Gráficos y listas", items: DASHBOARD_METRICS.filter((m) => !CARD_METRICS.includes(m)) },
 ];
 
-// Casillas con las métricas del catálogo; se muestran en el Resumen en este orden.
-export function MetricsForm({ selected }: { selected: DashboardMetric[] }) {
+// Dos grupos de casillas: computador y celular, cada uno con el catálogo completo.
+// En el Resumen se muestran en este orden.
+const DEVICES = [
+  { name: "metrics", legend: "En computador" },
+  { name: "metrics_mobile", legend: "En celular" },
+] as const;
+
+export function MetricsForm({
+  desktop,
+  mobile,
+}: {
+  desktop: DashboardMetric[];
+  mobile: DashboardMetric[];
+}) {
   const [state, formAction, pending] = useActionState<MetricsState, FormData>(
     setDashboardMetrics,
     {},
   );
+  const selected = { metrics: desktop, metrics_mobile: mobile };
 
   return (
-    <form action={formAction} className="space-y-4">
-      {GROUPS.map((group) => (
-        <fieldset key={group.legend}>
-          <legend className="text-sm font-medium text-ink">{group.legend}</legend>
-          <div className="mt-1 grid gap-x-6 sm:grid-cols-2">
-            {group.items.map((m) => (
-              <label key={m} className="flex min-h-11 items-center gap-3 text-sm text-ink">
-                <input
-                  type="checkbox"
-                  name="metrics"
-                  value={m}
-                  defaultChecked={selected.includes(m)}
-                  className="size-4 accent-brand-strong"
-                />
-                {DASHBOARD_METRIC_LABEL[m]}
-              </label>
-            ))}
-          </div>
+    <form action={formAction} className="space-y-6">
+      {DEVICES.map((device) => (
+        <fieldset key={device.name} className="space-y-3">
+          <legend className="font-medium text-ink">{device.legend}</legend>
+          {GROUPS.map((group) => (
+            <div key={group.legend}>
+              <p className="text-sm text-muted">{group.legend}</p>
+              <div className="mt-1 grid gap-x-6 sm:grid-cols-2">
+                {group.items.map((m) => (
+                  <label key={m} className="flex min-h-11 items-center gap-3 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      name={device.name}
+                      value={m}
+                      defaultChecked={selected[device.name].includes(m)}
+                      className="size-4 accent-brand-strong"
+                    />
+                    {DASHBOARD_METRIC_LABEL[m]}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
         </fieldset>
       ))}
 

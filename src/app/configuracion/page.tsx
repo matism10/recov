@@ -6,7 +6,7 @@ import { clubLogoUrl } from "@/lib/club-logo";
 import { cardClass, textButton } from "@/app/ui";
 import { LogoForm } from "./logo-form";
 import { MetricsForm } from "./metrics-form";
-import { dashboardMetricsOf } from "@/lib/dashboard-metrics";
+import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
 // Configuración del club: solo la dirección (head coach y manager).
 export default async function SettingsPage() {
@@ -20,7 +20,7 @@ export default async function SettingsPage() {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: me } = await supabase
     .from("profiles")
-    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, dashboard_metrics)")
+    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, dashboard_metrics, dashboard_metrics_mobile)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -58,10 +58,14 @@ export default async function SettingsPage() {
         <section className={`mt-6 p-5 ${cardClass}`}>
           <h2 className="font-medium text-ink">Métricas del Resumen</h2>
           <p className="mt-1 mb-4 text-sm text-muted">
-            Elige qué métricas ve el staff del club en el Resumen.
+            Elige qué métricas ve el staff del club en el Resumen, en computador y en celular.
           </p>
           <MetricsForm
-            selected={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
+            desktop={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
+            mobile={dashboardMetricsOf(
+              club?.dashboard_metrics_mobile as string[] | null,
+              DEFAULT_DASHBOARD_METRICS_MOBILE,
+            )}
           />
         </section>
       )}
