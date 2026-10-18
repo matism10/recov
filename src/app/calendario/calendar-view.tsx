@@ -21,6 +21,7 @@ import {
 } from "@/lib/events";
 import {
   ErrorMessage,
+  SectionTitle,
   buttonDanger,
   buttonPrimary,
   buttonSecondary,
@@ -120,7 +121,7 @@ function MonthGrid({
           <ChevronRight aria-hidden="true" className="size-5" />
           <span className="sr-only">Mes siguiente</span>
         </Link>
-        <h2 className="ml-2 flex-1 text-lg font-semibold text-ink">{monthLabel(anchor)}</h2>
+        <SectionTitle className="ml-2 flex-1">{monthLabel(anchor)}</SectionTitle>
         {month !== today.slice(0, 7) && (
           <Link href="/calendario" className={`text-sm ${buttonSecondary}`}>
             Hoy

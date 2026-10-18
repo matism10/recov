@@ -1,6 +1,7 @@
 // Gráfico de líneas en SVG, renderizado en el servidor (sin JS en el cliente).
 // El trazado usa un viewBox 0–100 estirado al ancho disponible, con trazos que no
 // se deforman; las etiquetas van en HTML para que se lean igual en cualquier ancho.
+import { SectionTitle } from "@/app/ui";
 
 // Clases literales (Tailwind solo genera las que aparecen escritas en el código).
 const COLORS = {
@@ -69,11 +70,14 @@ export function LineChart({
   xLabels,
   height = 200,
   label,
+  sectionHeading = false,
 }: {
   series: LineSeries[];
   xLabels: string[];
   height?: number;
   label: string;
+  // Título como SectionTitle (página de métricas) en vez del título chico de tarjeta.
+  sectionHeading?: boolean;
 }) {
   const n = xLabels.length;
   const max = axisMax(series);
@@ -112,7 +116,11 @@ export function LineChart({
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-sm font-medium text-muted">{label}</h2>
+        {sectionHeading ? (
+          <SectionTitle>{label}</SectionTitle>
+        ) : (
+          <h2 className="text-sm font-medium text-muted">{label}</h2>
+        )}
         <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
           {series.map((s) => (
             <li key={s.key} className="flex items-center gap-1.5">
