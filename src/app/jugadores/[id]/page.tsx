@@ -72,7 +72,7 @@ export default async function PlayerPage({
   const { data: injuries } = await supabase
     .from("injuries")
     .select(
-      "id, type, status, severity, started_on, expected_return_on, closed_on, occurred_during",
+      "id, type, status, severity, started_on, expected_return_on, closed_on, occurred_during, reviewed_at",
     )
     .eq("player_id", id)
     .order("started_on", { ascending: false });
@@ -100,6 +100,8 @@ export default async function PlayerPage({
     .filter((d): d is string => !!d)
     .sort()
     .at(-1);
+  // Una lesión activa que nadie ha revisado todavía no tiene un regreso confiable.
+  const pendingReview = open.some((i) => i.status === "activa" && i.reviewed_at === null);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
@@ -116,7 +118,7 @@ export default async function PlayerPage({
             </div>
             <p className="mt-1 text-sm text-muted">
               {player.position && `${player.position} · `}
-              {returnLabel(latestReturn ?? null)}
+              {pendingReview ? "Lesión por revisar" : returnLabel(latestReturn ?? null)}
             </p>
           </div>
         </div>
