@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, isDirection, type UserRole } from "@/lib/roles";
 import { ReviewButtons } from "./review-buttons";
-import { textButton } from "@/app/ui";
+import { PageTitle, SectionTitle, textButton } from "@/app/ui";
 
 type PendingProfile = {
   id: string;
@@ -83,6 +83,7 @@ export default async function RegistrosPage() {
       detailsLabel: "Posición y medidas",
       items: pendingPlayers,
       details: (p: PendingProfile) => playerDetails(playerByUser.get(p.id)!),
+      tableDetails: (p: PendingProfile) => playerDetails(playerByUser.get(p.id)!),
     },
     {
       title: "Staff",
@@ -92,18 +93,20 @@ export default async function RegistrosPage() {
         p.requested_role
           ? `Solicita: ${ROLE_LABEL[p.requested_role]}`
           : "Sin puesto solicitado",
+      // En la tabla la columna ya dice "Puesto solicitado": sin prefijo.
+      tableDetails: (p: PendingProfile) =>
+        p.requested_role ? ROLE_LABEL[p.requested_role] : "Sin puesto solicitado",
     },
   ];
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
-        <Link href="/dashboard" className={textButton}>
+        {/* En escritorio se vuelve por la sidebar. */}
+        <Link href="/dashboard" className={`${textButton} lg:hidden`}>
           ← Volver al resumen
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-ink">
-          Registros pendientes
-        </h1>
+        <PageTitle className="mt-2 lg:mt-0">Registros pendientes</PageTitle>
         <p className="mt-1 text-sm text-muted">
           Confirma a quienes se registraron con el link del club.
         </p>
@@ -119,9 +122,9 @@ export default async function RegistrosPage() {
             .filter((s) => s.items.length > 0)
             .map((s) => (
               <section key={s.title}>
-                <h2 className="mb-3 text-sm font-medium text-muted">
+                <SectionTitle className="mb-3">
                   {s.title} ({s.items.length})
-                </h2>
+                </SectionTitle>
                 <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line lg:hidden">
                   {s.items.map((p) => (
                     <li
@@ -166,7 +169,7 @@ export default async function RegistrosPage() {
                           <td className="py-4 pr-3 pl-5 font-medium text-ink">
                             {p.full_name}
                           </td>
-                          <td className="px-3 py-4 text-sm text-muted">{s.details(p)}</td>
+                          <td className="px-3 py-4 text-sm text-muted">{s.tableDetails(p)}</td>
                           <td className="px-3 py-4 text-sm whitespace-nowrap text-muted">
                             {dateFormat.format(new Date(p.created_at))}
                           </td>

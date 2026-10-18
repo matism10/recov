@@ -5,7 +5,7 @@ import { ROLE_LABEL, isDirection, isStaff, type UserRole } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import { DelegateForm, RolesForm } from "./staff-forms";
-import { cardClass, chipClass, textButton } from "@/app/ui";
+import { PageTitle, SectionTitle, cardClass, chipClass, textButton } from "@/app/ui";
 
 type StaffProfile = { id: string; full_name: string | null; roles: UserRole[] };
 
@@ -49,10 +49,11 @@ export default async function StaffPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
-        <Link href="/dashboard" className={textButton}>
+        {/* En escritorio se vuelve por la sidebar. */}
+        <Link href="/dashboard" className={`${textButton} lg:hidden`}>
           ← Volver al resumen
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-ink">Staff del club</h1>
+        <PageTitle className="mt-2 lg:mt-0">Staff del club</PageTitle>
         <p className="mt-1 text-sm text-muted">
           Cambia los roles del staff y decide quién tiene las funciones de kinesiólogo.
         </p>
@@ -60,7 +61,7 @@ export default async function StaffPage() {
 
       <div className="space-y-8">
         <section className={`p-5 ${cardClass}`}>
-          <h2 className="font-medium text-ink">Funciones de kinesiólogo</h2>
+          <SectionTitle>Funciones de kinesiólogo</SectionTitle>
           <p className="mt-1 mb-4 text-sm text-muted">
             Si el club no tiene kinesiólogo, delega sus funciones en alguien del staff:
             podrá revisar lesiones, ver documentos médicos y cambiar la disponibilidad.
@@ -72,9 +73,7 @@ export default async function StaffPage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted">
-            Staff ({staff.length})
-          </h2>
+          <SectionTitle className="mb-3">Staff ({staff.length})</SectionTitle>
           <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
             {staff.map((p) => {
               const isMe = p.id === user.id;

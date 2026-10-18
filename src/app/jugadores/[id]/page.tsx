@@ -24,7 +24,9 @@ import { getAvatarUrls } from "@/lib/avatars";
 import {
   AvailabilityBadge,
   InjuryStatusBadge,
+  PageTitle,
   PhaseDot,
+  SectionTitle,
   cardClass,
   textButton,
 } from "@/app/ui";
@@ -70,7 +72,7 @@ export default async function PlayerPage({
   const { data: injuries } = await supabase
     .from("injuries")
     .select(
-      "id, type, status, severity, started_on, expected_return_on, closed_on, occurred_during",
+      "id, type, status, severity, started_on, expected_return_on, closed_on, occurred_during, reviewed_at",
     )
     .eq("player_id", id)
     .order("started_on", { ascending: false });
@@ -98,6 +100,8 @@ export default async function PlayerPage({
     .filter((d): d is string => !!d)
     .sort()
     .at(-1);
+  // Una lesión activa que nadie ha revisado todavía no tiene un regreso confiable.
+  const pendingReview = open.some((i) => i.status === "activa" && i.reviewed_at === null);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
@@ -109,12 +113,12 @@ export default async function PlayerPage({
           <Avatar name={player.full_name} url={avatarUrl} size="lg" />
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold text-ink">{player.full_name}</h1>
+              <PageTitle>{player.full_name}</PageTitle>
               <AvailabilityBadge status={availability} />
             </div>
             <p className="mt-1 text-sm text-muted">
               {player.position && `${player.position} · `}
-              {returnLabel(latestReturn ?? null)}
+              {pendingReview ? "Lesión por revisar" : returnLabel(latestReturn ?? null)}
             </p>
           </div>
         </div>
@@ -123,7 +127,7 @@ export default async function PlayerPage({
       {/* En escritorio: lesión actual a la izquierda y línea de tiempo a la derecha. */}
       <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted">Lesión actual</h2>
+          <SectionTitle className="mb-3">Lesión actual</SectionTitle>
           {open.length > 0 ? (
             <div className="space-y-3">
               {open.map((i) => {
@@ -142,11 +146,13 @@ export default async function PlayerPage({
                         <p className="text-sm text-muted">
                           Desde el {formatDate(i.started_on)}
                           {occurredDuring &&
-                            ` · en ${OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}`}
+                            (occurredDuring === "externo"
+                              ? " · fuera del club"
+                              : ` · en ${OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}`)}
                           {severity && ` · ${SEVERITY_LABEL[severity]}`}
                         </p>
                       </div>
-                      <InjuryStatusBadge status={status} outline />
+                      <InjuryStatusBadge status={status} />
                     </div>
 
                     {status === "en_evaluacion" ? (
@@ -197,7 +203,7 @@ export default async function PlayerPage({
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted">Línea de tiempo</h2>
+          <SectionTitle className="mb-3">Línea de tiempo</SectionTitle>
           {all.length > 0 ? (
             <ol className="space-y-4 border-l-2 border-line pl-5">
               {all.map((i) => {
