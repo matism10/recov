@@ -119,7 +119,7 @@ export function ReviewForm({
         <button
           type="submit"
           disabled={pending}
-          className={buttonPrimary}
+          className={`w-full ${buttonPrimary}`}
         >
           {pending ? "Guardando…" : "Confirma la lesión"}
         </button>
@@ -150,7 +150,7 @@ export function ReviewForm({
           value="descartar"
           disabled={pending}
           onClick={(e) => confirmDecision(e, "descartar")}
-          className="ml-auto inline-flex min-h-11 items-center text-sm font-medium text-danger underline disabled:opacity-60"
+          className="ml-auto inline-flex min-h-11 items-center text-sm font-semibold text-lesionado underline disabled:opacity-60"
         >
           Descarta la lesión
         </button>

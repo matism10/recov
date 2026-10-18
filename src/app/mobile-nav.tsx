@@ -15,14 +15,18 @@ import { signOut } from "@/app/login/actions";
 import { chipClass } from "@/app/ui";
 
 // Ítem de la barra: ícono sobre etiqueta, mismo estilo activo que la sidebar.
+// Ítem de la barra (Dirección A): sobre tinta, etiquetas #CBD5E1; el activo lleva
+// una barra superior de 3 px y la etiqueta en celeste. Sin fondos ni sombras.
 const barItemClass = (active: boolean) =>
-  `relative flex min-h-14 w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] leading-none font-medium text-ink transition ${
-    active ? "bg-white shadow-sm" : "hover:bg-white/60"
+  `relative flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 pt-1 text-xs leading-none font-semibold transition ${
+    active
+      ? "text-brand before:absolute before:inset-x-3 before:top-0 before:h-[3px] before:rounded-b-sm before:bg-brand before:content-['']"
+      : "text-nav-text hover:text-white"
   }`;
 
 const sheetItemClass = (active: boolean) =>
-  `flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-base font-medium text-ink transition ${
-    active ? "bg-brand-soft" : "hover:bg-mist"
+  `flex min-h-12 w-full items-center gap-3 rounded-md px-3 text-base font-semibold text-ink transition ${
+    active ? "bg-mist" : "hover:bg-mist"
   }`;
 
 // Barra inferior móvil (oculta desde lg, donde está la sidebar). Fija abajo, con
@@ -47,11 +51,11 @@ export function MobileNavBar({
     <>
       <div
         aria-hidden="true"
-        className="h-[calc(4.75rem+env(safe-area-inset-bottom))] shrink-0 lg:hidden"
+        className="h-[calc(4.25rem+env(safe-area-inset-bottom))] shrink-0 lg:hidden"
       />
       <nav
         aria-label="Navegación principal"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-brand/40 bg-brand-soft px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 bg-ink px-2 pb-[calc(0.25rem+env(safe-area-inset-bottom))] lg:hidden"
       >
         <ul className="flex gap-1">
           {BOTTOM_BAR_ITEMS.map((item) => {
@@ -119,7 +123,7 @@ function MoreSheet({
           {pendingCount > 0 && (
             <span
               aria-hidden="true"
-              className="absolute -top-0.5 -right-1 size-2.5 rounded-full bg-danger ring-2 ring-brand-soft"
+              className="absolute -top-0.5 -right-1 size-2.5 rounded-full bg-danger ring-2 ring-ink"
             />
           )}
         </span>

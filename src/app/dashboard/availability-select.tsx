@@ -42,7 +42,7 @@ export function AvailabilitySelect({
           disabled={pending}
           onChange={() => formRef.current?.requestSubmit()}
           aria-label={`Disponibilidad de ${playerName}`}
-          className={`min-h-11 cursor-pointer rounded-xl border-0 py-2 pl-3 pr-8 text-sm font-medium disabled:opacity-60 ${AVAILABILITY_STYLE[value]}`}
+          className={`min-h-11 cursor-pointer rounded-md border-0 py-2 pl-3 pr-8 text-sm font-medium disabled:opacity-60 ${AVAILABILITY_STYLE[value]}`}
         >
           {MANUAL_AVAILABILITY.map((a) => (
             <option key={a} value={a}>

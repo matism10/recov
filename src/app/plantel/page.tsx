@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canManageInjuries, isStaff, type UserRole } from "@/lib/roles";
 import { getSquad } from "@/lib/squad";
-import { FilterableSquad } from "@/app/dashboard/squad-browser";
+import { GroupedSquad } from "./grouped-squad";
 import { PageTitle, cardClass } from "@/app/ui";
 
 // Plantel completo del club: los mismos datos, acciones y reglas por rol que la
@@ -37,7 +37,7 @@ export default async function SquadPage() {
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 lg:max-w-5xl lg:px-12 lg:py-12">
       <header className="mb-8">
         <PageTitle>
           Plantel
@@ -48,7 +48,7 @@ export default async function SquadPage() {
       </header>
 
       {players.length > 0 ? (
-        <FilterableSquad
+        <GroupedSquad
           positions={(positions ?? []).map((p) => p.name as string)}
           players={players}
           avatarUrls={avatarUrls}

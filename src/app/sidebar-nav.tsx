@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import { Avatar } from "@/app/avatar";
+import recovMark from "@/app/recov-mark.png";
 import { ClubLogo } from "@/app/club-logo";
 import { REGISTROS, isNavHidden, sidebarItems, startsWith } from "@/app/nav-items";
 
-// Sidebar en el celeste suave de marca (Sky 100): texto e íconos en ink.
-// El ítem activo va en blanco para destacarse sobre el celeste.
+// Sidebar en tinta (Dirección A), con el mismo lenguaje que la barra móvil: texto
+// #CBD5E1 y el activo con una barra izquierda de 3 px y el texto en celeste.
 const itemClass = (active: boolean) =>
-  `flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-ink transition ${
-    active ? "bg-white shadow-sm" : "hover:bg-white/60"
+  `relative flex min-h-11 items-center gap-3 px-4 text-[15px] font-semibold transition ${
+    active
+      ? "text-brand before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r-sm before:bg-brand before:content-['']"
+      : "text-nav-text hover:text-white"
   }`;
 
 export function SidebarNav({
@@ -35,12 +39,15 @@ export function SidebarNav({
   const profileActive = startsWith(pathname, "/perfil");
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-brand/40 bg-brand-soft px-3 py-6 lg:flex">
-      <div className="flex items-center gap-3 px-3">
-        <ClubLogo name={clubName} url={clubLogoUrl} />
-        <div className="min-w-0">
-          <p className="font-display text-xl leading-tight font-extrabold text-ink">Recov</p>
-          <p className="truncate text-sm text-muted">{clubName}</p>
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-ink py-6 lg:flex">
+      <div className="px-4">
+        <p className="flex items-center gap-2.5">
+          <Image src={recovMark} alt="" width={28} height={29} className="h-[29px] w-[28px]" />
+          <span className="font-display text-2xl leading-none font-extrabold text-white">Recov</span>
+        </p>
+        <div className="mt-5 flex items-center gap-3">
+          <ClubLogo name={clubName} url={clubLogoUrl} />
+          <p className="min-w-0 truncate text-sm text-nav-text">{clubName}</p>
         </div>
       </div>
 
@@ -58,11 +65,7 @@ export function SidebarNav({
                   <item.Icon aria-hidden="true" className="size-5 shrink-0" />
                   <span className="flex-1">{item.label}</span>
                   {item === REGISTROS && pendingCount > 0 && (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        active ? "bg-brand-soft text-brand-text" : "bg-white text-brand-text"
-                      }`}
-                    >
+                    <span className="rounded-sm bg-brand px-1.5 py-0.5 text-xs font-semibold text-ink">
                       {pendingCount}
                     </span>
                   )}
@@ -81,7 +84,7 @@ export function SidebarNav({
         <Avatar name={fullName} url={avatarUrl} onTint />
         <span className="min-w-0 flex-1">
           <span className="block truncate">{fullName}</span>
-          <span className="block text-xs font-normal text-muted">Perfil</span>
+          <span className="block text-xs font-normal text-nav-text">Perfil</span>
         </span>
       </Link>
     </aside>

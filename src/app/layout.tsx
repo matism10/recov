@@ -1,21 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Nunito } from "next/font/google";
+import { Archivo } from "next/font/google";
 import "./globals.css";
 import { MobileHeader, MobileNav, Sidebar } from "./sidebar";
 
-// Nunito: títulos, subtítulos y wordmark. Inter: cuerpo, tablas y datos.
-const nunito = Nunito({
+// Archivo, una sola familia para títulos, cuerpo y wordmark (Dirección A). Fuente
+// variable con eje de ancho: se usa semicondensada (font-stretch 87.5%).
+const archivo = Archivo({
   subsets: ["latin"],
-  weight: ["600", "700", "800"],
+  axes: ["wdth"],
   display: "swap",
-  variable: "--font-nunito",
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  display: "swap",
-  variable: "--font-inter",
+  variable: "--font-archivo",
 });
 
 export const metadata: Metadata = {
@@ -33,7 +27,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es" className={`${nunito.variable} ${inter.variable} h-full antialiased`}>
+    <html lang="es" className={`${archivo.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         {/* Sidebar solo en escritorio (lg+). */}
         <div className="flex flex-1">

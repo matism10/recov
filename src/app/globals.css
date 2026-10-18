@@ -5,9 +5,9 @@
   color-scheme: light;
 }
 
-/* Sistema de marca. Regla de contraste: sobre brand (Sky 400) el texto y los
-   íconos van en ink, nunca en blanco; el texto de marca sobre blanco va en
-   brand-text (Sky 700), nunca en brand directo. */
+/* Sistema de marca · Dirección A ("Planilla de cancha"). Regla de contraste: sobre
+   brand (Sky 400) el texto y los íconos van en ink, nunca en blanco; el texto de
+   marca sobre blanco va en brand-text (Sky 700), nunca en brand directo. */
 @theme {
   /* Marca */
   --color-brand: #38bdf8; /* Sky 400: botón primario y superficies de marca */
@@ -17,32 +17,42 @@
   --color-brand-soft: #e0f2fe; /* Sky 100: chips, avatares y fondos de selección */
 
   /* Neutros */
-  --color-ink: #0e1b2c; /* texto y navegación */
-  --color-muted: #5b6675; /* texto secundario */
-  --color-mist: #f7f8fa; /* tarjetas y filas */
-  --color-line: #e3e7ee; /* bordes */
+  --color-ink: #0b1726; /* texto, tinta y navegación */
+  --color-muted: #475569; /* texto secundario (7,6:1 sobre blanco) */
+  --color-mist: #f1f4f7; /* superficie: bloques y filas */
+  --color-surface-2: #e6ebf0; /* superficie 2: bloques destacados */
+  --color-line: #d7dee6; /* bordes: solo en campos */
+  --color-nav-text: #cbd5e1; /* etiquetas sobre tinta (12:1) */
 
   /* Estados de disponibilidad: fijos, nunca como color de marca */
-  --color-disponible: #16a34a;
+  /* Relleno sólido: disponible, lesionado y reintegro con blanco; revisión con tinta.
+     Como texto sobre blanco, el ámbar usa revision-strong. Los -bg/-fg quedan para
+     las pantallas que aún no pasan a relleno sólido. */
+  --color-disponible: #15803d;
   --color-disponible-bg: #dcfce7;
   --color-disponible-fg: #14532d;
   --color-revision: #f59e0b;
+  --color-revision-strong: #b45309;
   --color-revision-bg: #fef3c7;
   --color-revision-fg: #92400e;
-  --color-lesionado: #dc2626;
+  --color-lesionado: #b91c1c;
   --color-lesionado-bg: #fee2e2;
   --color-lesionado-fg: #7f1d1d;
-  --color-reintegro: #7c3aed;
-  --color-reintegro-bg: #ede9fe;
-  --color-reintegro-fg: #4c1d95;
+  --color-reintegro: #0f766e; /* teal: reemplaza al violeta */
+  --color-reintegro-bg: #ccfbf1;
+  --color-reintegro-fg: #134e4a;
 
   /* Errores y acciones destructivas: token propio, separado de "lesionado" */
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
 
-  /* Tipografía: Nunito para títulos y wordmark, Inter para cuerpo y datos */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  /* Tipografía: Archivo semicondensada para todo */
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+
+  /* Forma: 8 px en bloques (rounded-xl), 6 px en controles (rounded-md),
+     4 px en badges (rounded-sm). */
+  --radius-xl: 0.5rem;
 }
 
 @layer base {
@@ -50,6 +60,7 @@
     background: #ffffff;
     color: var(--color-ink);
     font-family: var(--font-sans);
+    font-stretch: 87.5%;
     /* Fechas, días de recuperación y porcentajes alineados en columna. */
     font-variant-numeric: tabular-nums;
   }
@@ -86,4 +97,9 @@
       text-align: left;
     }
   }
+}
+
+/* Íconos Lucide con trazo 2,25 (más firmes al sol). El CSS manda sobre el atributo. */
+svg.lucide {
+  stroke-width: 2.25;
 }
