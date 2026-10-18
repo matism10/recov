@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canManageInjuries, isStaff, type UserRole } from "@/lib/roles";
 import { getSquad } from "@/lib/squad";
 import { FilterableSquad } from "@/app/dashboard/squad-browser";
-import { PageTitle, cardClass, textButton } from "@/app/ui";
+import { PageTitle, cardClass } from "@/app/ui";
 
 // Plantel completo del club: los mismos datos, acciones y reglas por rol que la
 // lista del Resumen, pero con todos los jugadores confirmados, con búsqueda y
@@ -40,11 +39,7 @@ export default async function SquadPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
-        {/* En escritorio se vuelve por la sidebar. */}
-        <Link href="/dashboard" className={`${textButton} lg:hidden`}>
-          ← Volver al resumen
-        </Link>
-        <PageTitle className="mt-2 lg:mt-0">
+        <PageTitle>
           Plantel
         </PageTitle>
         <p className="mt-1 text-sm text-muted">

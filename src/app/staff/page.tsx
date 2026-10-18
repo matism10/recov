@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, isDirection, isStaff, type UserRole } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import { DelegateForm, RolesForm } from "./staff-forms";
-import { PageTitle, SectionTitle, cardClass, chipClass, textButton } from "@/app/ui";
+import { PageTitle, SectionTitle, cardClass, chipClass } from "@/app/ui";
 
 type StaffProfile = { id: string; full_name: string | null; roles: UserRole[] };
 
@@ -49,11 +48,7 @@ export default async function StaffPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
-        {/* En escritorio se vuelve por la sidebar. */}
-        <Link href="/dashboard" className={`${textButton} lg:hidden`}>
-          ← Volver al resumen
-        </Link>
-        <PageTitle className="mt-2 lg:mt-0">Staff del club</PageTitle>
+        <PageTitle>Staff del club</PageTitle>
         <p className="mt-1 text-sm text-muted">
           Cambia los roles del staff y decide quién tiene las funciones de kinesiólogo.
         </p>

@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL, isDirection, type UserRole } from "@/lib/roles";
 import { ReviewButtons } from "./review-buttons";
-import { PageTitle, SectionTitle, textButton } from "@/app/ui";
+import { PageTitle, SectionTitle } from "@/app/ui";
 
 type PendingProfile = {
   id: string;
@@ -102,11 +101,7 @@ export default async function RegistrosPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
-        {/* En escritorio se vuelve por la sidebar. */}
-        <Link href="/dashboard" className={`${textButton} lg:hidden`}>
-          ← Volver al resumen
-        </Link>
-        <PageTitle className="mt-2 lg:mt-0">Registros pendientes</PageTitle>
+        <PageTitle>Registros pendientes</PageTitle>
         <p className="mt-1 text-sm text-muted">
           Confirma a quienes se registraron con el link del club.
         </p>
