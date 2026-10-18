@@ -200,7 +200,8 @@ export default async function DashboardPage() {
           )}
           <Link
             href="/perfil"
-            className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist"
+            // En celular el perfil ya está en el avatar del encabezado móvil.
+            className="-mx-2 mt-1 hidden min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist lg:inline-flex"
           >
             <Avatar name={profile.full_name ?? ""} url={myAvatarUrl} />
             <span>
@@ -213,11 +214,12 @@ export default async function DashboardPage() {
         {nextMatch && <NextMatch match={nextMatch} className="hidden lg:inline-flex" />}
       </header>
 
-      {/* Celular: el próximo partido bajo el encabezado, a lo ancho. */}
-      {nextMatch && <NextMatch match={nextMatch} stacked className="mb-6 flex w-full lg:hidden" />}
-
-      {/* Franja de métricas: solo staff y solo en escritorio. */}
+      {/* Franja de métricas: solo staff. En celular, disponibles y lesionados, justo
+          bajo el título. */}
       {staff && <MetricsStrip supabase={supabase} />}
+
+      {/* Celular: el próximo partido a lo ancho. */}
+      {nextMatch && <NextMatch match={nextMatch} stacked className="mb-6 flex w-full lg:hidden" />}
 
       {myPendingInjury && (
         <div className="mb-8 space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
