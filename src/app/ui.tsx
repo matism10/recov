@@ -102,49 +102,42 @@ export function AvailabilityIcon({
   return <Icon aria-hidden="true" className={`shrink-0 ${className}`} />;
 }
 
-export function AvailabilityBadge({ status }: { status: Availability }) {
+// ---------------------------------------------------------------------------
+// Badge de estado: una sola forma (píldora rellena, text-xs, peso 500, sin
+// quiebre de línea) para disponibilidad y lesiones; cambia solo el color.
+// ---------------------------------------------------------------------------
+function StatusBadge({ className, children }: { className: string; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${AVAILABILITY_STYLE[status]}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${className}`}
     >
-      <AvailabilityIcon status={status} className="size-3.5" />
-      {AVAILABILITY_LABEL[status]}
+      {children}
     </span>
   );
 }
 
+export function AvailabilityBadge({ status }: { status: Availability }) {
+  return (
+    <StatusBadge className={AVAILABILITY_STYLE[status]}>
+      <AvailabilityIcon status={status} className="size-3.5" />
+      {AVAILABILITY_LABEL[status]}
+    </StatusBadge>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Estado de la lesión. En outline cuando convive con badges de disponibilidad.
+// Estado de la lesión
 // ---------------------------------------------------------------------------
-const INJURY_STATUS_FILLED: Record<InjuryStatus, string> = {
+const INJURY_STATUS_STYLE: Record<InjuryStatus, string> = {
   en_evaluacion: "bg-revision-bg text-revision-fg",
   activa: "bg-lesionado-bg text-lesionado-fg",
   cerrada: "bg-disponible-bg text-disponible-fg",
   descartada: "bg-mist text-muted",
 };
 
-const INJURY_STATUS_OUTLINE: Record<InjuryStatus, string> = {
-  en_evaluacion: "border border-revision text-revision-fg",
-  activa: "border border-lesionado text-lesionado-fg",
-  cerrada: "border border-disponible text-disponible-fg",
-  descartada: "border border-muted text-muted",
-};
-
-export function InjuryStatusBadge({
-  status,
-  outline = false,
-}: {
-  status: InjuryStatus;
-  outline?: boolean;
-}) {
+export function InjuryStatusBadge({ status }: { status: InjuryStatus }) {
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        outline ? INJURY_STATUS_OUTLINE[status] : INJURY_STATUS_FILLED[status]
-      }`}
-    >
-      {INJURY_STATUS_LABEL[status]}
-    </span>
+    <StatusBadge className={INJURY_STATUS_STYLE[status]}>{INJURY_STATUS_LABEL[status]}</StatusBadge>
   );
 }
 

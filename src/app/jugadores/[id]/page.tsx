@@ -148,7 +148,7 @@ export default async function PlayerPage({
                           {severity && ` · ${SEVERITY_LABEL[severity]}`}
                         </p>
                       </div>
-                      <InjuryStatusBadge status={status} outline />
+                      <InjuryStatusBadge status={status} />
                     </div>
 
                     {status === "en_evaluacion" ? (

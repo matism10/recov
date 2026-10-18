@@ -447,7 +447,7 @@ export default async function DashboardPage() {
                             Desde el {formatDate(i.started_on)}
                           </p>
                         </div>
-                        <InjuryStatusBadge status={i.status as InjuryStatus} outline />
+                        <InjuryStatusBadge status={i.status as InjuryStatus} />
                       </div>
                       {i.status !== "en_evaluacion" && (
                         <InjuryProgress

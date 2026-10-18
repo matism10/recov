@@ -90,7 +90,7 @@ export default async function InjuriesPage() {
                               {i.closed_on && ` · hasta el ${formatDate(i.closed_on)}`}
                             </p>
                           </div>
-                          <InjuryStatusBadge status={i.status} outline />
+                          <InjuryStatusBadge status={i.status} />
                         </div>
                         {i.status === "activa" && (
                           <InjuryProgress
