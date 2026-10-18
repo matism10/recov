@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Nunito } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "./sidebar";
+import { MobileNav, Sidebar } from "./sidebar";
 
 // Nunito: títulos, subtítulos y wordmark. Inter: cuerpo, tablas y datos.
 const nunito = Nunito({
@@ -32,6 +32,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col">{children}</div>
         </div>
+        {/* Barra inferior solo en celular y tablet (hasta lg). */}
+        <MobileNav />
       </body>
     </html>
   );
