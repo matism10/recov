@@ -4,7 +4,7 @@ import type { SquadPlayer } from "@/lib/squad";
 import { Avatar } from "@/app/avatar";
 import { AvailabilityBadge } from "@/app/ui";
 import { AvailabilitySelect } from "./availability-select";
-import { PlayerIdentity, markInjuryClass } from "./squad-list";
+import { PlayerIdentity, markInjuryClass, type SquadProps } from "./squad-list";
 
 // Franja de 4 px a la izquierda de la fila, con el color de su estado.
 const STRIPE: Record<Availability, string> = {
@@ -63,5 +63,29 @@ export function PlayerRow({
         )}
       </div>
     </li>
+  );
+}
+
+// Lista de filas de jugador: la usan el Plantel y el Resumen.
+export function PlayerRows({
+  players,
+  avatarUrls,
+  phaseByPlayer,
+  canManage,
+  linkToProfile,
+}: SquadProps) {
+  return (
+    <ul className="space-y-2">
+      {players.map((p) => (
+        <PlayerRow
+          key={p.id}
+          player={p}
+          avatarUrl={p.user_id ? avatarUrls.get(p.user_id) : null}
+          phase={phaseByPlayer.get(p.id)}
+          canManage={canManage}
+          linkToProfile={linkToProfile}
+        />
+      ))}
+    </ul>
   );
 }
