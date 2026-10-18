@@ -125,18 +125,13 @@ export function ReviewForm({
         </button>
       </form>
 
-      <form action={formAction} className="flex flex-wrap gap-3 border-t border-line pt-4">
+      {/* Descartar queda aparte de "Confirma la lesión": acción de texto en rojo,
+          al otro extremo. Mismo envío y misma confirmación que antes. */}
+      <form
+        action={formAction}
+        className="flex flex-wrap items-center gap-3 border-t border-line pt-4"
+      >
         <input type="hidden" name="injury_id" value={injuryId} />
-        <button
-          type="submit"
-          name="decision"
-          value="descartar"
-          disabled={pending}
-          onClick={(e) => confirmDecision(e, "descartar")}
-          className={buttonSecondary}
-        >
-          Descarta la lesión
-        </button>
         {status === "activa" && (
           <button
             type="submit"
@@ -149,6 +144,16 @@ export function ReviewForm({
             Da de alta
           </button>
         )}
+        <button
+          type="submit"
+          name="decision"
+          value="descartar"
+          disabled={pending}
+          onClick={(e) => confirmDecision(e, "descartar")}
+          className="ml-auto inline-flex min-h-11 items-center text-sm font-medium text-danger underline disabled:opacity-60"
+        >
+          Descarta la lesión
+        </button>
       </form>
 
       {state.error && <ErrorMessage>{state.error}</ErrorMessage>}

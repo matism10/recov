@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canManageInjuries, isStaff, type Availability, type UserRole } from "@/lib/roles";
+import { getAvatarUrls } from "@/lib/avatars";
+import { Avatar } from "@/app/avatar";
 import {
   OCCURRED_DURING_LABEL,
   SEVERITY_LABEL,
@@ -53,7 +55,7 @@ export default async function InjuryPage({
   const { data: injury } = await supabase
     .from("injuries")
     .select(
-      "id, type, severity, status, description, started_on, expected_return_on, doctor_estimate_value, doctor_estimate_unit, occurred_during, reviewed_by, reviewed_at, players(full_name, availability, user_id)",
+      "id, player_id, type, severity, status, description, started_on, expected_return_on, doctor_estimate_value, doctor_estimate_unit, occurred_during, reviewed_by, reviewed_at, players(full_name, availability, user_id)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -112,6 +114,22 @@ export default async function InjuryPage({
   const status = injury.status as InjuryStatus;
   const inEvaluation = status === "en_evaluacion";
   const isOwnInjury = player?.user_id === user.id;
+  // Foto del jugador. RLS: solo fotos de perfiles visibles para quien consulta.
+  const playerAvatarUrl = player?.user_id
+    ? ((await getAvatarUrls(supabase, [player.user_id])).get(player.user_id) ?? null)
+    : null;
+  // Qué secciones se ven: las mismas condiciones de antes, para ubicar Documentos.
+  const showReview = canManage && (inEvaluation || status === "activa");
+  const showPhases = staff || isOwnInjury;
+  const showBanner = inEvaluation && isOwnInjury;
+  // Escritorio: Documentos en la fila del formulario de revisión si está visible;
+  // si no, arriba, junto al primer bloque (como antes).
+  const documentsRow = showReview ? (showBanner ? 3 : 2) : 1;
+  const DOCUMENTS_ROW: Record<number, string> = {
+    1: "lg:row-start-1",
+    2: "lg:row-start-2",
+    3: "lg:row-start-3",
+  };
   const occurredDuring = injury.occurred_during as OccurredDuring | null;
   const severity = injury.severity as InjurySeverity | null;
   const doctorEstimate =
@@ -128,127 +146,139 @@ export default async function InjuryPage({
         <Link href="/dashboard" className={textButton}>
           ← Volver
         </Link>
-        {staff && player && (
-          <p className="mt-2 text-sm text-muted">{player.full_name}</p>
-        )}
-        <div className="mt-1 flex flex-wrap items-center gap-3">
+        {/* Jugador destacado: enlaza a su ficha solo para el staff (la misma
+            guarda de /jugadores/[id]); el jugador ve su propia lesión sin enlace. */}
+        {player &&
+          (staff ? (
+            <Link
+              href={`/jugadores/${injury.player_id}`}
+              className="mt-3 inline-flex min-h-11 items-center gap-3 rounded-xl font-medium text-ink hover:underline"
+            >
+              <Avatar name={player.full_name} url={playerAvatarUrl} />
+              {player.full_name}
+            </Link>
+          ) : (
+            <div className="mt-3 flex min-h-11 items-center gap-3 font-medium text-ink">
+              <Avatar name={player.full_name} url={playerAvatarUrl} />
+              {player.full_name}
+            </div>
+          ))}
+        <div className="mt-2 flex flex-wrap items-center gap-3">
           <PageTitle>{injury.type}</PageTitle>
           <InjuryStatusBadge status={status} />
         </div>
       </header>
 
-      {/* En escritorio: detalle, revisión y fases (2/3); documentos al costado (1/3). */}
-      <div className="space-y-6 lg:grid lg:grid-cols-3 lg:items-start lg:gap-8 lg:space-y-0">
-        <div className="space-y-6 lg:col-span-2">
-          {inEvaluation && isOwnInjury && (
-            <div className="space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
-              <p className="text-sm text-ink">
-                Agrega lo que te indicó el médico y tus documentos para que el
-                kinesiólogo revise la lesión.
-              </p>
-              <Link href={`/lesiones/${injury.id}/completar`} className={buttonPrimary}>
-                Sube tu diagnóstico
-              </Link>
-            </div>
-          )}
+      {/* Móvil: un bloque bajo otro, en el mismo orden de siempre. Escritorio:
+          detalle, revisión y fases (2/3) y documentos al costado (1/3). */}
+      <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
+        {showBanner && (
+          <div className="space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5 lg:col-span-2">
+            <p className="text-sm text-ink">
+              Agrega lo que te indicó el médico y tus documentos para que el
+              kinesiólogo revise la lesión.
+            </p>
+            <Link href={`/lesiones/${injury.id}/completar`} className={buttonPrimary}>
+              Sube tu diagnóstico
+            </Link>
+          </div>
+        )}
 
-          <section className={`space-y-4 p-5 ${cardClass}`}>
-            <dl className="space-y-2 text-sm">
+        <section className={`space-y-4 p-5 lg:col-span-2 ${cardClass}`}>
+          {/* Grilla de etiqueta y valor. */}
+          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-muted">Ocurrió</dt>
+              <dd className="mt-0.5 text-ink">{formatDate(injury.started_on)}</dd>
+            </div>
+            {occurredDuring && (
               <div>
-                <dt className="inline text-muted">Ocurrió: </dt>
-                <dd className="inline text-ink">{formatDate(injury.started_on)}</dd>
+                <dt className="text-muted">Ocurrió en</dt>
+                <dd className="mt-0.5 text-ink">{OCCURRED_DURING_LABEL[occurredDuring]}</dd>
               </div>
-              {occurredDuring && (
-                <div>
-                  <dt className="inline text-muted">Ocurrió en: </dt>
-                  <dd className="inline text-ink">
-                    {OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}
-                  </dd>
-                </div>
-              )}
-              {!inEvaluation && (
-                <div>
-                  <dt className="inline text-muted">Alta estimada: </dt>
-                  <dd className="inline text-ink">
-                    {injury.expected_return_on
-                      ? formatDate(injury.expected_return_on)
-                      : "Sin definir"}
-                    {doctorEstimate && (
-                      <span className="text-muted">
-                        {" "}
-                        ({doctorEstimate} según el médico)
-                      </span>
-                    )}
-                  </dd>
-                </div>
-              )}
-              <div>
-                <dt className="inline text-muted">Gravedad: </dt>
-                <dd className="inline text-ink">
-                  {severity ? SEVERITY_LABEL[severity] : "Por definir"}
-                </dd>
-              </div>
-              <div>
-                <dt className="inline text-muted">Revisión: </dt>
-                <dd className="inline text-ink">
-                  {inEvaluation
-                    ? "Esperando el diagnóstico del jugador"
-                    : injury.reviewed_at
-                      ? `Revisada el ${formatDate(injury.reviewed_at)}${
-                          reviewer?.full_name ? ` por ${reviewer.full_name}` : ""
-                        }`
-                      : "Pendiente de revisión del kinesiólogo"}
-                </dd>
-              </div>
-            </dl>
-            {injury.description && (
-              <p className="text-sm whitespace-pre-line text-ink">
-                {injury.description}
-              </p>
             )}
             {!inEvaluation && (
-              <InjuryProgress
-                startedOn={injury.started_on}
-                expectedReturnOn={injury.expected_return_on}
-              />
+              <div>
+                <dt className="text-muted">Alta estimada</dt>
+                <dd className="mt-0.5 text-ink">
+                  {injury.expected_return_on
+                    ? formatDate(injury.expected_return_on)
+                    : "Sin definir"}
+                  {doctorEstimate && (
+                    <span className="text-muted">
+                      {" "}
+                      ({doctorEstimate} según el médico)
+                    </span>
+                  )}
+                </dd>
+              </div>
             )}
+            <div>
+              <dt className="text-muted">Gravedad</dt>
+              <dd className="mt-0.5 text-ink">
+                {severity ? SEVERITY_LABEL[severity] : "Por definir"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted">Revisión</dt>
+              <dd className="mt-0.5 text-ink">
+                {inEvaluation
+                  ? "Esperando el diagnóstico del jugador"
+                  : injury.reviewed_at
+                    ? `Revisada el ${formatDate(injury.reviewed_at)}${
+                        reviewer?.full_name ? ` por ${reviewer.full_name}` : ""
+                      }`
+                    : "Pendiente de revisión del kinesiólogo"}
+              </dd>
+            </div>
+          </dl>
+          {injury.description && (
+            <p className="text-sm whitespace-pre-line text-ink">
+              {injury.description}
+            </p>
+          )}
+          {!inEvaluation && (
+            <InjuryProgress
+              startedOn={injury.started_on}
+              expectedReturnOn={injury.expected_return_on}
+            />
+          )}
+        </section>
+
+        {showReview && (
+          <section className={`p-5 lg:col-span-2 ${cardClass}`}>
+            <SectionTitle className="mb-4">Revisión</SectionTitle>
+            <ReviewForm
+              injuryId={injury.id}
+              status={status}
+              startedOn={injury.started_on}
+              expectedReturnOn={injury.expected_return_on}
+              severity={severity}
+              availability={(player?.availability ?? "disponible") as Availability}
+            />
           </section>
+        )}
 
-          {canManage && (inEvaluation || status === "activa") && (
-            <section className={`p-5 ${cardClass}`}>
-              <SectionTitle className="mb-4">Revisión</SectionTitle>
-              <ReviewForm
-                injuryId={injury.id}
-                status={status}
-                startedOn={injury.started_on}
-                expectedReturnOn={injury.expected_return_on}
-                severity={severity}
-                availability={(player?.availability ?? "disponible") as Availability}
-              />
-            </section>
-          )}
+        {showPhases && (
+          <section className="lg:col-span-2">
+            <SectionTitle className="mb-3">Fases de recuperación</SectionTitle>
+            <PhasesPanel
+              injuryId={injury.id}
+              phases={(phases ?? []).map((ph) => ({
+                id: ph.id,
+                name: ph.name,
+                status: ph.status as PhaseStatus,
+                started_on: ph.started_on ?? "",
+                ended_on: ph.ended_on ?? "",
+              }))}
+              canEdit={canManage && status === "activa"}
+              startedOn={injury.started_on}
+              expectedReturnOn={injury.expected_return_on}
+            />
+          </section>
+        )}
 
-          {(staff || isOwnInjury) && (
-            <section>
-              <SectionTitle className="mb-3">Fases de recuperación</SectionTitle>
-              <PhasesPanel
-                injuryId={injury.id}
-                phases={(phases ?? []).map((ph) => ({
-                  id: ph.id,
-                  name: ph.name,
-                  status: ph.status as PhaseStatus,
-                  started_on: ph.started_on ?? "",
-                  ended_on: ph.ended_on ?? "",
-                }))}
-                canEdit={canManage && status === "activa"}
-                startedOn={injury.started_on}
-                expectedReturnOn={injury.expected_return_on}
-              />
-            </section>
-          )}
-        </div>
-
-        <section>
+        <section className={`lg:col-start-3 ${DOCUMENTS_ROW[documentsRow]}`}>
           <SectionTitle className="mb-3">Documentos</SectionTitle>
           {!canSeeDocuments ? (
             <p className={`p-5 text-sm text-muted ${cardClass}`}>
