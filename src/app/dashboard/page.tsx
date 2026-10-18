@@ -33,7 +33,7 @@ import {
 import { SummarySquad } from "./squad-browser";
 import { NextMatch } from "./next-match";
 import { MetricsStrip } from "./metrics-strip";
-import { dashboardMetricsOf } from "@/lib/dashboard-metrics";
+import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
 const RESUMEN_AVAILABLE = 10;
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "full_name, roles, status, clubs!profiles_club_id_fkey(name, kine_delegate_id, dashboard_metrics)",
+      "full_name, roles, status, clubs!profiles_club_id_fkey(name, kine_delegate_id, dashboard_metrics, dashboard_metrics_mobile)",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -229,7 +229,11 @@ export default async function DashboardPage() {
       {staff && (
         <MetricsStrip
           supabase={supabase}
-          metrics={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
+          desktop={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
+          mobile={dashboardMetricsOf(
+            club?.dashboard_metrics_mobile as string[] | null,
+            DEFAULT_DASHBOARD_METRICS_MOBILE,
+          )}
         />
       )}
 

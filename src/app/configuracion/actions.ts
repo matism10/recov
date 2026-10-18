@@ -23,30 +23,36 @@ export async function setClubLogo(path: string | null): Promise<LogoState> {
 
 export type MetricsState = { ok?: boolean; error?: string };
 
-// Elige qué métricas ve el staff en el Resumen ("reset" vuelve a las de siempre).
-// set_dashboard_metrics valida que quien llama sea head coach y que las claves
-// existan en el catálogo.
+// Elige qué métricas ve el staff en el Resumen, por separado en computador
+// ("metrics") y en celular ("metrics_mobile"); "reset" vuelve a las de siempre en
+// ambos. set_dashboard_metrics y set_dashboard_metrics_mobile validan que quien
+// llama sea head coach y que las claves existan en el catálogo.
 export async function setDashboardMetrics(
   _prevState: MetricsState,
   formData: FormData,
 ): Promise<MetricsState> {
   const reset = formData.get("decision") === "reset";
-  const chosen = formData.getAll("metrics").map(String);
-  if (!chosen.every((m) => (DASHBOARD_METRICS as readonly string[]).includes(m))) {
-    return { error: "Elige métricas de la lista." };
-  }
+  const desktop = formData.getAll("metrics").map(String);
+  const mobile = formData.getAll("metrics_mobile").map(String);
+  const valid = (list: string[]) =>
+    list.every((m) => (DASHBOARD_METRICS as readonly string[]).includes(m));
+  if (!valid(desktop) || !valid(mobile)) return { error: "Elige métricas de la lista." };
+  const ordered = (list: string[]) => DASHBOARD_METRICS.filter((m) => list.includes(m));
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("set_dashboard_metrics", {
-    p_metrics: reset ? null : DASHBOARD_METRICS.filter((m) => chosen.includes(m)),
-  });
-  if (error) {
-    return {
-      error:
-        error.code === "42501"
-          ? "Solo el head coach puede elegir las métricas del Resumen."
-          : "No se pudieron guardar las métricas.",
-    };
+  for (const [fn, list] of [
+    ["set_dashboard_metrics", desktop],
+    ["set_dashboard_metrics_mobile", mobile],
+  ] as const) {
+    const { error } = await supabase.rpc(fn, { p_metrics: reset ? null : ordered(list) });
+    if (error) {
+      return {
+        error:
+          error.code === "42501"
+            ? "Solo el head coach puede elegir las métricas del Resumen."
+            : "No se pudieron guardar las métricas.",
+      };
+    }
   }
   revalidatePath("/configuracion");
   revalidatePath("/dashboard");

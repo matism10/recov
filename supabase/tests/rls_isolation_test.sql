@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0023.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0024.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -834,5 +834,58 @@ select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'pu
 select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'public.set_dashboard_metrics(text[])', 'EXECUTE')$q$, 1, 'authenticated ejecuta set_dashboard_metrics');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname = 'set_dashboard_metrics' and p.prosecdef and p.proconfig = array['search_path=""']$q$, 1, 'set_dashboard_metrics es SECURITY DEFINER con search_path vacío');
+
+-- =======================================================================
+-- 20. Métricas del Resumen en celular, por separado (0024)
+-- =======================================================================
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');   -- entrenador A
+select pg_temp.expect_count($q$select 1 from public.clubs where dashboard_metrics_mobile is null$q$, 1, 'entrenador A lee las métricas de celular (por defecto)');
+select pg_temp.back();
+
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics(array['disponibles', 'lesionados', 'disponibilidad'])$q$, 'head coach A elige 3 métricas en computador');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics_mobile(array['disponibles', 'lesionados'])$q$, 'head coach A elige 2 métricas en celular');
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  and dashboard_metrics = array['disponibles', 'lesionados', 'disponibilidad']
+  and dashboard_metrics_mobile = array['disponibles', 'lesionados']$q$, 1, 'computador y celular quedan por separado');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics_mobile(array['total'])$q$, 'cambiar celular');
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  and dashboard_metrics = array['disponibles', 'lesionados', 'disponibilidad']$q$, 1, 'cambiar celular no toca computador');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics_mobile(array['inventada'])$q$, 'celular: clave fuera del catálogo');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics_mobile(array['total', 'total'])$q$, 'celular: clave repetida');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics_mobile(array['total', null])$q$, 'celular: clave nula');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics_mobile(array[]::text[])$q$, 'celular sin métricas');
+select pg_temp.expect_no_rows($q$update public.clubs set dashboard_metrics_mobile = array['total']$q$, 'head coach A edita el club directo (celular)');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics_mobile(null)$q$, 'celular vuelve a las de siempre');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics(null)$q$, 'computador vuelve a las de siempre');
+select pg_temp.back();
+
+select pg_temp.as_user('20000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics_mobile(null)$q$, 'manager A cambia las métricas de celular');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics_mobile(null)$q$, 'kine A cambia las métricas de celular');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics_mobile(null)$q$, 'jugador A1 cambia las métricas de celular');
+select pg_temp.back();
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics_mobile(null)$q$, 'staff pendiente A cambia las métricas de celular');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics_mobile(null)$q$, 'anónimo cambia las métricas de celular');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_fail($q$select public.set_dashboard_metrics_mobile(null)$q$, 'kine B cambia las métricas de celular');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'bbbbbbbb-0000-0000-0000-000000000002' and dashboard_metrics_mobile is null$q$, 1, 'el club B no cambió (celular)');
+
+select pg_temp.expect_fail($q$update public.clubs set dashboard_metrics_mobile = array['inventada']
+  where id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 'celular: clave fuera del catálogo (CHECK)');
+
+select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.set_dashboard_metrics_mobile(text[])', 'EXECUTE')$q$, 0, 'anon no ejecuta set_dashboard_metrics_mobile');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'public.set_dashboard_metrics_mobile(text[])', 'EXECUTE')$q$, 1, 'authenticated ejecuta set_dashboard_metrics_mobile');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'set_dashboard_metrics_mobile' and p.prosecdef and p.proconfig = array['search_path=""']$q$, 1, 'set_dashboard_metrics_mobile es SECURITY DEFINER con search_path vacío');
 
 rollback;

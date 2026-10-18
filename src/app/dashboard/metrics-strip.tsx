@@ -12,7 +12,7 @@ import {
   getUpcomingReturns,
 } from "@/lib/metrics";
 import { getAvatarUrls } from "@/lib/avatars";
-import type { DashboardMetric } from "@/lib/dashboard-metrics";
+import { DASHBOARD_METRICS, type DashboardMetric } from "@/lib/dashboard-metrics";
 import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
 import {
   InjuriesByPlaceBlock,
@@ -31,8 +31,7 @@ const SPAN: Record<DashboardMetric, string> = {
   disponibles: "",
   lesionados: "",
   reintegro: "",
-  // El gráfico sigue solo en escritorio, como antes.
-  disponibilidad: "hidden lg:col-span-2 lg:block",
+  disponibilidad: "sm:col-span-2",
   lesiones_semana: "sm:col-span-2",
   lugar: "sm:col-span-2",
   posicion: "sm:col-span-2",
@@ -41,15 +40,22 @@ const SPAN: Record<DashboardMetric, string> = {
 };
 
 // Franja de métricas del Resumen, solo para el staff: las que eligió el head coach
-// (o las de siempre). Solo se piden los datos de las métricas elegidas. Quien la
-// monta decide si el usuario es staff; las funciones lo validan de nuevo.
+// para computador (desde lg) y para celular (hasta lg), o las de siempre. Solo se
+// piden los datos de las métricas elegidas. Quien la monta decide si el usuario es
+// staff; las funciones lo validan de nuevo.
 export async function MetricsStrip({
   supabase,
-  metrics,
+  desktop,
+  mobile,
 }: {
   supabase: Awaited<ReturnType<typeof createClient>>;
-  metrics: DashboardMetric[];
+  desktop: DashboardMetric[];
+  mobile: DashboardMetric[];
 }) {
+  // Todas las elegidas, en el orden del catálogo; cada una se muestra donde se eligió.
+  const metrics = DASHBOARD_METRICS.filter((m) => desktop.includes(m) || mobile.includes(m));
+  const visibility = (m: DashboardMetric) =>
+    desktop.includes(m) && mobile.includes(m) ? "" : desktop.includes(m) ? "hidden lg:block" : "lg:hidden";
   const has = (m: DashboardMetric) => metrics.includes(m);
   const needsSummary = ["total", "disponibles", "lesionados", "reintegro"].some((m) =>
     has(m as DashboardMetric),
@@ -148,17 +154,17 @@ export async function MetricsStrip({
   };
 
   return (
-    <div className="mb-8">
+    <div className={mobile.length > 0 ? "mb-8" : "lg:mb-8"}>
       {metrics.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {metrics.map((m) => (
-            <div key={m} className={`min-w-0 *:h-full ${SPAN[m]}`}>
+            <div key={m} className={`min-w-0 *:h-full ${visibility(m)} ${SPAN[m]}`}>
               {render[m]()}
             </div>
           ))}
         </div>
       )}
-      <div className={`hidden lg:block ${metrics.length > 0 ? "mt-4" : ""}`}>
+      <div className={`hidden lg:block ${desktop.length > 0 ? "mt-4" : ""}`}>
         <Link href="/metricas" className={`text-sm ${buttonSecondary}`}>
           Ver dashboard completo
         </Link>
