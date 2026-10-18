@@ -5,6 +5,9 @@ import { isDirection, type UserRole } from "@/lib/roles";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { cardClass, textButton } from "@/app/ui";
 import { LogoForm } from "./logo-form";
+import { CoverForm } from "./cover-form";
+import { CategoryForm } from "./category-form";
+import { clubCoverUrl } from "@/lib/club-identity";
 import { MetricsForm } from "./metrics-form";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
@@ -20,7 +23,7 @@ export default async function SettingsPage() {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: me } = await supabase
     .from("profiles")
-    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, dashboard_metrics, dashboard_metrics_mobile)")
+    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, cover_path, category, dashboard_metrics, dashboard_metrics_mobile)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -45,13 +48,29 @@ export default async function SettingsPage() {
       <section className={`p-5 ${cardClass}`}>
         <h2 className="font-medium text-ink">Logo del club</h2>
         <p className="mt-1 mb-4 text-sm text-muted">
-          Se muestra en el menú lateral y en el link de registro del club.
+          Se muestra en el encabezado y en el link de registro del club.
         </p>
         <LogoForm
           clubName={club?.name ?? ""}
           url={clubLogoUrl(supabase, club?.logo_path)}
           folder={me.club_id}
         />
+      </section>
+
+      <section className={`mt-6 p-5 ${cardClass}`}>
+        <h2 className="font-medium text-ink">Portada y categoría</h2>
+        <p className="mt-1 mb-4 text-sm text-muted">
+          La portada se muestra arriba del Resumen; la categoría, junto al deporte en el
+          encabezado.
+        </p>
+        <CoverForm
+          clubName={club?.name ?? ""}
+          url={await clubCoverUrl(supabase, club?.cover_path)}
+          folder={me.club_id}
+        />
+        <div className="mt-6">
+          <CategoryForm category={club?.category ?? null} />
+        </div>
       </section>
 
       {isHeadCoach && (

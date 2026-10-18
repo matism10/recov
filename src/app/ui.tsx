@@ -42,8 +42,7 @@ export const chipClass =
 // ---------------------------------------------------------------------------
 // Títulos: PageTitle (uno por página) y SectionTitle (secciones de la página)
 // ---------------------------------------------------------------------------
-// Archivo 700, 30/34 px. El club ya se ve en la sidebar (escritorio) y en el
-// encabezado móvil.
+// Archivo 700, 30/34 px. El club ya se ve en el encabezado (ClubHeader).
 export function PageTitle({
   children,
   className = "",
