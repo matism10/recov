@@ -31,6 +31,7 @@ import {
 import { cancelEvent } from "./actions";
 
 type Props = {
+  mobileView: "semana" | "mes";
   anchor: string;
   today: string;
   days: string[];
@@ -45,6 +46,7 @@ const navButton =
   "inline-flex size-11 items-center justify-center rounded-xl border border-line bg-white text-ink transition hover:bg-mist";
 
 export function CalendarView({
+  mobileView,
   anchor,
   today,
   days,
@@ -72,7 +74,20 @@ export function CalendarView({
   return (
     <div>
       <MonthGrid anchor={anchor} today={today} days={days} byDay={byDay} {...chipProps} />
-      <WeekList anchor={anchor} today={today} byDay={byDay} {...chipProps} />
+      {/* Celular: semana (por defecto) o mes. */}
+      <ViewToggle anchor={anchor} view={mobileView} />
+      {mobileView === "mes" ? (
+        <MobileMonth
+          anchor={anchor}
+          today={today}
+          days={days}
+          byDay={byDay}
+          initialDay={selected?.day ?? null}
+          {...chipProps}
+        />
+      ) : (
+        <WeekList anchor={anchor} today={today} byDay={byDay} {...chipProps} />
+      )}
       {selected && (
         <EventPanel
           key={selected.id}
@@ -170,6 +185,163 @@ function MonthGrid({
           })}
         </ol>
       </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Celular: selector de vista (semana o mes); conserva el día de referencia
+// ---------------------------------------------------------------------------
+function ViewToggle({ anchor, view }: { anchor: string; view: "semana" | "mes" }) {
+  const options = [
+    { value: "semana", label: "Semana", href: `/calendario?fecha=${anchor}` },
+    { value: "mes", label: "Mes", href: `/calendario?fecha=${anchor}&vista=mes` },
+  ] as const;
+  return (
+    <nav
+      aria-label="Vista del calendario"
+      className="mb-4 grid grid-cols-2 gap-1 rounded-xl border border-line bg-mist p-1 lg:hidden"
+    >
+      {options.map((o) => {
+        const active = view === o.value;
+        return (
+          <Link
+            key={o.value}
+            href={o.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-11 items-center justify-center rounded-lg text-sm font-medium transition ${
+              active ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
+            }`}
+          >
+            {o.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Celular: el mes en una grilla compacta; al tocar un día, sus eventos debajo
+// ---------------------------------------------------------------------------
+const DOT_STYLE = {
+  entrenamiento: "bg-ink/40",
+  competencia: "bg-brand-strong",
+};
+
+function MobileMonth({
+  anchor,
+  today,
+  days,
+  byDay,
+  initialDay,
+  ...chipProps
+}: {
+  anchor: string;
+  today: string;
+  days: string[];
+  byDay: Map<string, CalendarEvent[]>;
+  initialDay: string | null;
+} & ChipProps) {
+  const month = anchor.slice(0, 7);
+  const inMonth = (d: string) => d.slice(0, 7) === month;
+  // Día elegido: el del evento abierto, hoy si es de este mes, el primero con
+  // eventos o el primero del mes.
+  const [day, setDay] = useState(
+    () =>
+      initialDay ??
+      (inMonth(today) ? today : null) ??
+      days.find((d) => inMonth(d) && byDay.has(d)) ??
+      `${month}-01`,
+  );
+  const dayEvents = byDay.get(day) ?? [];
+
+  return (
+    <section aria-label="Mes" className="lg:hidden">
+      <div className="mb-4 flex items-center gap-2">
+        <Link href={`/calendario?fecha=${shiftMonth(anchor, -1)}&vista=mes`} className={navButton}>
+          <ChevronLeft aria-hidden="true" className="size-5" />
+          <span className="sr-only">Mes anterior</span>
+        </Link>
+        <Link href={`/calendario?fecha=${shiftMonth(anchor, 1)}&vista=mes`} className={navButton}>
+          <ChevronRight aria-hidden="true" className="size-5" />
+          <span className="sr-only">Mes siguiente</span>
+        </Link>
+        <h2 className="ml-1 flex-1 text-base font-semibold text-ink">{monthLabel(anchor)}</h2>
+        {month !== today.slice(0, 7) && (
+          <Link href="/calendario?vista=mes" className={`text-sm ${buttonSecondary}`}>
+            Hoy
+          </Link>
+        )}
+      </div>
+
+      <div className="grid grid-cols-7 text-center text-xs font-medium text-muted">
+        {WEEKDAY_LABELS.map((d) => (
+          <div key={d} className="py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+      <ol className="grid grid-cols-7 gap-y-1">
+        {days.map((d) => {
+          const events = byDay.get(d) ?? [];
+          const isToday = d === today;
+          const chosen = d === day;
+          return (
+            <li key={d} className="min-w-0">
+              <button
+                type="button"
+                onClick={() => setDay(d)}
+                aria-pressed={chosen}
+                aria-label={`${longDayLabel(d)}${isToday ? " (hoy)" : ""}${
+                  events.length > 0
+                    ? `, ${events.length} ${events.length === 1 ? "evento" : "eventos"}`
+                    : ""
+                }`}
+                className={`flex min-h-12 w-full flex-col items-center justify-center gap-1 rounded-lg transition ${
+                  chosen ? "bg-brand-soft" : "hover:bg-mist"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`flex size-7 items-center justify-center rounded-full text-sm ${
+                    isToday
+                      ? "bg-brand font-semibold text-ink"
+                      : inMonth(d)
+                        ? "text-ink"
+                        : "text-muted"
+                  }`}
+                >
+                  {Number(d.slice(8))}
+                </span>
+                <span aria-hidden="true" className="flex h-1.5 gap-0.5">
+                  {events.slice(0, 3).map((e) => (
+                    <span
+                      key={e.id}
+                      className={`size-1.5 rounded-full ${
+                        e.cancelled ? "bg-line" : DOT_STYLE[e.type]
+                      }`}
+                    />
+                  ))}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+
+      <h3 className="mt-6 mb-2 text-sm font-medium text-muted">{longDayLabel(day)}</h3>
+      {dayEvents.length > 0 ? (
+        <ul className="space-y-2">
+          {dayEvents.map((e) => (
+            <li key={e.id}>
+              <EventChip event={e} wide {...chipProps} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className={`px-4 py-3 text-sm text-muted ${cardClass}`}>Sin eventos</p>
+      )}
     </section>
   );
 }

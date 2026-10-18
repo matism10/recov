@@ -152,7 +152,7 @@ export function EventForm({
                 defaultValue={v.weeks}
                 required
                 aria-describedby="weeks-help"
-                className={`w-24 ${fieldClass}`}
+                className={`${fieldClass} max-w-28`}
               />
               <span className="font-normal text-muted">semanas</span>
             </span>
