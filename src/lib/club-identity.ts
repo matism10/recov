@@ -9,6 +9,8 @@ export type ClubIdentity = {
   category: string | null;
   logoUrl: string | null;
   coverUrl: string | null;
+  // Encuadre de la portada: object-position en % (0–100).
+  coverPosition: { x: number; y: number };
 };
 
 const SPORT_LABEL: Record<string, string> = {
@@ -42,6 +44,7 @@ export async function getClubIdentity(
     sport: string | null;
     category: string | null;
     coverPath: string | null;
+    coverPosition: { x: number; y: number };
     uploadedLogoUrl: string | null;
   },
 ): Promise<ClubIdentity> {
@@ -52,5 +55,6 @@ export async function getClubIdentity(
     // Escudo: el logo que el club subió; sin logo, las iniciales.
     logoUrl: club.uploadedLogoUrl,
     coverUrl: await clubCoverUrl(supabase, club.coverPath),
+    coverPosition: club.coverPosition,
   };
 }

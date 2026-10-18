@@ -22,7 +22,7 @@ const getNavData = cache(async () => {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, logo_path, sport, category, cover_path)")
+    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, logo_path, sport, category, cover_path, cover_position_x, cover_position_y)")
     .eq("id", user.id)
     .maybeSingle();
   if (profile?.status !== "confirmado") return null;
@@ -48,6 +48,7 @@ const getNavData = cache(async () => {
       sport: club?.sport ?? null,
       category: club?.category ?? null,
       coverPath: club?.cover_path ?? null,
+      coverPosition: { x: club?.cover_position_x ?? 50, y: club?.cover_position_y ?? 50 },
       uploadedLogoUrl: clubLogoUrl(supabase, club?.logo_path),
     }),
     fullName: profile.full_name ?? "",
