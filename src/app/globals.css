@@ -59,4 +59,14 @@
   h3 {
     font-family: var(--font-display);
   }
+
+  /* Safari en iPhone hace zoom al enfocar un campo con letra menor a 16 px y deja
+     la página agrandada. Hasta lg, los campos van a 16 px; en escritorio no cambian. */
+  @media (width < 64rem) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
 }
