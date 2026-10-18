@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# Imágenes de identidad de prueba (fotos reales): nunca al repo, que es público.
+/public/dev-identity/

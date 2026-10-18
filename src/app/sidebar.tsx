@@ -5,7 +5,8 @@ import { getAvatarUrls } from "@/lib/avatars";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { MobileNavBar } from "./mobile-nav";
-import { MobileHeaderBar } from "./mobile-header";
+import { ClubHeader as ClubHeaderBar } from "./club-header";
+import { getClubIdentity } from "@/lib/club-identity";
 
 // Datos de la navegación (sidebar de escritorio y barra móvil). Solo para usuarios
 // confirmados: sin sesión, pendientes o rechazados no ven navegación. Las páginas
@@ -21,7 +22,7 @@ const getNavData = cache(async () => {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, logo_path)")
+    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, logo_path, sport)")
     .eq("id", user.id)
     .maybeSingle();
   if (profile?.status !== "confirmado") return null;
@@ -42,8 +43,11 @@ const getNavData = cache(async () => {
   const avatarUrl = (await getAvatarUrls(supabase, [user.id])).get(user.id) ?? null;
 
   return {
-    clubName: club?.name ?? "",
-    clubLogoUrl: clubLogoUrl(supabase, club?.logo_path),
+    identity: getClubIdentity({
+      name: club?.name ?? "",
+      sport: club?.sport ?? null,
+      uploadedLogoUrl: clubLogoUrl(supabase, club?.logo_path),
+    }),
     fullName: profile.full_name ?? "",
     avatarUrl,
     direction,
@@ -52,29 +56,19 @@ const getNavData = cache(async () => {
   };
 });
 
-// Navegación lateral de escritorio (lg+).
+// Navegación lateral de escritorio (lg+): solo los ítems; la identidad del club y
+// el perfil van en el encabezado (ClubHeader).
 export async function Sidebar() {
   const nav = await getNavData();
   if (!nav) return null;
-  return (
-    <SidebarNav
-      clubName={nav.clubName}
-      clubLogoUrl={nav.clubLogoUrl}
-      fullName={nav.fullName}
-      avatarUrl={nav.avatarUrl}
-      direction={nav.direction}
-      pendingCount={nav.pendingCount}
-    />
-  );
+  return <SidebarNav direction={nav.direction} pendingCount={nav.pendingCount} />;
 }
 
-// Encabezado móvil (hasta lg): logo, club y avatar al perfil.
-export async function MobileHeader() {
+// Encabezado con la identidad del club (celular y escritorio).
+export async function ClubHeaderNav() {
   const nav = await getNavData();
   if (!nav) return null;
-  return (
-    <MobileHeaderBar clubName={nav.clubName} fullName={nav.fullName} avatarUrl={nav.avatarUrl} />
-  );
+  return <ClubHeaderBar identity={nav.identity} fullName={nav.fullName} avatarUrl={nav.avatarUrl} />;
 }
 
 // Barra inferior móvil (hasta lg).
