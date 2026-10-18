@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0024.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0025.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -887,5 +887,70 @@ select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'pu
 select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'public.set_dashboard_metrics_mobile(text[])', 'EXECUTE')$q$, 1, 'authenticated ejecuta set_dashboard_metrics_mobile');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname = 'set_dashboard_metrics_mobile' and p.prosecdef and p.proconfig = array['search_path=""']$q$, 1, 'set_dashboard_metrics_mobile es SECURITY DEFINER con search_path vacío');
+
+-- =======================================================================
+-- 21. Portada y categoría del club (0025)
+-- =======================================================================
+-- Head coach A: sube la portada a la carpeta de su club, la fija y pone la categoría.
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
+  values ('club-covers', 'aaaaaaaa-0000-0000-0000-000000000001/portada.jpg')$q$, 'head coach A sube la portada de su club');
+select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name)
+  values ('club-covers', 'bbbbbbbb-0000-0000-0000-000000000002/portada.jpg')$q$, 'head coach A sube a la carpeta del club B');
+select pg_temp.expect_fail($q$select public.set_club_cover('bbbbbbbb-0000-0000-0000-000000000002/portada.jpg')$q$, 'fijar una portada de otro club');
+select pg_temp.expect_fail($q$select public.set_club_cover('aaaaaaaa-0000-0000-0000-000000000001/no-existe.jpg')$q$, 'fijar una portada que no se subió');
+select pg_temp.expect_ok($q$select public.set_club_cover('aaaaaaaa-0000-0000-0000-000000000001/portada.jpg')$q$, 'head coach A fija la portada');
+select pg_temp.expect_ok($q$select public.set_club_category('  Adulta  ')$q$, 'head coach A pone la categoría');
+select pg_temp.expect_count($q$select 1 from public.clubs where cover_path = 'aaaaaaaa-0000-0000-0000-000000000001/portada.jpg' and category = 'Adulta'$q$, 1, 'portada y categoría guardadas (sin espacios)');
+select pg_temp.expect_fail($q$select public.set_club_category('A')$q$, 'categoría de 1 carácter');
+select pg_temp.expect_fail($q$select public.set_club_category(repeat('x', 41))$q$, 'categoría de 41 caracteres');
+select pg_temp.expect_no_rows($q$update public.clubs set category = 'x', cover_path = null$q$, 'head coach A edita el club directo');
+select pg_temp.back();
+
+-- Miembros confirmados del club leen la portada; nadie de otro club ni anónimos.
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');   -- jugador A1
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'club-covers'$q$, 1, 'jugador A1 ve la portada de su club');
+select pg_temp.expect_count($q$select 1 from public.clubs where category = 'Adulta'$q$, 1, 'jugador A1 lee la categoría');
+select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name)
+  values ('club-covers', 'aaaaaaaa-0000-0000-0000-000000000001/jugador.jpg')$q$, 'jugador A1 sube una portada');
+select pg_temp.expect_fail($q$select public.set_club_cover(null)$q$, 'jugador A1 cambia la portada');
+select pg_temp.expect_fail($q$select public.set_club_category('Juvenil')$q$, 'jugador A1 cambia la categoría');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'club-covers'$q$, 1, 'kine A ve la portada de su club');
+select pg_temp.expect_fail($q$select public.set_club_cover(null)$q$, 'kine A cambia la portada');
+select pg_temp.expect_fail($q$select public.set_club_category('Juvenil')$q$, 'kine A cambia la categoría');
+select pg_temp.back();
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');   -- staff pendiente A
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'club-covers'$q$, 0, 'staff pendiente A no ve la portada');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');   -- kine B
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'club-covers'$q$, 0, 'kine B no ve la portada del club A');
+select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name)
+  values ('club-covers', 'aaaaaaaa-0000-0000-0000-000000000001/b.jpg')$q$, 'kine B sube a la carpeta del club A');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'club-covers'$q$, 0, 'anónimo no ve portadas');
+select pg_temp.expect_fail($q$select public.set_club_cover(null)$q$, 'anónimo cambia la portada');
+select pg_temp.expect_fail($q$select public.set_club_category(null)$q$, 'anónimo cambia la categoría');
+select pg_temp.back();
+
+-- Manager A también puede; NULL quita la portada y texto vacío quita la categoría.
+select pg_temp.as_user('20000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_club_cover(null)$q$, 'manager A quita la portada');
+select pg_temp.expect_ok($q$select public.set_club_category('')$q$, 'manager A quita la categoría');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001' and cover_path is null and category is null$q$, 1, 'el club queda sin portada ni categoría');
+
+-- CHECK también en un update directo (como postgres).
+select pg_temp.expect_fail($q$update public.clubs set cover_path = 'bbbbbbbb-0000-0000-0000-000000000002/x.jpg'
+  where id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 'portada con ruta de otro club (CHECK)');
+select pg_temp.expect_fail($q$update public.clubs set category = 'x'
+  where id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 'categoría de 1 carácter (CHECK)');
+
+-- Permisos de las funciones y del bucket
+select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.set_club_cover(text)', 'EXECUTE')
+  or has_function_privilege('anon', 'public.set_club_category(text)', 'EXECUTE')$q$, 0, 'anon no ejecuta set_club_cover ni set_club_category');
+select pg_temp.expect_count($q$select 1 from storage.buckets where id = 'club-covers' and not public and file_size_limit = 5242880$q$, 1, 'bucket club-covers privado y de 5 MB');
 
 rollback;

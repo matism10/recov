@@ -35,3 +35,24 @@ export async function resizeLogo(file: File): Promise<Blob> {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("toBlob"))), "image/png"),
   );
 }
+
+// Achica la portada del club (máximo 1600 px de ancho o alto, JPEG): entra en el
+// límite de 5 MB del bucket club-covers y carga rápido en el encabezado.
+const COVER_SIZE = 1600;
+
+export async function resizeCover(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, COVER_SIZE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("toBlob"))),
+      "image/jpeg",
+      0.82,
+    ),
+  );
+}

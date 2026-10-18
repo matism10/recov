@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import "./globals.css";
-import { MobileHeader, MobileNav, Sidebar } from "./sidebar";
+import { ClubHeaderNav, MobileNav, Sidebar } from "./sidebar";
 
 // Archivo: una sola familia para títulos, cuerpo y wordmark. Fuente variable con
 // eje de ancho: se usa semicondensada (font-stretch 87.5% en globals.css).
@@ -33,8 +33,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <div className="flex flex-1">
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col">
-            {/* Encabezado solo en celular y tablet (hasta lg). */}
-            <MobileHeader />
+            {/* Encabezado con la identidad del club, en celular y escritorio. */}
+            <ClubHeaderNav />
             {children}
           </div>
         </div>
