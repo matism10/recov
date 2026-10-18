@@ -21,6 +21,8 @@ import { getSquad } from "@/lib/squad";
 import {
   AvailabilityBadge,
   InjuryStatusBadge,
+  PageTitle,
+  SectionTitle,
   buttonPrimary,
   buttonSecondary,
   cardClass,
@@ -186,10 +188,7 @@ export default async function DashboardPage() {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted">{club?.name}</p>
-          <h1 className="text-2xl font-semibold text-ink">
-            Disponibilidad del plantel
-          </h1>
+          <PageTitle club={club?.name}>Disponibilidad del plantel</PageTitle>
           <Link
             href="/perfil"
             className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist"
@@ -258,14 +257,14 @@ export default async function DashboardPage() {
       {canManage && (
         <section className="mb-8">
           <div className="mb-3 flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-muted">
+            <SectionTitle>
               Por revisar
               {toReview.length > 0 && (
                 <span className={`ml-1.5 ${chipClass}`}>
                   {toReview.length}
                 </span>
               )}
-            </h2>
+            </SectionTitle>
           </div>
           {toReview.length > 0 ? (
             <div className="space-y-3">
@@ -317,7 +316,7 @@ export default async function DashboardPage() {
 
       {staff && (
         <section className="mb-8">
-          <h2 className="mb-3 text-sm font-medium text-muted">Lesiones activas</h2>
+          <SectionTitle className="mb-3">Lesiones activas</SectionTitle>
           {injuredPlayers.length > 0 ? (
             <>
               <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line lg:hidden">
@@ -424,7 +423,7 @@ export default async function DashboardPage() {
       {isPlayer && (
         <section className="mb-8">
           <div className="mb-3 flex items-center justify-between gap-4">
-            <h2 className="text-sm font-medium text-muted">Mis lesiones</h2>
+            <SectionTitle>Mis lesiones</SectionTitle>
             <Link
               href="/registrar-lesion"
               className={`text-sm ${buttonPrimary}`}
@@ -470,7 +469,7 @@ export default async function DashboardPage() {
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-muted">Plantel</h2>
+        <SectionTitle className="mb-3">Plantel</SectionTitle>
         {players.length === 0 ? (
           <p className={`p-8 text-center text-muted ${cardClass}`}>
             Aún no hay jugadores registrados en tu club.

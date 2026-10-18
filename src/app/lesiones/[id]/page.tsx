@@ -14,7 +14,14 @@ import {
   type PhaseStatus,
 } from "@/lib/injuries";
 import { InjuryProgress } from "../injury-progress";
-import { InjuryStatusBadge, buttonPrimary, cardClass, textButton } from "@/app/ui";
+import {
+  InjuryStatusBadge,
+  PageTitle,
+  SectionTitle,
+  buttonPrimary,
+  cardClass,
+  textButton,
+} from "@/app/ui";
 import { PhasesPanel } from "./phases-panel";
 import { ReviewForm } from "./review-form";
 
@@ -125,7 +132,7 @@ export default async function InjuryPage({
           <p className="mt-2 text-sm text-muted">{player.full_name}</p>
         )}
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold text-ink">{injury.type}</h1>
+          <PageTitle>{injury.type}</PageTitle>
           <InjuryStatusBadge status={status} />
         </div>
       </header>
@@ -209,7 +216,7 @@ export default async function InjuryPage({
 
           {canManage && (inEvaluation || status === "activa") && (
             <section className={`p-5 ${cardClass}`}>
-              <h2 className="mb-4 font-medium text-ink">Revisión</h2>
+              <SectionTitle className="mb-4">Revisión</SectionTitle>
               <ReviewForm
                 injuryId={injury.id}
                 status={status}
@@ -223,7 +230,7 @@ export default async function InjuryPage({
 
           {(staff || isOwnInjury) && (
             <section>
-              <h2 className="mb-3 text-sm font-medium text-muted">Fases de recuperación</h2>
+              <SectionTitle className="mb-3">Fases de recuperación</SectionTitle>
               <PhasesPanel
                 injuryId={injury.id}
                 phases={(phases ?? []).map((ph) => ({
@@ -242,7 +249,7 @@ export default async function InjuryPage({
         </div>
 
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted">Documentos</h2>
+          <SectionTitle className="mb-3">Documentos</SectionTitle>
           {!canSeeDocuments ? (
             <p className={`p-5 text-sm text-muted ${cardClass}`}>
               Los documentos médicos solo los ven el kinesiólogo y el head coach.

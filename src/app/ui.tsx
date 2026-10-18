@@ -40,6 +40,41 @@ export const chipClass =
   "inline-flex items-center rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-text";
 
 // ---------------------------------------------------------------------------
+// Títulos: PageTitle (uno por página) y SectionTitle (secciones de la página)
+// ---------------------------------------------------------------------------
+// Nunito ExtraBold, 28 px en móvil y 32 px desde lg. El nombre del club va sobre
+// el título solo en móvil: en escritorio ya lo muestra la sidebar.
+export function PageTitle({
+  children,
+  club,
+  className = "",
+}: {
+  children: ReactNode;
+  club?: string | null;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      {club && <p className="mb-1 text-sm text-muted lg:hidden">{club}</p>}
+      <h1 className="font-display text-[28px] leading-tight font-extrabold tracking-[-0.02em] text-ink lg:text-[32px]">
+        {children}
+      </h1>
+    </div>
+  );
+}
+
+// Inter 500, 18 px, en tinta. Los h2 heredan Nunito de la base: aquí se fuerza Inter.
+export function SectionTitle({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <h2 className={`font-sans text-lg font-medium text-ink ${className}`}>{children}</h2>;
+}
+
+// ---------------------------------------------------------------------------
 // Disponibilidad: ícono + texto + color, nunca solo color
 // ---------------------------------------------------------------------------
 export const AVAILABILITY_ICON: Record<Availability, LucideIcon> = {

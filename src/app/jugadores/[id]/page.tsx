@@ -24,7 +24,9 @@ import { getAvatarUrls } from "@/lib/avatars";
 import {
   AvailabilityBadge,
   InjuryStatusBadge,
+  PageTitle,
   PhaseDot,
+  SectionTitle,
   cardClass,
   textButton,
 } from "@/app/ui";
@@ -109,7 +111,7 @@ export default async function PlayerPage({
           <Avatar name={player.full_name} url={avatarUrl} size="lg" />
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold text-ink">{player.full_name}</h1>
+              <PageTitle>{player.full_name}</PageTitle>
               <AvailabilityBadge status={availability} />
             </div>
             <p className="mt-1 text-sm text-muted">
@@ -123,7 +125,7 @@ export default async function PlayerPage({
       {/* En escritorio: lesión actual a la izquierda y línea de tiempo a la derecha. */}
       <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted">Lesión actual</h2>
+          <SectionTitle className="mb-3">Lesión actual</SectionTitle>
           {open.length > 0 ? (
             <div className="space-y-3">
               {open.map((i) => {
@@ -197,7 +199,7 @@ export default async function PlayerPage({
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted">Línea de tiempo</h2>
+          <SectionTitle className="mb-3">Línea de tiempo</SectionTitle>
           {all.length > 0 ? (
             <ol className="space-y-4 border-l-2 border-line pl-5">
               {all.map((i) => {
