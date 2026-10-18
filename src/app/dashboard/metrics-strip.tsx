@@ -4,8 +4,10 @@ import { getAvailabilitySeries, getDashSummary } from "@/lib/metrics";
 import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
 import { buttonSecondary } from "@/app/ui";
 
-// Franja de métricas del dashboard: solo en escritorio (lg+) y solo para el staff.
-// Quien la monta decide si el usuario es staff; las funciones lo validan de nuevo.
+// Franja de métricas del dashboard, solo para el staff. En celular muestra solo
+// disponibles y lesionados (una tarjeta bajo otra; lado a lado desde sm); desde lg,
+// además el gráfico y el enlace al dashboard completo. Quien la monta decide si el
+// usuario es staff; las funciones lo validan de nuevo.
 export async function MetricsStrip({
   supabase,
 }: {
@@ -17,9 +19,9 @@ export async function MetricsStrip({
   ]);
 
   return (
-    <div className="mb-8 hidden lg:block">
+    <div className="mb-8">
       {summary.ok && series.ok ? (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Jugadores disponibles"
             value={summary.data.disponibles}
@@ -34,7 +36,7 @@ export async function MetricsStrip({
             description="Sin alta médica"
             percent={percentOf(summary.data.lesionados, summary.data.total)}
           />
-          <section className={`col-span-2 ${metricCardClass}`}>
+          <section className={`col-span-2 hidden lg:block ${metricCardClass}`}>
             <AvailabilityChart
               heading="Disponibilidad en el tiempo"
               weeks={series.data}
@@ -46,9 +48,11 @@ export async function MetricsStrip({
       ) : (
         <MetricsError />
       )}
-      <Link href="/metricas" className={`mt-4 text-sm ${buttonSecondary}`}>
-        Ver dashboard completo
-      </Link>
+      <div className="mt-4 hidden lg:block">
+        <Link href="/metricas" className={`text-sm ${buttonSecondary}`}>
+          Ver dashboard completo
+        </Link>
+      </div>
     </div>
   );
 }
