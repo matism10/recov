@@ -44,7 +44,6 @@ export default async function MetricsPage() {
   if (me?.status !== "confirmado" || !isStaff((me.roles ?? []) as UserRole[])) {
     redirect("/dashboard");
   }
-  const club = Array.isArray(me.clubs) ? me.clubs[0] : me.clubs;
 
   const [summary, series, byWeek, byPlace, byPosition, recurring, upcoming] = await Promise.all([
     getDashSummary(supabase),
@@ -76,7 +75,7 @@ export default async function MetricsPage() {
         <Link href="/dashboard" className={textButton}>
           ← Volver a disponibilidad del plantel
         </Link>
-        <PageTitle club={club?.name} className="mt-2">
+        <PageTitle className="mt-2">
           Métricas del plantel
         </PageTitle>
       </header>

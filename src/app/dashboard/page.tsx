@@ -5,7 +5,6 @@ import { signOut } from "@/app/login/actions";
 import {
   INJURED_AVAILABILITY,
   canManageInjuries,
-  isDirection,
   isStaff,
   type Availability,
   type UserRole,
@@ -88,16 +87,6 @@ export default async function DashboardPage() {
   // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
   // Solo decide qué se muestra; las funciones de la base validan el permiso real.
   const canManage = canManageInjuries(roles, user.id, club?.kine_delegate_id);
-
-  // RLS: solo la dirección ve perfiles pendientes; para el resto el conteo es 0.
-  let pendingCount = 0;
-  if (isDirection(roles)) {
-    const { count } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pendiente");
-    pendingCount = count ?? 0;
-  }
 
   // Próximo partido: la competencia no cancelada más cercana. RLS: eventos del club.
   const { data: nextMatch } = await supabase
@@ -188,7 +177,7 @@ export default async function DashboardPage() {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <PageTitle club={club?.name}>Disponibilidad del plantel</PageTitle>
+          <PageTitle>Disponibilidad del plantel</PageTitle>
           <Link
             href="/perfil"
             className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist"
@@ -202,33 +191,6 @@ export default async function DashboardPage() {
         </div>
         {/* Escritorio: próximo partido arriba a la derecha. */}
         {nextMatch && <NextMatch match={nextMatch} className="hidden lg:inline-flex" />}
-        {/* En escritorio, Calendario, Registros pendientes y Staff están en el sidebar. */}
-        <div className="flex flex-wrap items-center justify-end gap-2 lg:hidden">
-          <Link href="/calendario" className={`text-sm ${buttonSecondary}`}>
-            Calendario
-          </Link>
-          {isDirection(roles) && (
-            <Link
-              href="/registros"
-              className={`text-sm ${buttonSecondary}`}
-            >
-              Registros pendientes
-              {pendingCount > 0 && (
-                <span className={chipClass}>
-                  {pendingCount}
-                </span>
-              )}
-            </Link>
-          )}
-          {isDirection(roles) && (
-            <Link
-              href="/staff"
-              className={`text-sm ${buttonSecondary}`}
-            >
-              Staff
-            </Link>
-          )}
-        </div>
       </header>
 
       {/* Celular: el próximo partido bajo el encabezado, a lo ancho. */}

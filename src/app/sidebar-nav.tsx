@@ -2,78 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Activity,
-  CalendarDays,
-  LayoutDashboard,
-  Settings,
-  UserCheck,
-  Users,
-  UsersRound,
-  type LucideIcon,
-} from "lucide-react";
 import { Avatar } from "@/app/avatar";
 import { ClubLogo } from "@/app/club-logo";
-
-type Item = {
-  href: string;
-  label: string;
-  Icon: LucideIcon;
-  // Rutas que también marcan este ítem como activo.
-  isActive: (path: string) => boolean;
-};
-
-const startsWith = (path: string, prefix: string) =>
-  path === prefix || path.startsWith(`${prefix}/`);
-
-const RESUMEN: Item = {
-  href: "/dashboard",
-  label: "Resumen",
-  Icon: LayoutDashboard,
-  isActive: (p) => startsWith(p, "/dashboard"),
-};
-const PLANTEL: Item = {
-  href: "/plantel",
-  label: "Plantel",
-  Icon: Users,
-  isActive: (p) =>
-    startsWith(p, "/plantel") || startsWith(p, "/jugadores") || startsWith(p, "/lesiones/marcar"),
-};
-const LESIONES: Item = {
-  href: "/lesiones",
-  label: "Lesiones",
-  Icon: Activity,
-  isActive: (p) =>
-    (startsWith(p, "/lesiones") && !startsWith(p, "/lesiones/marcar")) ||
-    startsWith(p, "/registrar-lesion"),
-};
-const CALENDARIO: Item = {
-  href: "/calendario",
-  label: "Calendario",
-  Icon: CalendarDays,
-  isActive: (p) => startsWith(p, "/calendario"),
-};
-const REGISTROS: Item = {
-  href: "/registros",
-  label: "Registros",
-  Icon: UserCheck,
-  isActive: (p) => startsWith(p, "/registros"),
-};
-const STAFF: Item = {
-  href: "/staff",
-  label: "Staff",
-  Icon: UsersRound,
-  isActive: (p) => startsWith(p, "/staff"),
-};
-const CONFIGURACION: Item = {
-  href: "/configuracion",
-  label: "Configuración",
-  Icon: Settings,
-  isActive: (p) => startsWith(p, "/configuracion"),
-};
-
-// Pantallas sin navegación de la app (entrada y registro).
-const HIDDEN_ON = ["/login", "/c", "/pendiente"];
+import { REGISTROS, isNavHidden, sidebarItems, startsWith } from "@/app/nav-items";
 
 // Sidebar en el celeste suave de marca (Sky 100): texto e íconos en ink.
 // El ítem activo va en blanco para destacarse sobre el celeste.
@@ -98,12 +29,9 @@ export function SidebarNav({
   pendingCount: number;
 }) {
   const pathname = usePathname();
-  if (HIDDEN_ON.some((prefix) => startsWith(pathname, prefix))) return null;
+  if (isNavHidden(pathname)) return null;
 
-  // Registros pendientes, Staff y Configuración: solo la dirección (head coach y manager).
-  const items = direction
-    ? [RESUMEN, PLANTEL, LESIONES, CALENDARIO, REGISTROS, STAFF, CONFIGURACION]
-    : [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
+  const items = sidebarItems(direction);
   const profileActive = startsWith(pathname, "/perfil");
 
   return (

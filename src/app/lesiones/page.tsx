@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isStaff, type UserRole } from "@/lib/roles";
 import { formatDate, type InjuryStatus } from "@/lib/injuries";
 import { InjuryProgress } from "./injury-progress";
-import { InjuryStatusBadge, PageTitle, SectionTitle, cardClass, textButton } from "@/app/ui";
+import { InjuryStatusBadge, PageTitle, SectionTitle, cardClass } from "@/app/ui";
 
 const OPEN_STATUSES: InjuryStatus[] = ["en_evaluacion", "activa"];
 
@@ -54,11 +54,7 @@ export default async function InjuriesPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
-        {/* En escritorio se vuelve por la sidebar. */}
-        <Link href="/dashboard" className={`${textButton} lg:hidden`}>
-          ← Volver al resumen
-        </Link>
-        <PageTitle className="mt-2 lg:mt-0">Lesiones</PageTitle>
+        <PageTitle>Lesiones</PageTitle>
         <p className="mt-1 text-sm text-muted">
           {staff ? "Lesiones del plantel, abiertas y pasadas." : "Tus lesiones, abiertas y pasadas."}
         </p>
