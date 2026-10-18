@@ -239,9 +239,10 @@ export function monthLabel(date: string) {
   return capitalize(monthFormat.format(utcDate(date)));
 }
 
-// "lun, 19 oct"
+// "lun, 19 oct". Sin puntos: Safari abrevia "oct." y el servidor "oct", y el
+// texto debe ser igual en ambos para que React no reclame al hidratar.
 export function shortDayLabel(date: string) {
-  return shortDayFormat.format(utcDate(date));
+  return shortDayFormat.format(utcDate(date)).replace(/\./g, "");
 }
 
 // "Sáb 24 oct"
