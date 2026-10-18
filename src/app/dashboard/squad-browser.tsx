@@ -12,7 +12,7 @@ const AVAILABILITY_FILTERS: Availability[] = ["disponible", "en_revision", "lesi
 const NO_POSITION = "Sin posición";
 
 const chipButton = (active: boolean) =>
-  `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition ${
+  `inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium whitespace-nowrap transition ${
     active
       ? "border-brand-strong bg-brand-soft text-brand-text"
       : "border-line bg-white text-ink hover:bg-mist"
@@ -109,7 +109,12 @@ export function FilterableSquad({
           </select>
         </label>
       </div>
-      <div role="group" aria-label="Filtrar por disponibilidad" className="flex flex-wrap gap-2">
+      {/* Hasta lg: una sola fila con scroll horizontal, de borde a borde. */}
+      <div
+        role="group"
+        aria-label="Filtrar por disponibilidad"
+        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0"
+      >
         <button
           type="button"
           aria-pressed={availability === ""}

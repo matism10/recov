@@ -196,7 +196,7 @@ export default async function PlayerPage({
           ) : (
             <p className={`p-5 text-sm text-muted ${cardClass}`}>
               {availability === "disponible"
-                ? "No tiene lesiones abiertas."
+                ? "No tiene lesiones actuales."
                 : "Sin lesión registrada: la disponibilidad se cambió a mano."}
             </p>
           )}

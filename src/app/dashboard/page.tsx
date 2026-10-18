@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/lib/roles";
 import {
   formatDate,
+  formatDayMonth,
   returnLabel,
   type InjuryStatus,
 } from "@/lib/injuries";
@@ -101,17 +103,25 @@ export default async function DashboardPage() {
 
   const staff = isStaff(roles);
   const isPlayer = roles.includes("jugador");
+  // Estado propio (rol jugador): su fila del plantel que ya trae getSquad, y la
+  // fase en curso de squad_current_phases. Sin consultas nuevas.
+  const me = isPlayer ? players.find((p) => p.user_id === user.id) : undefined;
+  const myStatus = me?.availability as Availability | undefined;
+  const myPhase = me && myStatus === "lesionado" ? phaseByPlayer.get(me.id) : undefined;
 
   // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con el inicio y
   // la fecha de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
   const injuredPlayers = players.filter((p) =>
     (INJURED_AVAILABILITY as readonly string[]).includes(p.availability),
   );
-  const openByPlayer = new Map<string, { startedOn: string; expectedReturnOn: string | null }>();
+  const openByPlayer = new Map<
+    string,
+    { type: string; startedOn: string; expectedReturnOn: string | null }
+  >();
   if (staff && injuredPlayers.length > 0) {
     const { data: open } = await supabase
       .from("injuries")
-      .select("player_id, started_on, expected_return_on")
+      .select("player_id, type, started_on, expected_return_on")
       .in("status", ["en_evaluacion", "activa"])
       .in(
         "player_id",
@@ -122,6 +132,7 @@ export default async function DashboardPage() {
       const current = openByPlayer.get(i.player_id)?.expectedReturnOn;
       if (!current || (i.expected_return_on && i.expected_return_on > current)) {
         openByPlayer.set(i.player_id, {
+          type: i.type,
           startedOn: i.started_on,
           expectedReturnOn: i.expected_return_on,
         });
@@ -135,7 +146,9 @@ export default async function DashboardPage() {
   if (isPlayer) {
     ({ data: injuries } = await supabase
       .from("injuries")
-      .select("id, type, status, started_on, expected_return_on, players!inner(user_id)")
+      .select(
+        "id, type, status, started_on, expected_return_on, closed_on, players!inner(user_id)",
+      )
       .eq("players.user_id", user.id)
       .order("started_on", { ascending: false }));
   }
@@ -178,6 +191,13 @@ export default async function DashboardPage() {
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <PageTitle>Disponibilidad del plantel</PageTitle>
+          {myStatus && (
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink">
+              Tu estado
+              <AvailabilityBadge status={myStatus} />
+              {myPhase && <span className="text-muted">· {myPhase}</span>}
+            </p>
+          )}
           <Link
             href="/perfil"
             className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-ink transition hover:bg-mist"
@@ -194,7 +214,7 @@ export default async function DashboardPage() {
       </header>
 
       {/* Celular: el próximo partido bajo el encabezado, a lo ancho. */}
-      {nextMatch && <NextMatch match={nextMatch} className="mb-6 flex w-full lg:hidden" />}
+      {nextMatch && <NextMatch match={nextMatch} stacked className="mb-6 flex w-full lg:hidden" />}
 
       {/* Franja de métricas: solo staff y solo en escritorio. */}
       {staff && <MetricsStrip supabase={supabase} />}
@@ -291,17 +311,17 @@ export default async function DashboardPage() {
                         href={`/jugadores/${p.id}`}
                         className="block space-y-3 px-5 py-4 transition hover:bg-white"
                       >
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
-                            <div>
-                              <p className="font-medium text-ink">{p.full_name}</p>
-                              <p className="text-sm text-muted">
-                                {returnLabel(injury?.expectedReturnOn ?? null)}
-                              </p>
-                            </div>
+                        <div className="flex items-center gap-3">
+                          <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-ink">{p.full_name}</p>
+                            {injury && <p className="text-sm text-ink">{injury.type}</p>}
+                            <p className="text-sm text-muted">
+                              {returnLabel(injury?.expectedReturnOn ?? null)}
+                            </p>
                           </div>
                           <AvailabilityBadge status={status} />
+                          <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
                         </div>
                         {injury?.expectedReturnOn && (
                           <InjuryProgress
@@ -331,23 +351,31 @@ export default async function DashboardPage() {
                       <th scope="col" className="px-3 py-3 font-medium">
                         Progreso
                       </th>
-                      <th scope="col" className="py-3 pr-5 pl-3 font-medium">
+                      <th scope="col" className="py-3 pl-3 font-medium">
                         Estado
                       </th>
+                      {/* Columna del chevron: decorativa. */}
+                      <td aria-hidden="true" className="w-10 pr-5" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
                     {injuredPlayers.map((p) => {
                       const injury = openByPlayer.get(p.id);
                       return (
-                        <tr key={p.id} className="transition hover:bg-white">
+                        // Fila clicable: el único enlace (el nombre) se extiende sobre toda la fila.
+                        <tr key={p.id} className="relative transition hover:bg-white">
                           <td className="py-3 pr-3 pl-5">
                             <Link
                               href={`/jugadores/${p.id}`}
-                              className="inline-flex min-h-11 items-center gap-3 font-medium text-ink hover:underline"
+                              className="flex min-h-11 items-center gap-3 after:absolute after:inset-0 after:content-['']"
                             >
                               <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
-                              {p.full_name}
+                              <span>
+                                <span className="block font-medium text-ink">{p.full_name}</span>
+                                {injury && (
+                                  <span className="block text-sm text-ink">{injury.type}</span>
+                                )}
+                              </span>
                             </Link>
                           </td>
                           <td className="px-3 py-3 text-sm text-muted">
@@ -364,8 +392,11 @@ export default async function DashboardPage() {
                               />
                             )}
                           </td>
-                          <td className="py-3 pr-5 pl-3">
+                          <td className="py-3 pl-3">
                             <AvailabilityBadge status={p.availability as Availability} />
+                          </td>
+                          <td aria-hidden="true" className="w-10 py-3 pr-5">
+                            <ChevronRight className="size-5 text-muted" />
                           </td>
                         </tr>
                       );
@@ -411,11 +442,16 @@ export default async function DashboardPage() {
                         </div>
                         <InjuryStatusBadge status={i.status as InjuryStatus} />
                       </div>
-                      {i.status !== "en_evaluacion" && (
-                        <InjuryProgress
-                          startedOn={i.started_on}
-                          expectedReturnOn={i.expected_return_on}
-                        />
+                      {i.status === "cerrada" && i.closed_on ? (
+                        // Cerrada: la fecha de alta en vez de la barra al 100 %.
+                        <p className="text-sm text-muted">Alta el {formatDayMonth(i.closed_on)}</p>
+                      ) : (
+                        i.status !== "en_evaluacion" && (
+                          <InjuryProgress
+                            startedOn={i.started_on}
+                            expectedReturnOn={i.expected_return_on}
+                          />
+                        )
                       )}
                     </Link>
                   </li>

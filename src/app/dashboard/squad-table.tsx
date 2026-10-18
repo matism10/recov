@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { Availability } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
-import { AvailabilityBadge, buttonSecondary } from "@/app/ui";
+import { AvailabilityBadge } from "@/app/ui";
 import { AvailabilitySelect } from "./availability-select";
-import { PlayerIdentity, type SquadProps } from "./squad-list";
+import { PlayerIdentity, markInjuryClass, type SquadProps } from "./squad-list";
 
 const th = "px-3 py-3 font-medium";
 const td = "px-3 py-3";
@@ -19,6 +19,8 @@ export function SquadTable({
   canManage,
   linkToProfile,
 }: SquadProps) {
+  // "Fase en curso" solo si algún jugador de la tabla tiene una fase en curso.
+  const showPhase = !canManage && players.some((p) => phaseByPlayer.has(p.id));
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-mist">
       <table className="w-full text-left">
@@ -30,7 +32,7 @@ export function SquadTable({
             <th scope="col" className={canManage ? `hidden ${th} xl:table-cell` : th}>
               Posición
             </th>
-            {!canManage && (
+            {showPhase && (
               <th scope="col" className={th}>
                 Fase en curso
               </th>
@@ -74,7 +76,7 @@ export function SquadTable({
                 >
                   {p.position}
                 </td>
-                {!canManage && <td className={`${td} text-sm text-muted`}>{phase}</td>}
+                {showPhase && <td className={`${td} text-sm text-muted`}>{phase}</td>}
                 <td className={canManage ? td : `${td} pr-5`}>
                   {editable ? (
                     <div className="inline-block">
@@ -91,10 +93,7 @@ export function SquadTable({
                 {canManage && (
                   <td className={`${td} pr-5`}>
                     {editable && (
-                      <Link
-                        href={`/lesiones/marcar/${p.id}`}
-                        className={`text-sm whitespace-nowrap ${buttonSecondary}`}
-                      >
+                      <Link href={`/lesiones/marcar/${p.id}`} className={markInjuryClass}>
                         Marcar lesión
                       </Link>
                     )}

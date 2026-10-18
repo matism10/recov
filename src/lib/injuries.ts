@@ -153,3 +153,17 @@ const dateFormat = new Intl.DateTimeFormat("es-CL", {
 export function formatDate(isoDate: string) {
   return dateFormat.format(new Date(`${isoDate.slice(0, 10)}T00:00:00Z`));
 }
+
+const dayMonthFormat = new Intl.DateTimeFormat("es-CL", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+// "6 ago". La fecha (YYYY-MM-DD, sin hora) se lee como medianoche UTC y se
+// formatea en UTC, para que en Chile no muestre el día anterior.
+export function formatDayMonth(isoDate: string) {
+  return dayMonthFormat
+    .format(new Date(`${isoDate.slice(0, 10)}T00:00:00Z`))
+    .replace(".", "");
+}
