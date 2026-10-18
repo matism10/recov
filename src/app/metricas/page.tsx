@@ -14,7 +14,7 @@ import {
 } from "@/lib/metrics";
 import { getAvatarUrls } from "@/lib/avatars";
 import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
-import { textButton } from "@/app/ui";
+import { PageTitle, SectionTitle, textButton } from "@/app/ui";
 import {
   InjuriesByPlaceBlock,
   InjuriesByPositionBlock,
@@ -76,8 +76,9 @@ export default async function MetricsPage() {
         <Link href="/dashboard" className={textButton}>
           ← Volver a disponibilidad del plantel
         </Link>
-        <p className="mt-2 text-sm text-muted">{club?.name}</p>
-        <h1 className="text-2xl font-semibold text-ink">Métricas del plantel</h1>
+        <PageTitle club={club?.name} className="mt-2">
+          Métricas del plantel
+        </PageTitle>
       </header>
 
       <section className="mb-8">
@@ -126,13 +127,14 @@ export default async function MetricsPage() {
         {series.ok ? (
           <AvailabilityChart
             heading="Disponibilidad en el tiempo"
+            sectionHeading
             weeks={series.data}
             keys={["disponible", "en_revision", "lesionado", "reintegro"]}
             height={260}
           />
         ) : (
           <>
-            <h2 className="mb-3 text-sm font-medium text-muted">Disponibilidad en el tiempo</h2>
+            <SectionTitle className="mb-3">Disponibilidad en el tiempo</SectionTitle>
             <MetricsError />
           </>
         )}

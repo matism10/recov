@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 import { formatShortDate, type AvailabilityWeek } from "@/lib/metrics";
 import { Users } from "lucide-react";
-import { AVAILABILITY_ICON } from "@/app/ui";
+import { AVAILABILITY_ICON, SectionTitle } from "@/app/ui";
 import { LineChart, type ChartColor } from "@/app/line-chart";
 
 // Tarjeta de métricas: la misma en la franja de /dashboard y en /metricas.
@@ -111,7 +111,7 @@ export function MetricsBlock({
 }) {
   return (
     <section className={metricCardClass}>
-      <h2 className="text-sm font-medium text-muted">{heading}</h2>
+      <SectionTitle>{heading}</SectionTitle>
       {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
       <div className="mt-4">{children}</div>
       {footer && <p className="mt-4 text-xs text-muted">{footer}</p>}
@@ -167,11 +167,14 @@ export function AvailabilityChart({
   keys,
   height,
   heading,
+  sectionHeading = false,
 }: {
   weeks: AvailabilityWeek[];
   keys: AvailabilityKey[];
   height?: number;
   heading: string;
+  // En /metricas el título va como SectionTitle; en la franja del Resumen, chico.
+  sectionHeading?: boolean;
 }) {
   const hasData = weeks.map(
     (w) => w.disponible + w.en_revision + w.lesionado + w.reintegro > 0,
@@ -180,7 +183,11 @@ export function AvailabilityChart({
   if (firstWithData < 0) {
     return (
       <>
-        <h2 className="mb-3 text-sm font-medium text-muted">{heading}</h2>
+        {sectionHeading ? (
+          <SectionTitle className="mb-3">{heading}</SectionTitle>
+        ) : (
+          <h2 className="mb-3 text-sm font-medium text-muted">{heading}</h2>
+        )}
         <p className="text-sm text-muted">Sin historial todavía.</p>
       </>
     );
@@ -190,6 +197,7 @@ export function AvailabilityChart({
     <>
       <LineChart
         label={heading}
+        sectionHeading={sectionHeading}
         height={height}
         xLabels={weeks.map((w) => formatShortDate(w.week_start))}
         series={keys.map((key) => ({

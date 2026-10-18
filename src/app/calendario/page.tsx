@@ -11,7 +11,7 @@ import {
   type EventAvailabilitySummary,
   type EventRow,
 } from "@/lib/events";
-import { buttonPrimary } from "@/app/ui";
+import { PageTitle, buttonPrimary } from "@/app/ui";
 import { CalendarView } from "./calendar-view";
 import { requireMember } from "./member";
 
@@ -71,10 +71,7 @@ export default async function CalendarPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted">{club?.name}</p>
-          <h1 className="text-2xl font-semibold text-ink">Calendario</h1>
-        </div>
+        <PageTitle club={club?.name}>Calendario</PageTitle>
         {canManage && (
           <Link href={`/calendario/nuevo?fecha=${anchor}`} className={`text-sm ${buttonPrimary}`}>
             <Plus aria-hidden="true" className="size-4" />
