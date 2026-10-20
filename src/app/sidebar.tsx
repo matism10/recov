@@ -55,6 +55,7 @@ const getNavData = cache(async () => {
     avatarUrl,
     direction,
     staff: isStaff(roles),
+    player: roles.includes("jugador"),
     pendingCount,
   };
 });
@@ -86,6 +87,11 @@ export async function MobileNav() {
   const nav = await getNavData();
   if (!nav) return null;
   return (
-    <MobileNavBar direction={nav.direction} staff={nav.staff} pendingCount={nav.pendingCount} />
+    <MobileNavBar
+      direction={nav.direction}
+      staff={nav.staff}
+      player={nav.player}
+      pendingCount={nav.pendingCount}
+    />
   );
 }

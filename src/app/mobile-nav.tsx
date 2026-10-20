@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
-import { Ellipsis, LogOut } from "lucide-react";
+import { Fragment, useEffect, useRef } from "react";
+import { Ellipsis, LogOut, Plus } from "lucide-react";
 import {
   BOTTOM_BAR_ITEMS,
+  PLANTEL,
+  REGISTRAR_LESION_HREF,
   REGISTROS,
   isNavHidden,
   moreItems,
@@ -27,14 +29,17 @@ const sheetItemClass = (active: boolean) =>
 
 // Barra inferior móvil (oculta desde lg, donde está la sidebar). Fija abajo, con
 // el margen del área segura del celular; un separador en el flujo reserva su
-// alto para que no tape el final de la página.
+// alto para que no tape el final de la página. El jugador tiene además el botón
+// "+" al centro, que sobresale 22 px sobre la barra: su separador es más alto.
 export function MobileNavBar({
   direction,
   staff,
+  player,
   pendingCount,
 }: {
   direction: boolean;
   staff: boolean;
+  player: boolean;
   pendingCount: number;
 }) {
   const pathname = usePathname();
@@ -47,7 +52,11 @@ export function MobileNavBar({
     <>
       <div
         aria-hidden="true"
-        className="h-[calc(4.75rem+env(safe-area-inset-bottom))] shrink-0 lg:hidden"
+        className={`shrink-0 lg:hidden ${
+          player
+            ? "h-[calc(4.75rem+1.5rem+env(safe-area-inset-bottom))]"
+            : "h-[calc(4.75rem+env(safe-area-inset-bottom))]"
+        }`}
       />
       <nav
         aria-label="Navegación principal"
@@ -57,16 +66,19 @@ export function MobileNavBar({
           {BOTTOM_BAR_ITEMS.map((item) => {
             const active = item.isActive(pathname);
             return (
-              <li key={item.href} className="min-w-0 flex-1">
-                <Link
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={barItemClass(active)}
-                >
-                  <item.Icon aria-hidden="true" className="size-5 shrink-0" />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              </li>
+              <Fragment key={item.href}>
+                <li className="min-w-0 flex-1">
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={barItemClass(active)}
+                  >
+                    <item.Icon aria-hidden="true" className="size-5 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                </li>
+                {player && item === PLANTEL && <RegisterInjuryButton />}
+              </Fragment>
             );
           })}
           {more.length > 0 && (
@@ -82,6 +94,23 @@ export function MobileNavBar({
         </ul>
       </nav>
     </>
+  );
+}
+
+// "+" del jugador: círculo de acento que sobresale 22 px sobre la barra, con borde
+// del color de la barra. Lleva al mismo formulario que "Registra una lesión" del
+// Resumen. No es una pestaña: sin estado activo ni etiqueta visible.
+function RegisterInjuryButton() {
+  return (
+    <li className="relative min-h-14 min-w-0 flex-1">
+      <Link
+        href={REGISTRAR_LESION_HREF}
+        aria-label="Registrar lesión"
+        className="absolute -top-[30px] left-1/2 flex size-[50px] -translate-x-1/2 items-center justify-center rounded-full bg-brand text-ink shadow-md ring-4 ring-brand-soft transition hover:bg-brand-hover active:bg-brand-strong focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-strong"
+      >
+        <Plus aria-hidden="true" className="size-7" strokeWidth={2.5} />
+      </Link>
+    </li>
   );
 }
 
