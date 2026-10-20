@@ -82,47 +82,53 @@ function Editor({
 
       <ul className="space-y-3">
         {rows.map((row, i) => (
-          <li
-            key={row.id ?? `nueva-${i}`}
-            className={`grid gap-2 p-3 sm:grid-cols-[1fr_9rem_9rem_auto] sm:items-end ${cardClass}`}
-          >
-            <label className="text-xs font-medium text-muted">
-              Fase · {PHASE_STATUS_LABEL[row.status]}
-              <input
-                value={row.name}
-                required
-                maxLength={PHASE_NAME_MAX}
-                onChange={(e) => update(i, { name: e.target.value })}
-                className={`mt-1 ${fieldClass}`}
-              />
-            </label>
-            <label className="text-xs font-medium text-muted">
-              Desde
-              <input
-                type="date"
-                value={row.started_on}
-                onChange={(e) => update(i, { started_on: e.target.value })}
-                className={`mt-1 ${fieldClass}`}
-              />
-            </label>
-            <label className="text-xs font-medium text-muted">
-              Hasta
-              <input
-                type="date"
-                value={row.ended_on}
-                min={row.started_on || undefined}
-                onChange={(e) => update(i, { ended_on: e.target.value })}
-                className={`mt-1 ${fieldClass}`}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setRows((r) => r.filter((_, j) => j !== i))}
-              disabled={pending || rows.length === 1}
-              className={textButton}
-            >
-              Quita
-            </button>
+          // Tarjeta apilada (la columna de fases es angosta en escritorio): número y
+          // estado con "Quita", el nombre a todo el ancho y las fechas lado a lado
+          // si la tarjeta da (container query: depende de la tarjeta, no de la ventana).
+          <li key={row.id ?? `nueva-${i}`} className={`@container space-y-2 p-4 ${cardClass}`}>
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor={`${injuryId}-fase-${i}`} className="text-xs font-medium text-muted">
+                Fase {i + 1} · {PHASE_STATUS_LABEL[row.status]}
+              </label>
+              <button
+                type="button"
+                onClick={() => setRows((r) => r.filter((_, j) => j !== i))}
+                disabled={pending || rows.length === 1}
+                aria-label={`Quita la fase ${i + 1}`}
+                className={`-my-2 ${textButton}`}
+              >
+                Quita
+              </button>
+            </div>
+            <input
+              id={`${injuryId}-fase-${i}`}
+              value={row.name}
+              required
+              maxLength={PHASE_NAME_MAX}
+              onChange={(e) => update(i, { name: e.target.value })}
+              className={fieldClass}
+            />
+            <div className="grid grid-cols-1 gap-3 pt-1 @[18.5rem]:grid-cols-2">
+              <label className="min-w-0 text-xs font-medium text-muted">
+                Desde
+                <input
+                  type="date"
+                  value={row.started_on}
+                  onChange={(e) => update(i, { started_on: e.target.value })}
+                  className={`mt-1 min-w-0 ${fieldClass}`}
+                />
+              </label>
+              <label className="min-w-0 text-xs font-medium text-muted">
+                Hasta
+                <input
+                  type="date"
+                  value={row.ended_on}
+                  min={row.started_on || undefined}
+                  onChange={(e) => update(i, { ended_on: e.target.value })}
+                  className={`mt-1 min-w-0 ${fieldClass}`}
+                />
+              </label>
+            </div>
           </li>
         ))}
       </ul>
