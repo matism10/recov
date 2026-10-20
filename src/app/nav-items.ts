@@ -91,8 +91,12 @@ export function sidebarItems(direction: boolean): NavItem[] {
     : [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
 }
 
-// Barra inferior móvil: los mismos cuatro destinos para todos los roles.
+// Barra inferior móvil: los mismos cuatro destinos para todos los roles. El jugador
+// suma al centro el botón "+" para registrar una lesión (no es un destino).
 export const BOTTOM_BAR_ITEMS: NavItem[] = [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
+
+// Formulario con el que el jugador registra su lesión (el mismo del Resumen).
+export const REGISTRAR_LESION_HREF = "/registrar-lesion";
 
 // Hoja "Más" de la barra móvil: solo el staff la tiene (el jugador no). La
 // dirección suma Registros, Staff y Configuración. "Cerrar sesión" va aparte.
