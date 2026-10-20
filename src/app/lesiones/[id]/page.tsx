@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Hourglass } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canManageInjuries, isStaff, type Availability, type UserRole } from "@/lib/roles";
@@ -125,6 +126,8 @@ export default async function InjuryPage({
   const showReview = canManage && (inEvaluation || status === "activa");
   const showPhases = staff || isOwnInjury;
   const showBanner = inEvaluation && isOwnInjury;
+  // El jugador ya envió su lesión y espera que el staff la revise.
+  const awaitingReview = isOwnInjury && status === "activa" && !injury.reviewed_at;
   const occurredDuring = injury.occurred_during as OccurredDuring | null;
   const severity = injury.severity as InjurySeverity | null;
   const doctorEstimate =
@@ -151,6 +154,22 @@ export default async function InjuryPage({
       <Link href="/dashboard" className={textButton}>
         ← Volver
       </Link>
+
+      {awaitingReview && (
+        <div
+          role="status"
+          className="mt-2 mb-4 flex items-start gap-3 rounded-xl border-l-4 border-revision bg-revision-bg p-4 lg:p-5"
+        >
+          <Hourglass aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-revision-fg" />
+          <div className="min-w-0">
+            <p className="font-bold text-revision-fg">Tu lesión está esperando revisión</p>
+            <p className="mt-1 text-sm text-ink">
+              Alguien del staff la va a revisar y confirmar. Cuando lo haga, aquí verás la
+              gravedad, el alta estimada y las fases de tu recuperación.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Móvil: un bloque bajo otro. Escritorio: resumen, datos y revisión a la
           izquierda; fases y documentos a la derecha. */}
