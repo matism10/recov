@@ -5,6 +5,7 @@ import {
   Activity,
   CalendarDays,
   ChartColumn,
+  ClipboardList,
   LayoutDashboard,
   Settings,
   UserCheck,
@@ -83,13 +84,23 @@ export const METRICAS: NavItem = {
   isActive: (p) => startsWith(p, "/metricas"),
 };
 
-// Sidebar de escritorio. Métricas: solo el staff (como /metricas). Registros, Staff
-// y Configuración: solo la dirección (head coach y manager).
-export function sidebarItems({ direction, staff }: { direction: boolean; staff: boolean }): NavItem[] {
-  const items = [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
-  if (staff) items.push(METRICAS);
-  if (direction) items.push(REGISTROS, STAFF, CONFIGURACION);
-  return items;
+export const NOMINAS: NavItem = {
+  href: "/nominas",
+  label: "Nóminas",
+  Icon: ClipboardList,
+  isActive: (p) => startsWith(p, "/nominas"),
+};
+
+// Sidebar de escritorio, en dos áreas: el día a día (Métricas y Nóminas solo para
+// el staff) y la administración del club (Registros, Staff y Configuración, solo
+// la dirección: head coach y manager).
+export function sidebarItems({ direction, staff }: { direction: boolean; staff: boolean }): {
+  main: NavItem[];
+  admin: NavItem[];
+} {
+  const main = [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
+  if (staff) main.push(METRICAS, NOMINAS);
+  return { main, admin: direction ? [REGISTROS, STAFF, CONFIGURACION] : [] };
 }
 
 // Barra inferior móvil: los mismos cuatro destinos para todos los roles. El jugador
@@ -99,10 +110,11 @@ export const BOTTOM_BAR_ITEMS: NavItem[] = [RESUMEN, PLANTEL, LESIONES, CALENDAR
 // Formulario con el que el jugador registra su lesión (el mismo del Resumen).
 export const REGISTRAR_LESION_HREF = "/registrar-lesion";
 
-// Hoja "Más" de la barra móvil: solo el staff la tiene (el jugador no). La
-// dirección suma Registros, Staff y Configuración. "Cerrar sesión" va aparte.
+// Hoja "Más" de la barra móvil: solo el staff la tiene (el jugador no): Métricas
+// y Nóminas, y la dirección suma Registros, Staff y Configuración. "Cerrar sesión"
+// va aparte.
 export function moreItems({ direction, staff }: { direction: boolean; staff: boolean }): NavItem[] {
-  if (direction) return [REGISTROS, STAFF, CONFIGURACION, METRICAS];
-  if (staff) return [METRICAS];
+  if (direction) return [METRICAS, NOMINAS, REGISTROS, STAFF, CONFIGURACION];
+  if (staff) return [METRICAS, NOMINAS];
   return [];
 }

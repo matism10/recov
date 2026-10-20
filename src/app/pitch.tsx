@@ -1,116 +1,121 @@
 "use client";
 
-// Vista "cancha": la cancha del deporte del club con una marca por posición de
-// juego. Tocar una marca elige esa posición (las marcas repetidas, como los dos
-// pilares, eligen la misma). Las posiciones sin marca y "Sin posición" van como
-// botones bajo la cancha. Solo presentación: el padre decide qué listar.
+// Vista "cancha": la cancha del deporte del club con marcas tocables. Dentro del
+// círculo va el código del puesto (número en rugby, iniciales en los demás) y
+// debajo una etiqueta (la posición o el jugador que ocupa el puesto). La banca,
+// si la hay, va en una columna al costado. Solo presentación: quien la usa
+// decide qué marcas hay y qué pasa al tocarlas.
 import { useEffect, useRef, type ReactNode } from "react";
-import { PITCH_LAYOUTS, shortPositionLabel, type PitchKind } from "@/lib/pitch";
+import type { PitchKind } from "@/lib/pitch";
 
 export const NO_POSITION = "Sin posición";
 
 const GRASS = new Set<PitchKind>(["rugby", "futbol", "hockey"]);
 
+export type PitchMarker = {
+  key: string;
+  code: string;
+  label: string;
+  active: boolean;
+  filled?: boolean; // puesto ocupado (nómina)
+  ariaLabel?: string; // sin texto: la marca no se anuncia ni se enfoca (repetida)
+  onClick: () => void;
+};
+
 export function Pitch({
   kind,
-  positions,
-  badge,
-  ariaCount,
-  selected,
-  onSelect,
+  markers,
+  bench,
+  below,
 }: {
   kind: PitchKind;
-  // Posiciones a ofrecer, en el orden del deporte (incluida NO_POSITION si aplica).
-  positions: string[];
-  // Texto de la marca (p. ej. "6" o "3/6").
-  badge: (position: string) => string;
-  // Texto para lectores de pantalla (p. ej. "6 jugadores").
-  ariaCount: (position: string) => string;
-  selected: string | null;
-  onSelect: (position: string | null) => void;
+  markers: (PitchMarker & { x: number; y: number })[];
+  bench?: { title: string; markers: PitchMarker[] };
+  below?: ReactNode;
 }) {
-  const slots = PITCH_LAYOUTS[kind].filter((s) => positions.includes(s.position));
-  const placed = new Set(slots.map((s) => s.position));
-  const loose = positions.filter((p) => !placed.has(p));
-  const seen = new Set<string>();
-
   return (
     <div className="space-y-3">
-      <div
-        role="group"
-        aria-label="Cancha: elige una posición"
-        className={`relative mx-auto aspect-[100/140] w-full max-w-[420px] overflow-hidden rounded-2xl ${
-          GRASS.has(kind) ? "bg-[#2f7d4c]" : "bg-[#c99560]"
-        }`}
-      >
-        <FieldLines kind={kind} />
-        {slots.map((s, i) => {
-          // Solo la primera marca de cada posición se enfoca y se anuncia.
-          const first = !seen.has(s.position);
-          seen.add(s.position);
-          const active = selected === s.position;
-          return (
-            <button
-              key={`${s.position}-${i}`}
-              type="button"
-              onClick={() => onSelect(active ? null : s.position)}
-              aria-pressed={first ? active : undefined}
-              aria-hidden={first ? undefined : true}
-              tabIndex={first ? 0 : -1}
-              aria-label={first ? `${s.position}: ${ariaCount(s.position)}` : undefined}
-              style={{ left: `${s.x}%`, top: `${s.y}%` }}
-              className="absolute flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-white"
+      <div className={`mx-auto flex max-w-[480px] gap-2 ${bench ? "" : "justify-center"}`}>
+        <div
+          role="group"
+          aria-label="Cancha"
+          className={`relative aspect-[100/140] min-w-0 flex-1 overflow-hidden rounded-2xl ${
+            GRASS.has(kind) ? "bg-[#2f7d4c]" : "bg-[#c99560]"
+          } ${bench ? "" : "max-w-[420px]"}`}
+        >
+          <FieldLines kind={kind} />
+          {markers.map((m) => (
+            <div
+              key={m.key}
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{ left: `${m.x}%`, top: `${m.y}%` }}
             >
-              <span
-                className={`flex size-9 items-center justify-center rounded-full border-2 text-xs font-bold tabular-nums shadow-sm transition ${
-                  active
-                    ? "border-white bg-brand text-ink"
-                    : "border-white/90 bg-white text-ink"
-                }`}
-              >
-                {badge(s.position)}
-              </span>
-              <span
-                className={`max-w-[84px] truncate rounded-full px-1.5 py-px text-[10px] leading-tight font-semibold ${
-                  active ? "bg-brand text-ink" : "bg-ink/70 text-white"
-                }`}
-              >
-                {shortPositionLabel(s.position)}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {loose.length > 0 && (
-        <div role="group" aria-label="Otras posiciones" className="flex flex-wrap justify-center gap-2">
-          {loose.map((p) => {
-            const active = selected === p;
-            return (
-              <button
-                key={p}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onSelect(active ? null : p)}
-                className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition ${
-                  active
-                    ? "border-brand-strong bg-brand-soft text-brand-text"
-                    : "border-line bg-white text-ink hover:bg-mist"
-                }`}
-              >
-                {p}
-                <span className="text-xs font-normal text-muted">({badge(p)})</span>
-              </button>
-            );
-          })}
+              <MarkerButton marker={m} onField />
+            </div>
+          ))}
         </div>
-      )}
+        {bench && (
+          <div
+            role="group"
+            aria-label={bench.title}
+            className="flex w-16 shrink-0 flex-col items-center gap-1 rounded-2xl bg-mist py-2"
+          >
+            <p className="text-[11px] font-semibold text-muted">{bench.title}</p>
+            {bench.markers.map((m) => (
+              <MarkerButton key={m.key} marker={m} />
+            ))}
+          </div>
+        )}
+      </div>
+      {below}
     </div>
   );
 }
 
-// Lista de la posición elegida bajo (celular) o al lado (escritorio) de la cancha.
-// En celular, al elegir una posición la página baja hasta su lista.
+function MarkerButton({ marker: m, onField = false }: { marker: PitchMarker; onField?: boolean }) {
+  const hidden = !m.ariaLabel;
+  return (
+    <button
+      type="button"
+      onClick={m.onClick}
+      aria-pressed={hidden ? undefined : m.active}
+      aria-hidden={hidden ? true : undefined}
+      tabIndex={hidden ? -1 : 0}
+      aria-label={m.ariaLabel}
+      className="flex min-h-11 min-w-11 flex-col items-center gap-0.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-brand-strong"
+    >
+      <span
+        className={`flex size-9 items-center justify-center rounded-full border-2 text-xs font-bold tabular-nums shadow-sm transition ${
+          m.active
+            ? "border-white bg-brand text-ink"
+            : m.filled
+              ? "border-white bg-brand-strong text-white"
+              : onField
+                ? "border-white/90 bg-white text-ink"
+                : "border-dashed border-muted bg-white text-ink"
+        }`}
+      >
+        {m.code}
+      </span>
+      <span
+        className={`max-w-[84px] truncate rounded-full px-1.5 py-px text-[10px] leading-tight font-semibold ${
+          m.active
+            ? "bg-brand text-ink"
+            : onField
+              ? "bg-ink/70 text-white"
+              : m.filled
+                ? "text-ink"
+                : "text-muted"
+        }`}
+      >
+        {m.label}
+      </span>
+    </button>
+  );
+}
+
+// Lista de lo elegido bajo (celular) o al lado (escritorio) de la cancha.
+// En celular, al elegir algo la página baja hasta su lista.
 export function PitchLayout({
   pitch,
   panel,
@@ -118,16 +123,16 @@ export function PitchLayout({
 }: {
   pitch: ReactNode;
   panel: ReactNode;
-  selectedKey: string | null;
+  selectedKey: string | number | null;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (selectedKey && !window.matchMedia("(min-width: 1024px)").matches) {
+    if (selectedKey !== null && !window.matchMedia("(min-width: 1024px)").matches) {
       panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [selectedKey]);
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] lg:items-start">
       <div className="lg:sticky lg:top-4">{pitch}</div>
       <div ref={panelRef} className="min-w-0 scroll-mt-28">
         {panel}
@@ -160,6 +165,27 @@ export function ViewToggle({
         </button>
       ))}
     </div>
+  );
+}
+
+// "Solo disponibles": filtro de la lista de una posición.
+export function OnlyAvailableToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-5 accent-brand-strong"
+      />
+      Solo disponibles
+    </label>
   );
 }
 

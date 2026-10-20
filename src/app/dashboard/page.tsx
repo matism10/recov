@@ -34,7 +34,7 @@ import { SummarySquad } from "./squad-browser";
 import { NextMatch } from "./next-match";
 import { MetricsStrip } from "./metrics-strip";
 import { MyMatches } from "./my-matches";
-import { getMyLoad } from "@/lib/match-load";
+import { canManageNominas, getMyLoad } from "@/lib/match-load";
 import { LoadBlock } from "@/app/load-block";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
@@ -55,7 +55,7 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "full_name, roles, status, clubs!profiles_club_id_fkey(name, kine_delegate_id, dashboard_metrics, dashboard_metrics_mobile)",
+      "full_name, roles, status, clubs!profiles_club_id_fkey(name, kine_delegate_id, nomina_delegate_id, dashboard_metrics, dashboard_metrics_mobile)",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -93,6 +93,8 @@ export default async function DashboardPage() {
   // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
   // Solo decide qué se muestra; las funciones de la base validan el permiso real.
   const canManage = canManageInjuries(roles, user.id, club?.kine_delegate_id);
+  // Arma nóminas: head coach, manager y el delegado de nóminas (solo decide qué se muestra).
+  const canNomina = canManageNominas(roles, user.id, club?.nomina_delegate_id);
 
   // Próximo partido: la competencia no cancelada más cercana. RLS: eventos del club.
   const { data: nextMatch } = await supabase
@@ -213,7 +215,9 @@ export default async function DashboardPage() {
           )}
         </div>
         {/* Escritorio: próximo partido arriba a la derecha. */}
-        {nextMatch && <NextMatch match={nextMatch} className="hidden lg:inline-flex" />}
+        {nextMatch && (
+          <NextMatch match={nextMatch} canNomina={canNomina} className="hidden lg:inline-flex" />
+        )}
       </header>
 
       {/* Franja de métricas: solo staff. En celular, disponibles y lesionados, justo
@@ -230,7 +234,9 @@ export default async function DashboardPage() {
       )}
 
       {/* Celular: el próximo partido a lo ancho. */}
-      {nextMatch && <NextMatch match={nextMatch} stacked className="mb-6 flex w-full lg:hidden" />}
+      {nextMatch && (
+        <NextMatch match={nextMatch} canNomina={canNomina} stacked className="mb-6 flex w-full lg:hidden" />
+      )}
 
       {myPendingInjury && (
         <div className="mb-8 space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
@@ -493,6 +499,7 @@ export default async function DashboardPage() {
             <MyMatches
               callups={myLoad.data.callups}
               scale={myLoad.data.scale}
+              starters={myLoad.data.starters ?? 0}
               now={new Date().toISOString()}
             />
           )}

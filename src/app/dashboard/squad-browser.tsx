@@ -72,6 +72,7 @@ export function FilterableSquad({
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState("");
   const [availability, setAvailability] = useState<Availability | "">("");
+  const [sort, setSort] = useState<"nombre" | "posicion">("nombre");
 
   // Solo las posiciones que tiene alguien del plantel, en el orden del deporte.
   const present = new Set(props.players.map((p) => p.position ?? NO_POSITION));
@@ -87,12 +88,25 @@ export function FilterableSquad({
       matchesName(p.full_name, query) &&
       (!position || (p.position ?? NO_POSITION) === position),
   );
-  const players = base.filter((p) => !availability || p.availability === availability);
+  // Orden: por nombre (como llega) o por posición en el orden del deporte (las que
+  // no están en el catálogo después y "Sin posición" al final), y luego por nombre.
+  const rank = (p: (typeof base)[number]) => {
+    if (!p.position) return Number.MAX_SAFE_INTEGER;
+    const i = positions.indexOf(p.position);
+    return i === -1 ? positions.length : i;
+  };
+  const players = base
+    .filter((p) => !availability || p.availability === availability)
+    .sort((a, b) =>
+      sort === "posicion"
+        ? rank(a) - rank(b) || a.full_name.localeCompare(b.full_name, "es")
+        : 0,
+    );
   const filtered = query.trim() !== "" || position !== "" || availability !== "";
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem_12rem]">
         <SearchField value={query} onChange={setQuery} />
         <label className={labelClass}>
           <span className="sr-only">Filtrar por posición</span>
@@ -107,6 +121,17 @@ export function FilterableSquad({
                 {p}
               </option>
             ))}
+          </select>
+        </label>
+        <label className={labelClass}>
+          <span className="sr-only">Ordenar</span>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as "nombre" | "posicion")}
+            className={fieldClass}
+          >
+            <option value="nombre">Ordenar por nombre</option>
+            <option value="posicion">Ordenar por posición</option>
           </select>
         </label>
       </div>

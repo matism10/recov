@@ -646,7 +646,7 @@ function EventPanel({
                     className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
                   >
                     <ClipboardList aria-hidden="true" className="size-4" />
-                    Nómina
+                    Armar nómina
                   </Link>
                 )}
               </div>

@@ -33,13 +33,15 @@ Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` 
   - Evento pasado: último `availability_log.to_status` antes de `starts_at` (`disponible` → ok, `lesionado` → no, resto → duda); sin registro previo, el jugador no aparece.
   - Evento futuro: con lesión abierta y alta estimada, antes del alta → no, el día del alta o alta vencida → duda, después → ok. Sin lesión abierta o con alguna sin fecha, según la disponibilidad actual (`disponible` → ok; `lesionado` → no hasta 14 días y duda después; resto → duda). Gana el estado más restrictivo.
 
-**Nóminas y carga del plantel (0027, 0028):** la convocatoria cuelga del evento de competencia (no hay tabla de partidos).
+**Nóminas y carga del plantel (0027, 0028, 0029):** la convocatoria cuelga del evento de competencia (no hay tabla de partidos).
 - Tablas: `event_callups` (convocatoria; `unique (event_id, player_id)`; quitar a alguien lo archiva con `removed_at`, no se borra) y `event_participations` (una fila por convocado; `mode` en que se cargó, `minutes`, `range_bucket` 0–4, `played`, `recorded_by`/`recorded_at`). Sin escritura directa.
 - Modo por club: `clubs.nomina_mode` (`exacto` | `rango` | `jugo`, enum `nomina_mode`, por defecto `rango`), lo cambia la dirección con `set_nomina_mode`. Lo ya cargado conserva su modo.
 - Escriben: `head_coach`, `manager` y el delegado `clubs.nomina_delegate_id` (lo asigna la dirección en /staff con `set_nomina_delegate`), con `set_event_callups` (lista completa) y `set_event_participation` (lote, todo o nada; solo competencias ya empezadas; exige y deriva los campos según el modo; tope de minutos del deporte).
 - Leen: todo el staff del club; el jugador solo sus propias filas (RLS por `player_id`).
 - Escala por deporte: columnas `match_minutes`, `max_minutes`, `bucket2_from`, `bucket3_from`, `bucket4_from` en `sports` (única fuente de verdad). `sport_load_scale(sport)` da etiquetas y puntos medios; `private.load_bucket` deriva el rango. Agregar un deporte es agregar una fila.
 - Métricas: `team_match_load(p_matches)` (staff; ventana = últimos partidos con participación cargada; no convocado = 0; semáforo con 3+ partidos) y `my_match_load()` (solo el jugador autenticado: sus últimos 6, total, referencia agregada del plantel y sus convocatorias; sin semáforo). Un dato menos detallado que el modo actual no se estima hacia arriba (cuenta en `other_mode`).
+- Puestos (0029): `event_callups.slot` (1 a `sports.starters` = titulares; los siguientes `sports.bench_size` = banca; en rugby 1–15 y 16–23). Un puesto por partido (índice único parcial); se puede convocar sin puesto; no más de titulares + banca. Se guarda con `set_event_lineup(event_id, [{player_id, slot}])`. La ubicación de cada puesto en la cancha y su código (número en rugby, iniciales en el resto) viven en `src/lib/pitch.ts` (solo presentación).
+- Pantallas: `/nominas` (staff; "Armar nómina" lleva al próximo partido o a `/nominas/sin-partido`), la nómina de cada partido en `/calendario/[id]/disponibles` (lista o cancha con banca) y la participación en `/calendario/[id]/participacion`.
 - Pruebas: `supabase/tests/match_load_test.sql`.
 
 **Ajustes del club (Configuración, solo dirección):**

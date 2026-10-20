@@ -7,10 +7,12 @@ import { SectionTitle, cardClass } from "@/app/ui";
 export function MyMatches({
   callups,
   scale,
+  starters,
   now,
 }: {
   callups: MyCallup[];
   scale: LoadScaleRow[];
+  starters: number;
   now: string; // ISO del momento del request, para separar convocatorias futuras
 }) {
   return (
@@ -43,7 +45,13 @@ export function MyMatches({
                         : "bg-surface-2 text-muted"
                   }`}
                 >
-                  {upcoming ? "Convocado" : (label ?? "Sin cargar")}
+                  {upcoming
+                    ? c.slot === null
+                      ? "Convocado"
+                      : c.slot > starters
+                        ? `Banca · ${c.slot}`
+                        : `Titular · N° ${c.slot}`
+                    : (label ?? "Sin cargar")}
                 </span>
               </li>
             );
