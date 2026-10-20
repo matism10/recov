@@ -70,6 +70,7 @@ export async function Sidebar() {
       fullName={nav.fullName}
       avatarUrl={nav.avatarUrl}
       direction={nav.direction}
+      staff={nav.staff}
       pendingCount={nav.pendingCount}
     />
   );

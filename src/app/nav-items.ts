@@ -83,12 +83,13 @@ export const METRICAS: NavItem = {
   isActive: (p) => startsWith(p, "/metricas"),
 };
 
-// Sidebar de escritorio. Registros, Staff y Configuración: solo la dirección
-// (head coach y manager).
-export function sidebarItems(direction: boolean): NavItem[] {
-  return direction
-    ? [RESUMEN, PLANTEL, LESIONES, CALENDARIO, REGISTROS, STAFF, CONFIGURACION]
-    : [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
+// Sidebar de escritorio. Métricas: solo el staff (como /metricas). Registros, Staff
+// y Configuración: solo la dirección (head coach y manager).
+export function sidebarItems({ direction, staff }: { direction: boolean; staff: boolean }): NavItem[] {
+  const items = [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
+  if (staff) items.push(METRICAS);
+  if (direction) items.push(REGISTROS, STAFF, CONFIGURACION);
+  return items;
 }
 
 // Barra inferior móvil: los mismos cuatro destinos para todos los roles. El jugador
