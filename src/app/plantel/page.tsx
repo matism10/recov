@@ -2,12 +2,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { canManageInjuries, isStaff, type UserRole } from "@/lib/roles";
 import { getSquad } from "@/lib/squad";
-import { FilterableSquad } from "@/app/dashboard/squad-browser";
+import { SquadViews } from "./squad-views";
 import { PageTitle, cardClass } from "@/app/ui";
 
 // Plantel completo del club: los mismos datos, acciones y reglas por rol que la
 // lista del Resumen, pero con todos los jugadores confirmados, con búsqueda y
-// filtros por posición y disponibilidad.
+// filtros por posición y disponibilidad, o en una cancha con sus posiciones.
 export default async function SquadPage() {
   const supabase = await createClient();
 
@@ -48,7 +48,8 @@ export default async function SquadPage() {
       </header>
 
       {players.length > 0 ? (
-        <FilterableSquad
+        <SquadViews
+          sport={club?.sport ?? null}
           positions={(positions ?? []).map((p) => p.name as string)}
           players={players}
           avatarUrls={avatarUrls}
