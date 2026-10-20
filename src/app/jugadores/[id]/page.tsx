@@ -19,6 +19,8 @@ import {
   type PhaseStatus,
 } from "@/lib/injuries";
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
+import { getMyLoad, getTeamLoad } from "@/lib/match-load";
+import { LoadBlock } from "@/app/load-block";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import {
@@ -33,7 +35,8 @@ import {
 
 const OPEN_STATUSES: InjuryStatus[] = ["en_evaluacion", "activa"];
 
-// Ficha del jugador para el staff: lesión abierta, avance y línea de tiempo.
+// Ficha del jugador para el staff: lesión abierta, avance, línea de tiempo y carga
+// de partidos. El jugador puede ver solo su propia ficha (su carga, sin semáforo).
 export default async function PlayerPage({
   params,
 }: {
@@ -54,10 +57,8 @@ export default async function PlayerPage({
     .maybeSingle();
 
   if (me?.status === "pendiente") redirect("/pendiente");
-  // El jugador no ve lesiones de otros: la ficha es solo para el staff.
-  if (me?.status !== "confirmado" || !isStaff((me.roles ?? []) as UserRole[])) {
-    redirect("/dashboard");
-  }
+  if (me?.status !== "confirmado") redirect("/dashboard");
+  const staff = isStaff((me.roles ?? []) as UserRole[]);
 
   // RLS: solo jugadores del club.
   const { data: player } = await supabase
@@ -66,7 +67,19 @@ export default async function PlayerPage({
     .eq("id", id)
     .eq("status", "confirmado")
     .maybeSingle();
+  // El jugador no ve lesiones de otros: fuera de su propia ficha, es solo para el staff.
+  if (!staff && player?.user_id !== user.id) redirect("/dashboard");
   if (!player) notFound();
+
+  // Carga de los últimos 6 partidos: el staff la toma de la carga del plantel;
+  // el jugador, de su propia función (sin datos de otros).
+  const loadResult = staff ? await getTeamLoad(supabase, 6) : await getMyLoad(supabase);
+  const load = loadResult.ok ? loadResult.data : null;
+  const playerLoad = loadResult.ok
+    ? "players" in loadResult.data
+      ? (loadResult.data.players.find((p) => p.player_id === id) ?? null)
+      : loadResult.data.player
+    : null;
 
   // RLS: el staff ve las lesiones del club.
   const { data: injuries } = await supabase
@@ -240,6 +253,18 @@ export default async function PlayerPage({
             </p>
           )}
         </section>
+      </div>
+
+      <div className="mt-8">
+        <LoadBlock
+          title={staff ? "Carga" : "Mi carga"}
+          load={load}
+          player={playerLoad}
+          error={!loadResult.ok}
+          lastInjury={
+            staff ? (all[0] ? { type: all[0].type, startedOn: all[0].started_on } : null) : undefined
+          }
+        />
       </div>
     </main>
   );

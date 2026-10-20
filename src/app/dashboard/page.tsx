@@ -33,6 +33,9 @@ import {
 import { SummarySquad } from "./squad-browser";
 import { NextMatch } from "./next-match";
 import { MetricsStrip } from "./metrics-strip";
+import { MyMatches } from "./my-matches";
+import { getMyLoad } from "@/lib/match-load";
+import { LoadBlock } from "@/app/load-block";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
@@ -109,6 +112,8 @@ export default async function DashboardPage() {
   const me = isPlayer ? players.find((p) => p.user_id === user.id) : undefined;
   const myStatus = me?.availability as Availability | undefined;
   const myPhase = me && myStatus === "lesionado" ? phaseByPlayer.get(me.id) : undefined;
+  // Jugador: su carga de partidos y sus convocatorias (solo datos propios).
+  const myLoad = me ? await getMyLoad(supabase) : null;
 
   // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con el id, el
   // inicio y la fecha de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
@@ -472,6 +477,26 @@ export default async function DashboardPage() {
             </p>
           )}
         </section>
+      )}
+
+      {me && myLoad && (
+        <>
+          <div className="mb-8">
+            <LoadBlock
+              title="Mi carga"
+              load={myLoad.ok ? myLoad.data : null}
+              player={myLoad.ok ? myLoad.data.player : null}
+              error={!myLoad.ok}
+            />
+          </div>
+          {myLoad.ok && (
+            <MyMatches
+              callups={myLoad.data.callups}
+              scale={myLoad.data.scale}
+              now={new Date().toISOString()}
+            />
+          )}
+        </>
       )}
 
       <section>

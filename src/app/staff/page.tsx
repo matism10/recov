@@ -21,7 +21,7 @@ export default async function StaffPage() {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: me } = await supabase
     .from("profiles")
-    .select("roles, status, clubs!profiles_club_id_fkey(kine_delegate_id)")
+    .select("roles, status, clubs!profiles_club_id_fkey(kine_delegate_id, nomina_delegate_id)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -31,6 +31,7 @@ export default async function StaffPage() {
   }
   const club = Array.isArray(me.clubs) ? me.clubs[0] : me.clubs;
   const delegateId = (club?.kine_delegate_id as string | null) ?? null;
+  const nominaDelegateId = (club?.nomina_delegate_id as string | null) ?? null;
 
   // RLS: la dirección ve los perfiles de su club.
   const { data: profiles } = await supabase
@@ -50,7 +51,8 @@ export default async function StaffPage() {
       <header className="mb-8">
         <PageTitle>Staff del club</PageTitle>
         <p className="mt-1 text-sm text-muted">
-          Cambia los roles del staff y decide quién tiene las funciones de kinesiólogo.
+          Cambia los roles del staff y decide quién tiene las funciones de kinesiólogo y
+          quién arma las nóminas.
         </p>
       </header>
 
@@ -64,6 +66,19 @@ export default async function StaffPage() {
           <DelegateForm
             staff={staff.map(({ id, full_name }) => ({ id, full_name }))}
             currentDelegateId={delegateId}
+          />
+        </section>
+
+        <section className={`p-5 ${cardClass}`}>
+          <SectionTitle>Nóminas</SectionTitle>
+          <p className="mt-1 mb-4 text-sm text-muted">
+            El head coach y el manager arman la convocatoria de cada partido y cargan la
+            participación. Puedes delegarlo también en alguien del staff.
+          </p>
+          <DelegateForm
+            kind="nomina"
+            staff={staff.map(({ id, full_name }) => ({ id, full_name }))}
+            currentDelegateId={nominaDelegateId}
           />
         </section>
 
@@ -88,6 +103,9 @@ export default async function StaffPage() {
                           <span className={`ml-2 ${chipClass}`}>
                             Funciones de kinesiólogo
                           </span>
+                        )}
+                        {p.id === nominaDelegateId && (
+                          <span className={`ml-2 ${chipClass}`}>Nóminas</span>
                         )}
                       </p>
                       <p className="text-sm text-muted">

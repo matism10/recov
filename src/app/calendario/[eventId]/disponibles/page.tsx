@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isStaff } from "@/lib/roles";
+import { canManageNominas } from "@/lib/match-load";
 import {
   EVENT_COLUMNS,
   EVENT_TYPE_LABEL,
@@ -19,13 +20,15 @@ import { AvailablePlayers } from "./available-players";
 // Jugadores del plantel según su disponibilidad proyectada para un evento. Solo
 // staff: event_availability lo verifica y el jugador vuelve al calendario.
 // Muestra solo el estado (ok, duda, no), nunca fechas de alta ni diagnóstico.
+// En un partido, quien arma nóminas (head coach, manager o el delegado) elige
+// aquí la convocatoria con casillas.
 export default async function EventAvailablePage({
   params,
 }: {
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const { supabase, roles, club } = await requireMember();
+  const { supabase, roles, club, userId } = await requireMember();
   if (!isStaff(roles)) redirect("/calendario");
 
   // RLS: solo eventos del club; un id inválido o ajeno no devuelve filas.
@@ -45,6 +48,19 @@ export default async function EventAvailablePage({
   const players = (rows ?? []) as EventAvailabilityRow[];
   const summary = summarizeAvailability(players);
 
+  // Convocatoria vigente (RLS: el staff ve las del club).
+  const nomina =
+    event.type === "competencia" &&
+    !event.cancelled &&
+    canManageNominas(roles, userId, club?.nomina_delegate_id);
+  const { data: callups } = nomina
+    ? await supabase
+        .from("event_callups")
+        .select("player_id")
+        .eq("event_id", event.id)
+        .is("removed_at", null)
+    : { data: [] };
+
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <header className="mb-6">
@@ -55,7 +71,10 @@ export default async function EventAvailablePage({
           {EVENT_TYPE_LABEL[event.type]}
           {event.cancelled && " · Cancelado"}
         </p>
-        <h1 className="text-2xl font-semibold text-ink">{eventTitle(event)}</h1>
+        <h1 className="text-2xl font-semibold text-ink">
+          {nomina && <span className="sr-only">Nómina: </span>}
+          {eventTitle(event)}
+        </h1>
         <p className="mt-1 text-sm text-muted">
           {longDayLabel(event.day)} · {event.start} – {event.end}
           {event.location && ` · ${event.location}`}
@@ -92,6 +111,11 @@ export default async function EventAvailablePage({
         <AvailablePlayers
           players={players}
           positions={(positions ?? []).map((p) => p.name as string)}
+          nomina={
+            nomina
+              ? { eventId: event.id, selected: (callups ?? []).map((c) => c.player_id as string) }
+              : null
+          }
         />
       )}
     </main>

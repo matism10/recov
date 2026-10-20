@@ -64,3 +64,24 @@ export async function setKineDelegate(
   revalidatePath("/dashboard");
   return { ok: true };
 }
+
+// Delega las nóminas (convocatoria y participación) en alguien del staff, o quita
+// la delegación (profile_id vacío). set_nomina_delegate verifica el permiso y que
+// sea staff confirmado del club.
+export async function setNominaDelegate(
+  _prevState: StaffState,
+  formData: FormData,
+): Promise<StaffState> {
+  const profileId = String(formData.get("profile_id") ?? "");
+  if (profileId && !UUID_RE.test(profileId)) return { error: "Persona no válida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_nomina_delegate", {
+    p_profile_id: profileId || null,
+  });
+  if (error) return { error: errorMessage(error, "No se pudo guardar la delegación.") };
+
+  revalidatePath("/staff");
+  revalidatePath("/calendario");
+  return { ok: true };
+}

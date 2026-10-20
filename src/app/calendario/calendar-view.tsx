@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ChevronLeft, ChevronRight, MapPin, Swords, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList, MapPin, Swords, X } from "lucide-react";
 import { addDays } from "@/lib/injuries";
 import {
   EVENT_TYPE_LABEL,
@@ -39,6 +39,7 @@ type Props = {
   availability: Record<string, EventAvailabilitySummary>;
   staff: boolean;
   canManage: boolean;
+  canNomina: boolean;
   initialSelectedId: string | null;
 };
 
@@ -54,6 +55,7 @@ export function CalendarView({
   availability,
   staff,
   canManage,
+  canNomina,
   initialSelectedId,
 }: Props) {
   const [selectedId, setSelectedId] = useState(
@@ -95,6 +97,7 @@ export function CalendarView({
           summary={availability[selected.id]}
           staff={staff}
           canManage={canManage}
+          canNomina={canNomina}
           onClose={() => setSelectedId(null)}
         />
       )}
@@ -502,12 +505,14 @@ function EventPanel({
   summary,
   staff,
   canManage,
+  canNomina,
   onClose,
 }: {
   event: CalendarEvent;
   summary: EventAvailabilitySummary | undefined;
   staff: boolean;
   canManage: boolean;
+  canNomina: boolean;
   onClose: () => void;
 }) {
   const panelRef = useRef<HTMLElement>(null);
@@ -622,6 +627,30 @@ function EventPanel({
                 </div>
               )}
             </dl>
+
+            {/* Nómina: antes del partido se arma la convocatoria; una vez empezado,
+                se carga la participación. Solo head coach, manager y el delegado. */}
+            {canNomina && event.type === "competencia" && !event.cancelled && (
+              <div className="mt-6 border-t border-line pt-4">
+                {event.past ? (
+                  <Link
+                    href={`/calendario/${event.id}/participacion`}
+                    className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
+                  >
+                    <ClipboardList aria-hidden="true" className="size-4" />
+                    Cargar participación
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/calendario/${event.id}/disponibles`}
+                    className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
+                  >
+                    <ClipboardList aria-hidden="true" className="size-4" />
+                    Nómina
+                  </Link>
+                )}
+              </div>
+            )}
 
             {canManage && !event.cancelled && (
               <div className="mt-6 space-y-3 border-t border-line pt-4">

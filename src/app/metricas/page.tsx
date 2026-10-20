@@ -13,6 +13,8 @@ import {
   getUpcomingReturns,
 } from "@/lib/metrics";
 import { getAvatarUrls } from "@/lib/avatars";
+import { getTeamLoad } from "@/lib/match-load";
+import { LoadSection } from "./load-section";
 import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
 import { PageTitle, SectionTitle, textButton } from "@/app/ui";
 import {
@@ -45,7 +47,7 @@ export default async function MetricsPage() {
     redirect("/dashboard");
   }
 
-  const [summary, series, byWeek, byPlace, byPosition, recurring, upcoming] = await Promise.all([
+  const [summary, series, byWeek, byPlace, byPosition, recurring, upcoming, load] = await Promise.all([
     getDashSummary(supabase),
     getAvailabilitySeries(supabase, 12),
     getInjuriesByWeek(supabase, 12),
@@ -53,6 +55,7 @@ export default async function MetricsPage() {
     getInjuriesByPosition(supabase),
     getRecurringPlayers(supabase),
     getUpcomingReturns(supabase),
+    getTeamLoad(supabase, 4),
   ]);
 
   // Estado y foto solo de los jugadores de "Jugadores recurrentes" y "Próximas altas".
@@ -121,6 +124,8 @@ export default async function MetricsPage() {
           <MetricsError />
         )}
       </section>
+
+      <LoadSection result={load} />
 
       <section className={`mb-8 ${metricCardClass}`}>
         {series.ok ? (

@@ -8,6 +8,8 @@ import { LogoForm } from "./logo-form";
 import { CoverForm } from "./cover-form";
 import { clubCoverUrl } from "@/lib/club-identity";
 import { MetricsForm } from "./metrics-form";
+import { NominaModeForm } from "./nomina-mode-form";
+import type { NominaMode } from "@/lib/match-load";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
 // Configuración del club: solo la dirección (head coach y manager).
@@ -22,7 +24,7 @@ export default async function SettingsPage() {
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: me } = await supabase
     .from("profiles")
-    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, cover_path, cover_position_x, cover_position_y, dashboard_metrics, dashboard_metrics_mobile)")
+    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, cover_path, cover_position_x, cover_position_y, dashboard_metrics, dashboard_metrics_mobile, nomina_mode)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -33,6 +35,10 @@ export default async function SettingsPage() {
   const club = Array.isArray(me.clubs) ? me.clubs[0] : me.clubs;
   // Las métricas del Resumen las elige solo el head coach (set_dashboard_metrics lo valida).
   const isHeadCoach = ((me.roles ?? []) as UserRole[]).includes("head_coach");
+  // RLS: la dirección (staff) ve las participaciones de su club.
+  const { count: loadedCount } = await supabase
+    .from("event_participations")
+    .select("callup_id", { count: "exact", head: true });
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
@@ -66,6 +72,18 @@ export default async function SettingsPage() {
           url={await clubCoverUrl(supabase, club?.cover_path)}
           position={{ x: club?.cover_position_x ?? 50, y: club?.cover_position_y ?? 50 }}
           folder={me.club_id}
+        />
+      </section>
+
+      <section className={`mt-6 p-5 ${cardClass}`}>
+        <h2 className="font-medium text-ink">Registro de partidos</h2>
+        <p className="mt-1 mb-4 text-sm text-muted">
+          Cómo se carga la participación de los convocados en cada partido. Define la carga
+          del plantel en Métricas y en la ficha de cada jugador.
+        </p>
+        <NominaModeForm
+          mode={(club?.nomina_mode as NominaMode | undefined) ?? "rango"}
+          loadedCount={loadedCount ?? 0}
         />
       </section>
 

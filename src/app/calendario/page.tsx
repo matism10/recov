@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { canManageEvents, isStaff } from "@/lib/roles";
+import { canManageNominas } from "@/lib/match-load";
 import { addDays, parseIsoDate, todayInChile } from "@/lib/injuries";
 import {
   EVENT_COLUMNS,
@@ -35,10 +36,11 @@ export default async function CalendarPage({
   const anchor = typeof fecha === "string" && parseIsoDate(fecha) !== null ? fecha : today;
   const selectedId = typeof evento === "string" && UUID_RE.test(evento) ? evento : null;
 
-  const { supabase, roles } = await requireMember();
+  const { supabase, roles, userId, club } = await requireMember();
   // Solo deciden qué se muestra; las funciones de la base validan el permiso real.
   const staff = isStaff(roles);
   const canManage = canManageEvents(roles);
+  const canNomina = canManageNominas(roles, userId, club?.nomina_delegate_id);
 
   // RLS: solo eventos del club. Se pide un día de margen a cada lado (en UTC) y
   // luego se filtra por el día en hora de Chile.
@@ -92,6 +94,7 @@ export default async function CalendarPage({
         availability={availability}
         staff={staff}
         canManage={canManage}
+        canNomina={canNomina}
         initialSelectedId={selectedId}
       />
     </main>
