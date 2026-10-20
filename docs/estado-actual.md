@@ -8,7 +8,8 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Todo está mergeado en `main` (último: PR #11). No hay ramas con trabajo pendiente.
 - Migraciones 0001 a 0016 aplicadas en Supabase. 0007 a 0015 se aplicaron por MCP; 0001 a 0006 y 0016, por el SQL Editor.
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
-- Tests (terminan en ROLLBACK, ambos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos) e `injury_lifecycle_test.sql` (ciclo de la lesión y fases).
+- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario) y `match_load_test.sql` (nóminas y carga).
+- 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel.
 - CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones.
 
 ## Flujo de la plataforma
@@ -41,6 +42,15 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Lesión: En evaluación, Activa, Cerrada, Descartada.
 - Fase: Pendiente, En curso, Completada.
 
+**6. Nóminas y carga del plantel** (migraciones 0027 y 0028)
+- **Convocatoria:** en el calendario, el detalle de un partido (evento de competencia) tiene el botón **"Nómina"**, que abre "Ver jugadores disponibles para esa fecha" con casillas para convocar. Se ve la disponibilidad de cada jugador y se puede convocar a un no disponible, con aviso. Quitar a alguien de la convocatoria lo archiva (no se borra).
+- **Participación:** cuando el partido ya empezó, el botón pasa a **"Cargar participación"**: lista de convocados con un control según el modo del club y un solo guardado.
+- **Modo por club** (Configuración, dirección): minutos exactos, rango de minutos (5 niveles que dependen del deporte) o jugó / no jugó. Por defecto, rango. Lo ya cargado se conserva; las métricas usan el modo actual y no estiman hacia arriba un dato menos detallado ("N partidos cargados en otro modo").
+- **Escala por deporte:** duración, tope y cortes de los rangos viven en la tabla `sports` (una sola fuente de verdad).
+- **Métricas → "Carga del plantel"** (staff): tarjetas de carga alta y sin minutos (o sin partidos), y ranking con mini barras de los últimos 4 partidos y semáforo (con 3 partidos o más).
+- **Ficha del jugador → "Carga"** (staff): últimos 6 partidos, carga de la ventana, comparación con el promedio del plantel y última lesión.
+- **Jugador:** en su Resumen, "Mi carga" (sin semáforo) y "Mis partidos"; también ve su propia ficha. Nunca datos de otros jugadores.
+
 ## Funciones por rol
 
 **Todos los roles**
@@ -69,6 +79,10 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Manager**
 - Todo lo del staff, más lo de la dirección: registros y gestión del staff.
 - No gestiona lesiones ni ve documentos médicos.
+
+**Nóminas** (head coach, manager y el delegado de nóminas que la dirección asigna en `/staff`)
+- Armar la convocatoria de cada partido y cargar la participación de los convocados.
+- El resto del staff ve la carga del plantel; el jugador solo la suya.
 
 **Entrenador, nutricionista y preparador físico** (staff)
 - Ver "Lesiones activas" y la ficha de cada jugador.

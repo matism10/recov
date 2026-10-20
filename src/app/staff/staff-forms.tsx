@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { ROLE_LABEL, STAFF_ROLES, type UserRole } from "@/lib/roles";
-import { setKineDelegate, setStaffRoles, type StaffState } from "./actions";
+import { setKineDelegate, setNominaDelegate, setStaffRoles, type StaffState } from "./actions";
 import {
   ErrorMessage,
   SuccessMessage,
@@ -24,15 +24,24 @@ function Feedback({ state, pending }: { state: StaffState; pending: boolean }) {
   return null;
 }
 
+// Delegación de funciones en alguien del staff: kinesiólogo o nóminas.
+const DELEGATE_ACTIONS = { kine: setKineDelegate, nomina: setNominaDelegate };
+const DELEGATE_LABEL = {
+  kine: "Persona con funciones de kinesiólogo",
+  nomina: "Persona que arma las nóminas",
+};
+
 export function DelegateForm({
   staff,
   currentDelegateId,
+  kind = "kine",
 }: {
   staff: { id: string; full_name: string | null }[];
   currentDelegateId: string | null;
+  kind?: keyof typeof DELEGATE_ACTIONS;
 }) {
   const [state, formAction, pending] = useActionState<StaffState, FormData>(
-    setKineDelegate,
+    DELEGATE_ACTIONS[kind],
     {},
   );
 
@@ -43,7 +52,7 @@ export function DelegateForm({
           name="profile_id"
           defaultValue={currentDelegateId ?? ""}
           key={currentDelegateId ?? ""}
-          aria-label="Persona con funciones de kinesiólogo"
+          aria-label={DELEGATE_LABEL[kind]}
           className={`${fieldClass} sm:w-72`}
         >
           <option value="">Sin delegación</option>

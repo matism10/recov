@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { DASHBOARD_METRICS } from "@/lib/dashboard-metrics";
+import { NOMINA_MODES } from "@/lib/match-load";
 
 export type LogoState = { ok?: boolean; error?: string };
 
@@ -91,6 +92,32 @@ export async function setDashboardMetrics(
     }
   }
   revalidatePath("/configuracion");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export type NominaModeState = { ok?: boolean; error?: string };
+
+// Modo de registro de la participación en partidos. set_nomina_mode valida que
+// quien llama sea de la dirección. Lo ya cargado se conserva en su modo.
+export async function setNominaMode(
+  _prevState: NominaModeState,
+  formData: FormData,
+): Promise<NominaModeState> {
+  const mode = String(formData.get("mode") ?? "");
+  if (!(NOMINA_MODES as readonly string[]).includes(mode)) return { error: "Elige un modo." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_nomina_mode", { p_mode: mode });
+  if (error) {
+    return {
+      error:
+        error.code === "42501"
+          ? "Solo el head coach o el manager cambian el modo."
+          : "No se pudo guardar el modo.",
+    };
+  }
+  revalidatePath("/configuracion");
+  revalidatePath("/metricas");
   revalidatePath("/dashboard");
   return { ok: true };
 }
