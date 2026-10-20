@@ -21,17 +21,19 @@ export function SidebarNav({
   fullName,
   avatarUrl,
   direction,
+  staff,
   pendingCount,
 }: {
   fullName: string;
   avatarUrl: string | null;
   direction: boolean;
+  staff: boolean;
   pendingCount: number;
 }) {
   const pathname = usePathname();
   if (isNavHidden(pathname)) return null;
 
-  const items = sidebarItems(direction);
+  const items = sidebarItems({ direction, staff });
   const profileActive = startsWith(pathname, "/perfil");
 
   return (
