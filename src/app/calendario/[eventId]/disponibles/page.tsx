@@ -55,26 +55,29 @@ export default async function EventAvailablePage({
     event.type === "competencia" &&
     !event.cancelled &&
     canManageNominas(roles, userId, club?.nomina_delegate_id);
-  const { data: callups } = nomina
-    ? await supabase
-        .from("event_callups")
-        .select("player_id")
-        .eq("event_id", event.id)
-        .is("removed_at", null)
-    : { data: [] };
+  const [{ data: callups }, { data: sizes }] = nomina
+    ? await Promise.all([
+        supabase
+          .from("event_callups")
+          .select("player_id, slot")
+          .eq("event_id", event.id)
+          .is("removed_at", null),
+        // Titulares y banca del deporte del club (0029).
+        supabase.from("sports").select("starters, bench_size").eq("slug", club?.sport ?? "").maybeSingle(),
+      ])
+    : [{ data: [] }, { data: null }];
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-6">
         <Link href={`/calendario?fecha=${event.day}&evento=${event.id}`} className={textButton}>
           ← Volver al calendario
         </Link>
         <p className="mt-2 text-sm text-muted">
-          {EVENT_TYPE_LABEL[event.type]}
+          {nomina ? "Nómina" : EVENT_TYPE_LABEL[event.type]}
           {event.cancelled && " · Cancelado"}
         </p>
         <h1 className="text-2xl font-semibold text-ink">
-          {nomina && <span className="sr-only">Nómina: </span>}
           {eventTitle(event)}
         </h1>
         <p className="mt-1 text-sm text-muted">
@@ -119,7 +122,15 @@ export default async function EventAvailablePage({
           )}
           nomina={
             nomina
-              ? { eventId: event.id, selected: (callups ?? []).map((c) => c.player_id as string) }
+              ? {
+                  eventId: event.id,
+                  lineup: (callups ?? []).map((c) => ({
+                    player_id: c.player_id as string,
+                    slot: (c.slot as number | null) ?? null,
+                  })),
+                  starters: (sizes?.starters as number | undefined) ?? 0,
+                  bench: (sizes?.bench_size as number | undefined) ?? 0,
+                }
               : null
           }
         />

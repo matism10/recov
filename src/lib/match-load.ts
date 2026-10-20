@@ -36,7 +36,7 @@ export const LOAD_STATUS_LABEL: Record<LoadStatus, string> = {
 // Clases literales para que Tailwind las genere.
 export const LOAD_STATUS_STYLE: Record<LoadStatus, string> = {
   alta: "bg-lesionado-bg text-lesionado-fg",
-  normal: "bg-mist text-ink",
+  normal: "bg-disponible-bg text-disponible-fg",
   baja: "bg-revision-bg text-revision-fg",
   sin_minutos: "bg-surface-2 text-muted",
   sin_partidos: "bg-surface-2 text-muted",
@@ -94,6 +94,7 @@ export type MyCallup = {
   starts_at: string;
   opponent: string | null;
   location: string | null;
+  slot: number | null; // puesto en la nómina (0029)
   mode: NominaMode | null;
   minutes: number | null;
   range_bucket: number | null;
@@ -101,7 +102,11 @@ export type MyCallup = {
   loaded: boolean;
 };
 
-export type MyLoad = LoadBase & { player: PlayerLoad | null; callups: MyCallup[] };
+export type MyLoad = LoadBase & {
+  player: PlayerLoad | null;
+  starters: number; // titulares del deporte: los puestos siguientes son la banca
+  callups: MyCallup[];
+};
 
 export type LoadResult<T> = { ok: true; data: T } | { ok: false };
 

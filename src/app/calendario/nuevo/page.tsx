@@ -12,7 +12,7 @@ export default async function NewEventPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { fecha } = await searchParams;
+  const { fecha, tipo } = await searchParams;
   const { roles } = await requireMember();
   if (!canManageEvents(roles)) redirect("/calendario");
 
@@ -31,7 +31,8 @@ export default async function NewEventPage({
       </header>
       <EventForm
         defaults={{
-          type: "entrenamiento",
+          // ?tipo=competencia: llega desde "Armar nómina" sin un partido próximo.
+          type: tipo === "competencia" ? "competencia" : "entrenamiento",
           date,
           start: "19:00",
           end: "20:30",

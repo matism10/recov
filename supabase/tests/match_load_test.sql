@@ -1,13 +1,13 @@
--- Recov · Pruebas de nóminas y carga del plantel (0027, 0028)
+-- Recov · Pruebas de nóminas y carga del plantel (0027, 0028, 0029)
 -- Correr en el SQL Editor de Supabase (o por execute_sql) DESPUÉS de las migraciones
--- 0001 a 0028. Todo va en una transacción que termina en ROLLBACK: no deja datos.
+-- 0001 a 0029. Todo va en una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, se detiene con "FAIL: ...".
 --
 -- Cubre: aislamiento entre clubes; quién escribe (head coach, manager, delegado) y
 -- quién no (entrenador, nutri, pf, kine, jugador, anónimo); el jugador lee solo lo
 -- suyo; validación según el modo; derivación de rangos y puntos medios en rugby y
 -- hockey; semáforo en los tres modos; modo cambiado con datos previos; quitar de
--- la convocatoria archiva sin borrar.
+-- la convocatoria archiva sin borrar; nómina por puestos (titulares y banca).
 
 begin;
 
@@ -467,6 +467,94 @@ select pg_temp.expect_count($q$select 1 where has_table_privilege('authenticated
   or has_table_privilege('authenticated', 'public.event_participations', 'UPDATE')
   or has_table_privilege('authenticated', 'public.event_participations', 'DELETE')$q$, 0, 'authenticated no escribe las tablas directo');
 select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.match_load(uuid, int, uuid)', 'EXECUTE')$q$, 0, 'authenticated no ejecuta el cálculo interno');
+
+-- =======================================================================
+-- 9. Nómina por puestos: titulares y banca (0029)
+-- =======================================================================
+select pg_temp.expect_count($q$select 1 from public.sports where slug = 'rugby' and starters = 15 and bench_size = 8$q$, 1, 'rugby: 15 titulares y 8 de banca');
+select pg_temp.expect_count($q$select 1 from public.sports where slug = 'hockey' and starters = 11 and bench_size = 5$q$, 1, 'hockey: 11 titulares y 5 de banca');
+select pg_temp.expect_count($q$select 1 from public.sports where starters is null or bench_size is null$q$, 0, 'los 7 deportes tienen titulares y banca');
+-- 20 jugadores más en el club A para probar el máximo de 23.
+insert into public.players (club_id, full_name, position, status)
+select 'aaaaaaaa-0000-0000-0000-0000000000a1', 'Extra ' || g, 'Centro', 'confirmado' from generate_series(1, 20) g;
+
+select pg_temp.as_user('40000000-0000-0000-0000-0000000000a1');   -- entrenador
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":1}]')$q$, 'entrenador arma la nómina por puestos');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-0000000000a1');   -- jugador
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":1}]')$q$, 'jugador arma la nómina por puestos');
+select pg_temp.back();
+
+select pg_temp.as_user('10000000-0000-0000-0000-0000000000a1');   -- head coach
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":24}]')$q$, 'rugby: puesto 24 fuera de 1 a 23');
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":0}]')$q$, 'puesto 0');
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":1},
+    {"player_id":"a1000000-0000-0000-0000-000000000002","slot":1}]')$q$, 'dos jugadores en el mismo puesto');
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":1},
+    {"player_id":"a1000000-0000-0000-0000-000000000001","slot":2}]')$q$, 'un jugador dos veces');
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"b1000000-0000-0000-0000-000000000001","slot":1}]')$q$, 'jugador de otro club');
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000006',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":1}]')$q$, 'nómina de un entrenamiento');
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  (select jsonb_agg(jsonb_build_object('player_id', id)) from (select id from public.players
+    where club_id = 'aaaaaaaa-0000-0000-0000-0000000000a1' and status = 'confirmado' limit 24) x))$q$, 'más de 23 jugadores');
+select pg_temp.expect_ok($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":1},
+    {"player_id":"a1000000-0000-0000-0000-000000000002","slot":2},
+    {"player_id":"a1000000-0000-0000-0000-000000000003","slot":16},
+    {"player_id":"a1000000-0000-0000-0000-000000000004","slot":null}]')$q$, 'head coach arma la nómina con titulares, banca y uno sin puesto');
+select pg_temp.expect_count($q$select 1 from public.event_callups where event_id = 'e0000000-0000-0000-0000-000000000005'
+  and removed_at is null$q$, 4, 'quedan 4 convocados');
+select pg_temp.expect_count($q$select 1 from public.event_callups where event_id = 'e0000000-0000-0000-0000-000000000005'
+  and removed_at is null and ((player_id = 'a1000000-0000-0000-0000-000000000001' and slot = 1)
+    or (player_id = 'a1000000-0000-0000-0000-000000000003' and slot = 16)
+    or (player_id = 'a1000000-0000-0000-0000-000000000004' and slot is null))$q$, 3, 'cada uno en su puesto (o sin puesto)');
+-- Intercambiar puestos y sacar a uno: se archiva y libera su puesto.
+select pg_temp.expect_ok($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":2},
+    {"player_id":"a1000000-0000-0000-0000-000000000002","slot":1},
+    {"player_id":"a1000000-0000-0000-0000-000000000004","slot":23}]')$q$, 'intercambia puestos y saca a P3');
+select pg_temp.expect_count($q$select 1 from public.event_callups where event_id = 'e0000000-0000-0000-0000-000000000005'
+  and player_id = 'a1000000-0000-0000-0000-000000000003' and removed_at is not null and slot is null$q$, 1, 'P3 queda archivado y sin puesto');
+select pg_temp.expect_count($q$select 1 from public.event_callups where event_id = 'e0000000-0000-0000-0000-000000000005'
+  and removed_at is null and ((player_id = 'a1000000-0000-0000-0000-000000000001' and slot = 2)
+    or (player_id = 'a1000000-0000-0000-0000-000000000002' and slot = 1))$q$, 2, 'los puestos quedan intercambiados');
+select pg_temp.expect_ok($q$select public.set_event_callups('e0000000-0000-0000-0000-000000000005', array[
+  'a1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000004']::uuid[])$q$, 'set_event_callups sigue funcionando');
+select pg_temp.expect_count($q$select 1 from public.event_callups where event_id = 'e0000000-0000-0000-0000-000000000005'
+  and player_id = 'a1000000-0000-0000-0000-000000000002' and removed_at is not null and slot is null$q$, 1, 'set_event_callups libera el puesto al archivar');
+select pg_temp.expect_no_rows($q$update public.event_callups set slot = 5$q$, 'head coach edita puestos directo');
+select pg_temp.back();
+select pg_temp.expect_fail($q$insert into public.event_callups (club_id, event_id, player_id, slot)
+  values ('aaaaaaaa-0000-0000-0000-0000000000a1', 'e0000000-0000-0000-0000-000000000005', 'a1000000-0000-0000-0000-000000000005', 23)$q$, 'dos convocados en el mismo puesto (índice único)');
+
+select pg_temp.as_user('41000000-0000-0000-0000-0000000000a1');   -- delegado
+select pg_temp.expect_ok($q$select public.set_event_lineup('e0000000-0000-0000-0000-000000000005',
+  '[{"player_id":"a1000000-0000-0000-0000-000000000001","slot":9}]')$q$, 'el delegado arma la nómina por puestos');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-0000000000a1');   -- P1 ve su puesto
+select pg_temp.expect_count($q$select 1 from jsonb_array_elements(public.my_match_load() -> 'callups') c
+  where c ->> 'event_id' = 'e0000000-0000-0000-0000-000000000005' and (c ->> 'slot')::int = 9$q$, 1, 'el jugador ve su puesto');
+select pg_temp.expect_count($q$select 1 where (public.my_match_load() ->> 'starters')::int = 15$q$, 1, 'my_match_load trae los titulares del deporte');
+select pg_temp.back();
+
+update public.clubs set nomina_mode = 'rango' where id = 'bbbbbbbb-0000-0000-0000-0000000000b1';
+select pg_temp.as_user('10000000-0000-0000-0000-0000000000b1');   -- hockey: 11 + 5
+select pg_temp.expect_fail($q$select public.set_event_lineup('e0000000-0000-0000-0000-0000000000b1',
+  '[{"player_id":"b1000000-0000-0000-0000-000000000001","slot":17}]')$q$, 'hockey: puesto 17 fuera de 1 a 16');
+select pg_temp.expect_ok($q$select public.set_event_lineup('e0000000-0000-0000-0000-0000000000b1',
+  '[{"player_id":"b1000000-0000-0000-0000-000000000001","slot":16}]')$q$, 'hockey: puesto 16 (banca)');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'set_event_lineup' and p.prosecdef and p.proconfig = array['search_path=""']$q$, 1, 'set_event_lineup es SECURITY DEFINER con search_path vacío');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.set_event_lineup(uuid, jsonb)', 'EXECUTE')$q$, 0, 'anon no ejecuta set_event_lineup');
 
 select 'match_load_test: OK' as resultado;
 
