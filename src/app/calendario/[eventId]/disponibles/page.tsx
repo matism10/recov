@@ -40,10 +40,12 @@ export default async function EventAvailablePage({
   if (!data) redirect("/calendario");
   const event = toCalendarEvent(data as EventRow);
 
-  const [{ data: rows, error }, { data: positions }] = await Promise.all([
+  const [{ data: rows, error }, { data: positions }, { data: secondary }] = await Promise.all([
     supabase.rpc("event_availability", { p_event_id: event.id }),
     // Orden de las posiciones según el deporte del club.
     supabase.from("positions").select("name").eq("sport", club?.sport ?? "").order("sort"),
+    // Posición secundaria, para la vista cancha (RLS: jugadores del club).
+    supabase.from("players").select("id, secondary_position").not("secondary_position", "is", null),
   ]);
   const players = (rows ?? []) as EventAvailabilityRow[];
   const summary = summarizeAvailability(players);
@@ -111,6 +113,10 @@ export default async function EventAvailablePage({
         <AvailablePlayers
           players={players}
           positions={(positions ?? []).map((p) => p.name as string)}
+          sport={club?.sport ?? null}
+          secondaryByPlayer={Object.fromEntries(
+            (secondary ?? []).map((p) => [p.id as string, p.secondary_position as string]),
+          )}
           nomina={
             nomina
               ? { eventId: event.id, selected: (callups ?? []).map((c) => c.player_id as string) }

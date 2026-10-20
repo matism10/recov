@@ -9,6 +9,7 @@ export type SquadPlayer = {
   id: string;
   full_name: string;
   position: string | null;
+  secondary_position: string | null;
   availability: string;
   user_id: string | null;
 };
@@ -18,7 +19,7 @@ export async function getSquad(supabase: Client, extraAvatarIds: string[] = []) 
   // pendientes, así que se filtra el plantel confirmado.
   const { data } = await supabase
     .from("players")
-    .select("id, full_name, position, availability, user_id")
+    .select("id, full_name, position, secondary_position, availability, user_id")
     .eq("active", true)
     .eq("status", "confirmado")
     .order("full_name");
