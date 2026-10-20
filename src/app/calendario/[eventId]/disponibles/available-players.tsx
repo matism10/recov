@@ -139,13 +139,15 @@ export function AvailablePlayers({
     update(next);
   }
   function assign(id: string, slot: number) {
-    if (!lineup.has(id) && lineup.size >= max) {
+    const replaced = [...lineup].find(([pid, s]) => s === slot && pid !== id)?.[0];
+    // Un jugador nuevo cabe si hay cupo o si reemplaza a quien ocupaba el puesto.
+    if (!lineup.has(id) && !replaced && lineup.size >= max) {
       setState({ error: `La nómina admite hasta ${max} jugadores.` });
       return;
     }
     const next = new Map(lineup);
-    // Quien ocupaba el puesto sigue convocado, sin puesto.
-    for (const [pid, s] of next) if (s === slot && pid !== id) next.set(pid, null);
+    // Quien ocupaba el puesto sale de la nómina.
+    if (replaced) next.delete(replaced);
     next.set(id, slot);
     update(next);
   }
@@ -559,10 +561,12 @@ function LineupPitch({
               type="button"
               onClick={() => selected !== null && onAssign(p.player_id, selected)}
               disabled={pending}
-              aria-label={`Asignar a ${p.full_name}${slot ? ` (ahora en el ${slot})` : ""}`}
+              aria-label={`${current ? `Reemplazar a ${current.full_name} por` : "Asignar a"} ${p.full_name}${
+                slot ? ` (ahora en el ${slot})` : ""
+              }`}
               className={`text-sm ${buttonSecondary}`}
             >
-              {slot ? "Mover aquí" : "Asignar"}
+              {current ? "Reemplazar" : slot ? "Mover aquí" : "Asignar"}
             </button>
           )}
         </div>
@@ -596,6 +600,11 @@ function LineupPitch({
               </div>
             ) : (
               <p className="text-sm text-muted">Puesto vacío: elige a un jugador.</p>
+            )}
+            {current && (
+              <p className="text-sm text-muted">
+                Si eliges a otro jugador, {current.full_name} sale de la nómina.
+              </p>
             )}
             {groups.map((g) =>
               g.list.length === 0 ? null : g.folded ? (
