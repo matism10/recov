@@ -163,7 +163,7 @@ export function slotLabel(kind: PitchKind, starters: number, slot: number) {
   return spot ? `Puesto ${slot} · ${spot.position}` : `Puesto ${slot}`;
 }
 
-// Banca sugerida por puesto (no obligatoria): las posiciones que se suelen usar en
+// Banca sugerida por puesto (no obligatoria; la lista de cada puesto parte filtrada en ellas): las posiciones que se suelen usar en
 // cada número de la banca. En rugby, 16 hooker, 17 y 18 pilares, 19 segunda línea,
 // 20 tercera línea, 21 medio scrum, 22 apertura o fullback y 23 centro o wing.
 export type BenchHint = { positions: string[]; label: string };
