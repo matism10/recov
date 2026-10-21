@@ -30,3 +30,8 @@ export function formatPhone(phone: string): string {
   const m = /^\+569(\d{4})(\d{4})$/.exec(phone);
   return m ? `+56 9 ${m[1]} ${m[2]}` : phone;
 }
+
+// Enlace para abrir un chat de WhatsApp con el número (sin el "+").
+export function whatsappUrl(phone: string): string {
+  return `https://wa.me/${phone.replace(/\D/g, "")}`;
+}

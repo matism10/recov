@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canManageInjuries, isStaff, type Availability, type UserRole } from "@/lib/roles";
 import { getAvatarUrls } from "@/lib/avatars";
 import { Avatar } from "@/app/avatar";
+import { WhatsAppButton } from "@/app/whatsapp-button";
 import {
   INJURY_STATUS_LABEL,
   OCCURRED_DURING_LABEL,
@@ -122,6 +123,12 @@ export default async function InjuryPage({
   const playerAvatarUrl = player?.user_id
     ? ((await getAvatarUrls(supabase, [player.user_id])).get(player.user_id) ?? null)
     : null;
+  // Teléfono para contactar al jugador: solo el staff, y solo si lo dejó.
+  // get_player_phone devuelve null a quien no corresponde (0030).
+  const { data: phone } =
+    staff && !isOwnInjury
+      ? await supabase.rpc("get_player_phone", { p_player_id: injury.player_id })
+      : { data: null };
   // Qué secciones se ven: las mismas condiciones de antes.
   const showReview = canManage && (inEvaluation || status === "activa");
   const showPhases = staff || isOwnInjury;
@@ -198,6 +205,9 @@ export default async function InjuryPage({
               <InjuryStatusBadge status={status} />
               <p className="text-sm text-muted">{statusLine}</p>
             </div>
+            {phone && player && (
+              <WhatsAppButton phone={phone as string} name={player.full_name} />
+            )}
           </header>
 
           {showBanner && (
