@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState, useState, type ChangeEvent } from "react";
+import { useActionState, useId, useState, type ChangeEvent, type FormEvent } from "react";
 import { ROLE_LABEL, STAFF_SIGNUP_ROLES } from "@/lib/roles";
 import { resizeAvatar } from "@/app/avatar-resize";
+import { PhoneField } from "@/app/phone-field";
+import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 import { registerMember, type RegisterState } from "./actions";
 import { ErrorMessage, buttonPrimary, inputClass, labelClass, optionalClass, textButton } from "@/app/ui";
 
@@ -26,6 +28,8 @@ export function RegisterForm({
   const [avatar, setAvatar] = useState<Blob | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const phoneId = useId();
 
   async function pickAvatar(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -49,7 +53,21 @@ export function RegisterForm({
   }
 
   // La foto ya achicada viaja en el FormData; el input de archivo no tiene name.
+  // El teléfono se valida antes de enviar (la acción lo revisa de nuevo). Va en
+  // onSubmit: si se cortara dentro de la acción, React igual limpia el formulario.
+  function validate(e: FormEvent<HTMLFormElement>) {
+    const input = e.currentTarget.elements.namedItem("phone");
+    if (input instanceof HTMLInputElement && normalizePhone(input.value) === null) {
+      e.preventDefault();
+      setPhoneError(PHONE_ERROR);
+      input.focus();
+    }
+  }
+
   function submit(formData: FormData) {
+    const phone = normalizePhone(String(formData.get("phone") ?? ""));
+    if (phone) formData.set("phone", phone);
+    setPhoneError(null);
     if (avatar) formData.set("avatar", avatar, "foto.jpg");
     formAction(formData);
   }
@@ -72,7 +90,7 @@ export function RegisterForm({
   }
 
   return (
-    <form action={submit} className="space-y-4">
+    <form action={submit} onSubmit={validate} className="space-y-4">
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="kind" value={kind} />
 
@@ -241,6 +259,13 @@ export function RegisterForm({
               />
             </label>
           </div>
+
+          <PhoneField
+            id={phoneId}
+            defaultValue={f?.phone}
+            error={phoneError}
+            onChange={() => phoneError && setPhoneError(null)}
+          />
         </>
       ) : (
         <label className={labelClass}>

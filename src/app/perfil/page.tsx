@@ -5,7 +5,13 @@ import { signOut } from "@/app/login/actions";
 import { ROLE_LABEL, type UserRole } from "@/lib/roles";
 import { getAvatarUrls } from "@/lib/avatars";
 import { buttonSecondary, cardClass, textButton } from "@/app/ui";
-import { AvatarForm, PasswordForm, ProfileForm, type PlayerFields } from "./profile-forms";
+import {
+  AvatarForm,
+  PasswordForm,
+  PhoneForm,
+  ProfileForm,
+  type PlayerFields,
+} from "./profile-forms";
 
 // El staff solo tiene full_name: se separa en la primera palabra (nombre) y el resto (apellido).
 function splitName(fullName: string | null) {
@@ -37,7 +43,7 @@ export default async function ProfilePage() {
   // RLS: el jugador ve su propia ficha del plantel.
   const { data: playerRow } = await supabase
     .from("players")
-    .select("first_name, last_name, position, secondary_position, height_cm, weight_kg")
+    .select("id, first_name, last_name, position, secondary_position, height_cm, weight_kg")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -56,6 +62,11 @@ export default async function ProfilePage() {
         weightKg: playerRow.weight_kg === null ? null : Number(playerRow.weight_kg),
       }
     : null;
+
+  // get_player_phone (0030): al propio jugador siempre le devuelve su número.
+  const { data: phone } = playerRow
+    ? await supabase.rpc("get_player_phone", { p_player_id: playerRow.id })
+    : { data: null };
 
   const avatarUrl = (await getAvatarUrls(supabase, [user.id])).get(user.id) ?? null;
 
@@ -91,6 +102,13 @@ export default async function ProfilePage() {
             positions={(positions ?? []).map((p) => p.name as string)}
           />
         </section>
+
+        {playerRow && (
+          <section className={`p-5 ${cardClass}`}>
+            <h2 className="mb-4 font-semibold text-ink">Contacto</h2>
+            <PhoneForm phone={(phone as string | null) ?? null} />
+          </section>
+        )}
 
         <section className={`p-5 ${cardClass}`}>
           <h2 className="mb-4 font-semibold text-ink">Cuenta</h2>
