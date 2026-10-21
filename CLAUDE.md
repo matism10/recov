@@ -44,6 +44,8 @@ Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` 
 - Pantallas: `/nominas` (staff; "Armar nómina" lleva al próximo partido o a `/nominas/sin-partido`), la nómina de cada partido en `/calendario/[id]/disponibles` (lista o cancha con banca) y la participación en `/calendario/[id]/participacion`.
 - Pruebas: `supabase/tests/match_load_test.sql`.
 
+**Teléfono del jugador (0030):** tabla `player_contacts` (`player_id` PK, `club_id`, `phone` en formato `+56912345678`), con RLS y sin políticas: no se lee ni escribe directo. `set_my_phone(p_phone)` lo guarda el propio jugador (también pendiente); `null` o `''` lo borra. `get_player_phone(p_player_id)` lo devuelve al propio jugador o al staff confirmado del club si el jugador está confirmado; si no, `null`. Aún sin UI.
+
 **Ajustes del club (Configuración, solo dirección):**
 - Métricas del Resumen (0023, 0024): `clubs.dashboard_metrics` (computador) y `dashboard_metrics_mobile` (celular), claves del catálogo `private.dashboard_metric_keys()`; NULL = las de siempre. Las elige solo el `head_coach` con `set_dashboard_metrics` y `set_dashboard_metrics_mobile`.
 - Identidad (0025, 0026): `clubs.category` (2–40 caracteres o NULL) es fija: la ponemos nosotros por SQL al crear el club (`set_club_category` quedó sin permisos para nadie). La portada (`clubs.cover_path`, con `set_club_cover`) va en el bucket privado `club-covers/{club_id}/…` (5 MB): la leen solo los confirmados del club (URL firmada) y la suben o borran solo la dirección. Su encuadre es `cover_position_x/y` (object-position en %, 0–100, por defecto 50) con `set_club_cover_position`; una portada nueva vuelve al centro. El encabezado del club (`ClubHeader`) la muestra en el Resumen.
