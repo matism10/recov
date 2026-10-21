@@ -5,7 +5,9 @@ import { useState, useTransition, type ReactNode } from "react";
 import { Ban, CircleAlert, CircleCheck, CircleHelp, Search, type LucideIcon } from "lucide-react";
 import { matchesName } from "@/lib/search";
 import {
+  BENCH_HINTS,
   PITCH_LAYOUTS,
+  benchHint,
   pitchKind,
   shortPlayerName,
   shortPositionLabel,
@@ -151,6 +153,15 @@ export function AvailablePlayers({
     next.set(id, slot);
     update(next);
   }
+  // Varios puestos de una vez ("Completar banca sugerida"), sin pasar el máximo.
+  function fill(pairs: [string, number][]) {
+    const next = new Map(lineup);
+    for (const [pid, slot] of pairs) {
+      if (!next.has(pid) && next.size >= max) break;
+      next.set(pid, slot);
+    }
+    update(next);
+  }
   function clearSlot(slot: number) {
     const next = new Map(lineup);
     for (const [pid, s] of next) if (s === slot) next.set(pid, null);
@@ -267,6 +278,7 @@ export function AvailablePlayers({
             primaryOf={primaryOf}
             pending={pending}
             onAssign={assign}
+            onFill={fill}
             onClear={clearSlot}
             slotChip={slotChip}
           />
@@ -448,6 +460,7 @@ function LineupPitch({
   primaryOf,
   pending,
   onAssign,
+  onFill,
   onClear,
   slotChip,
 }: {
@@ -460,17 +473,26 @@ function LineupPitch({
   primaryOf: (p: Row) => string;
   pending: boolean;
   onAssign: (playerId: string, slot: number) => void;
+  onFill: (pairs: [string, number][]) => void;
   onClear: (slot: number) => void;
   slotChip: (slot: number | null | undefined) => ReactNode;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+  // Banca: filtro por posición ("sugeridos" si el puesto tiene sugerencia).
+  const [benchFilter, setBenchFilter] = useState<string>("todas");
+  const [fillNote, setFillNote] = useState<string | null>(null);
   const byId = new Map(players.map((p) => [p.player_id, p]));
   const holder = (slot: number) => {
     for (const [pid, s] of lineup) if (s === slot) return byId.get(pid) ?? null;
     return null;
   };
-  const choose = (slot: number) => setSelected(selected === slot ? null : slot);
+  const choose = (slot: number) => {
+    setSelected(selected === slot ? null : slot);
+    setBenchFilter(benchHint(kind, slot) ? "sugeridos" : "todas");
+  };
+  const playsIn = (p: Row, positions: string[]) =>
+    positions.includes(primaryOf(p)) || positions.includes(secondaryByPlayer[p.player_id] ?? "");
 
   const spots = PITCH_LAYOUTS[kind].filter((s) => s.slot <= nomina.starters);
   const markers = spots.map((s) => {
@@ -497,16 +519,51 @@ function LineupPitch({
   ];
   const benchMarkers: PitchMarker[] = benchSlots.map((slot) => {
     const h = holder(slot);
+    const hint = benchHint(kind, slot);
     return {
       key: `${slot}`,
       code: String(slot),
-      label: h ? shortPlayerName(h.full_name) : "—",
+      label: h ? shortPlayerName(h.full_name) : (hint?.label ?? "—"),
       active: selected === slot,
       filled: !!h,
-      ariaLabel: `${slotLabel(kind, nomina.starters, slot)}: ${h ? h.full_name : "vacío"}`,
+      ariaLabel: `${slotLabel(kind, nomina.starters, slot)}${hint ? ` (sugerido: ${hint.label})` : ""}: ${
+        h ? h.full_name : "vacío"
+      }`,
       onClick: () => choose(slot),
     };
   });
+
+  // "Completar banca sugerida": cada puesto de banca vacío con sugerencia recibe a
+  // un jugador disponible de esas posiciones que no esté en la nómina.
+  const hasHints = !!BENCH_HINTS[kind];
+  function fillSuggested() {
+    const used = new Set(lineup.keys());
+    const pairs: [string, number][] = [];
+    let missing = 0;
+    for (const slot of benchSlots) {
+      const hint = benchHint(kind, slot);
+      if (!hint || holder(slot)) continue;
+      const pick = [...players]
+        .sort(byPosition)
+        .find((p) => p.state === "ok" && !used.has(p.player_id) && hint.positions.includes(primaryOf(p)))
+        ?? [...players]
+          .sort(byPosition)
+          .find((p) => p.state === "ok" && !used.has(p.player_id) && playsIn(p, hint.positions));
+      if (pick) {
+        used.add(pick.player_id);
+        pairs.push([pick.player_id, slot]);
+      } else missing++;
+    }
+    onFill(pairs);
+    setFillNote(
+      pairs.length === 0
+        ? "No hay jugadores disponibles de las posiciones sugeridas fuera de la nómina."
+        : missing > 0
+          ? `Se completaron ${pairs.length} puestos. ${missing} quedaron vacíos: no hay jugadores disponibles de su posición.`
+          : `Se completaron ${pairs.length} puestos de la banca. Revisa y guarda la nómina.`,
+    );
+  }
+  const emptyHinted = benchSlots.filter((slot) => benchHint(kind, slot) && !holder(slot)).length;
 
   const position =
     selected !== null ? spots.find((s) => s.slot === selected)?.position : undefined;
@@ -537,7 +594,20 @@ function LineupPitch({
           ),
         },
       ]
-    : [{ title: "Plantel", list: avail([...players]) }];
+    : benchGroups();
+
+  // Banca: filtro por posición (sugeridos, todas o una posición).
+  function benchGroups(): { title: string; list: Row[]; folded?: boolean }[] {
+    const hint = selected !== null ? benchHint(kind, selected) : null;
+    if (benchFilter === "sugeridos" && hint) {
+      return [{ title: `Sugeridos: ${hint.label}`, list: avail(players.filter((p) => playsIn(p, hint.positions))) }];
+    }
+    if (benchFilter !== "todas") {
+      return [{ title: benchFilter, list: avail(players.filter((p) => primaryOf(p) === benchFilter)) }];
+    }
+    return [{ title: "Todo el plantel", list: avail([...players]) }];
+  }
+  const benchPositions = [...new Set([...players].sort(byPosition).map(primaryOf))];
 
   const assignRow = (p: Row) => {
     const slot = lineup.get(p.player_id);
@@ -577,7 +647,31 @@ function LineupPitch({
   return (
     <PitchLayout
       selectedKey={selected}
-      pitch={<Pitch kind={kind} markers={markers} bench={{ title: "Banca", markers: benchMarkers }} />}
+      pitch={
+        <Pitch
+          kind={kind}
+          markers={markers}
+          bench={{ title: "Banca", markers: benchMarkers }}
+          below={
+            hasHints && (
+              <div className="space-y-1 text-center">
+                <button
+                  type="button"
+                  onClick={fillSuggested}
+                  disabled={pending || emptyHinted === 0}
+                  className={`text-sm ${buttonSecondary}`}
+                >
+                  Completar banca sugerida
+                </button>
+                <p className="text-xs text-muted">
+                  {fillNote ??
+                    "Llena los puestos de banca vacíos con jugadores disponibles de la posición sugerida."}
+                </p>
+              </div>
+            )
+          }
+        />
+      }
       panel={
         selected === null ? (
           <p className={`p-5 text-sm text-muted ${cardClass}`}>
@@ -586,9 +680,37 @@ function LineupPitch({
         ) : (
           <section aria-live="polite" className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-x-4">
-              <SectionTitle>{slotLabel(kind, nomina.starters, selected)}</SectionTitle>
+              <div>
+                <SectionTitle>{slotLabel(kind, nomina.starters, selected)}</SectionTitle>
+                {benchHint(kind, selected) && (
+                  <p className="text-sm text-muted">Sugerido: {benchHint(kind, selected)!.label}</p>
+                )}
+              </div>
               <OnlyAvailableToggle checked={onlyAvailable} onChange={setOnlyAvailable} />
             </div>
+            {!position && (
+              <div
+                role="group"
+                aria-label="Filtrar por posición"
+                className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+              >
+                {[
+                  ...(benchHint(kind, selected) ? [{ value: "sugeridos", label: "Sugeridos" }] : []),
+                  { value: "todas", label: "Todas" },
+                  ...benchPositions.map((p) => ({ value: p, label: p })),
+                ].map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    aria-pressed={benchFilter === o.value}
+                    onClick={() => setBenchFilter(o.value)}
+                    className={`shrink-0 ${chipButton(benchFilter === o.value)}`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {current ? (
               <div className={`flex flex-wrap items-center justify-between gap-3 p-4 ${cardClass}`}>
                 <p className="text-sm text-ink">

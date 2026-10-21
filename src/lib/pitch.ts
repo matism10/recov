@@ -162,3 +162,25 @@ export function slotLabel(kind: PitchKind, starters: number, slot: number) {
   const spot = PITCH_LAYOUTS[kind].find((s) => s.slot === slot);
   return spot ? `Puesto ${slot} · ${spot.position}` : `Puesto ${slot}`;
 }
+
+// Banca sugerida por puesto (no obligatoria): las posiciones que se suelen usar en
+// cada número de la banca. En rugby, 16 hooker, 17 y 18 pilares, 19 segunda línea,
+// 20 tercera línea, 21 medio scrum, 22 apertura o fullback y 23 centro o wing.
+export type BenchHint = { positions: string[]; label: string };
+
+export const BENCH_HINTS: Partial<Record<PitchKind, Record<number, BenchHint>>> = {
+  rugby: {
+    16: { positions: ["Hooker"], label: "Hooker" },
+    17: { positions: ["Pilar"], label: "Pilar" },
+    18: { positions: ["Pilar"], label: "Pilar" },
+    19: { positions: ["Segunda línea"], label: "2ª línea" },
+    20: { positions: ["Flanker", "Octavo"], label: "3ª línea" },
+    21: { positions: ["Medio scrum"], label: "Medio scrum" },
+    22: { positions: ["Apertura", "Fullback"], label: "Apertura o fullback" },
+    23: { positions: ["Centro", "Wing"], label: "Centro o wing" },
+  },
+};
+
+export function benchHint(kind: PitchKind, slot: number): BenchHint | null {
+  return BENCH_HINTS[kind]?.[slot] ?? null;
+}
