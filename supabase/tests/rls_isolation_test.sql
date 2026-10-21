@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0026.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0030.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -972,5 +972,109 @@ select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.
   where n.nspname = 'public' and p.proname in ('set_club_cover', 'set_club_cover_position')
   and p.prosecdef and p.proconfig = array['search_path=""']$q$, 2, 'set_club_cover y set_club_cover_position son SECURITY DEFINER con search_path vacío');
 select pg_temp.expect_count($q$select 1 from storage.buckets where id = 'club-covers' and not public and file_size_limit = 5242880$q$, 1, 'bucket club-covers privado y de 5 MB');
+
+-- =======================================================================
+-- 22. Teléfono del jugador (0030)
+-- =======================================================================
+-- Jugador A1 guarda su número; nadie lee la tabla directo.
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');   -- jugador A1
+select pg_temp.expect_ok($q$select public.set_my_phone('+56912345678')$q$, 'jugador A1 guarda su teléfono');
+select pg_temp.expect_ok($q$select public.set_my_phone('+56987654321')$q$, 'jugador A1 cambia su teléfono (upsert)');
+select pg_temp.expect_fail($q$select 1 from public.player_contacts$q$, 'jugador A1 lee player_contacts directo');
+select pg_temp.expect_fail($q$insert into public.player_contacts (player_id, club_id, phone)
+  values ('a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', '+56911111111')$q$, 'jugador A1 escribe player_contacts directo');
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'jugador A1 lee su propio teléfono');
+select pg_temp.expect_fail($q$select public.set_my_phone('56912345678')$q$, 'teléfono sin +');
+select pg_temp.expect_fail($q$select public.set_my_phone('+5691234')$q$, 'teléfono demasiado corto');
+select pg_temp.expect_fail($q$select public.set_my_phone('+0912345678')$q$, 'teléfono que empieza en 0');
+select pg_temp.expect_fail($q$select public.set_my_phone('+56 9 1234 5678')$q$, 'teléfono con espacios');
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'un formato inválido no cambia el número');
+select pg_temp.back();
+
+-- Otros jugadores no lo ven: compañero del club A y jugador del club B.
+select pg_temp.as_user('70000000-0000-0000-0000-00000000000a');   -- jugador del club A (confirmado en la sección 6)
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') is null$q$, 1, 'otro jugador del club A no ve el teléfono de A1');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000b');   -- jugador B1
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') is null$q$, 1, 'jugador B1 no ve el teléfono de A1');
+select pg_temp.expect_fail($q$select 1 from public.player_contacts$q$, 'jugador B1 lee player_contacts directo');
+select pg_temp.back();
+
+-- Staff confirmado del club A sí lo ve (los 6 roles de staff).
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'head coach A ve el teléfono de A1');
+select pg_temp.expect_fail($q$select public.set_my_phone('+56911111111')$q$, 'head coach A (sin ficha de jugador) guarda un teléfono');
+select pg_temp.expect_fail($q$select 1 from public.player_contacts$q$, 'head coach A lee player_contacts directo');
+select pg_temp.back();
+select pg_temp.as_user('20000000-0000-0000-0000-00000000000a');   -- manager A
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'manager A ve el teléfono de A1');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'kine A ve el teléfono de A1');
+select pg_temp.expect_fail($q$select public.set_my_phone('+56911111111')$q$, 'kine A guarda un teléfono');
+select pg_temp.back();
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');   -- entrenador A
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'entrenador A ve el teléfono de A1');
+select pg_temp.back();
+select pg_temp.as_user('50000000-0000-0000-0000-00000000000a');   -- nutricionista A
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'nutricionista A ve el teléfono de A1');
+select pg_temp.back();
+-- Preparador físico: se le da el rol al nutricionista solo para esta prueba.
+update public.profiles set roles = '{preparador_fisico}' where id = '50000000-0000-0000-0000-00000000000a';
+select pg_temp.as_user('50000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'preparador físico A ve el teléfono de A1');
+select pg_temp.back();
+update public.profiles set roles = '{nutricionista}' where id = '50000000-0000-0000-0000-00000000000a';
+
+-- Staff de otro club y staff pendiente no lo ven.
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');   -- kine B
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') is null$q$, 1, 'kine B no ve el teléfono de A1');
+select pg_temp.back();
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');   -- staff pendiente A
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') is null$q$, 1, 'staff pendiente A no ve el teléfono de A1');
+select pg_temp.expect_fail($q$select public.set_my_phone('+56911111111')$q$, 'staff pendiente A guarda un teléfono');
+select pg_temp.back();
+
+-- Jugador pendiente: guarda su número, pero el staff no lo ve hasta que lo confirmen.
+-- (el id de su ficha se guarda en un ajuste de la sesión para usarlo en las consultas)
+select set_config('test.pending_player', (select id::text from public.players
+  where user_id = 'c0000000-0000-0000-0000-00000000000a'), true);
+select pg_temp.expect_count($q$select 1 from public.players where id = current_setting('test.pending_player')::uuid
+  and status = 'pendiente'$q$, 1, 'el jugador nuevo sigue pendiente');
+select pg_temp.as_user('c0000000-0000-0000-0000-00000000000a');   -- jugador pendiente
+select pg_temp.expect_ok($q$select public.set_my_phone('+56922223333')$q$, 'jugador pendiente guarda su teléfono');
+select pg_temp.expect_count($q$select 1 where public.get_player_phone(current_setting('test.pending_player')::uuid) = '+56922223333'$q$, 1, 'jugador pendiente lee su propio teléfono');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A
+select pg_temp.expect_count($q$select 1 where public.get_player_phone(current_setting('test.pending_player')::uuid) is null$q$, 1, 'kine A no ve el teléfono de un jugador pendiente');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.player_contacts pc join public.players p on p.id = pc.player_id
+  where p.user_id = 'c0000000-0000-0000-0000-00000000000a' and pc.phone = '+56922223333'$q$, 1, 'el teléfono del jugador pendiente quedó guardado');
+
+-- null o '' lo borran.
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');   -- jugador A1
+select pg_temp.expect_ok($q$select public.set_my_phone(null)$q$, 'jugador A1 borra su teléfono con null');
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') is null$q$, 1, 'tras null no hay teléfono');
+select pg_temp.expect_ok($q$select public.set_my_phone('+56912345678')$q$, 'jugador A1 lo vuelve a guardar');
+select pg_temp.expect_ok($q$select public.set_my_phone('  ')$q$, 'jugador A1 lo borra con texto vacío');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.player_contacts where player_id = 'a1000000-1111-0000-0000-000000000001'$q$, 0, 'la fila de A1 se borró');
+
+-- Anónimo: no ejecuta ninguna de las dos ni lee la tabla.
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select public.set_my_phone('+56912345678')$q$, 'anónimo guarda un teléfono');
+select pg_temp.expect_fail($q$select public.get_player_phone('a1000000-1111-0000-0000-000000000001')$q$, 'anónimo lee un teléfono');
+select pg_temp.expect_fail($q$select 1 from public.player_contacts$q$, 'anónimo lee player_contacts');
+select pg_temp.back();
+
+select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.set_my_phone(text)', 'EXECUTE')
+  or has_function_privilege('anon', 'public.get_player_phone(uuid)', 'EXECUTE')$q$, 0, 'anon no ejecuta set_my_phone ni get_player_phone');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'public.set_my_phone(text)', 'EXECUTE')
+  and has_function_privilege('authenticated', 'public.get_player_phone(uuid)', 'EXECUTE')$q$, 1, 'authenticated ejecuta set_my_phone y get_player_phone');
+select pg_temp.expect_count($q$select 1 from pg_class where oid = 'public.player_contacts'::regclass and relrowsecurity$q$, 1, 'player_contacts tiene RLS activo');
+select pg_temp.expect_count($q$select 1 from pg_policies where schemaname = 'public' and tablename = 'player_contacts'$q$, 0, 'player_contacts no tiene políticas');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname in ('set_my_phone', 'get_player_phone')
+  and p.prosecdef and p.proconfig = array['search_path=""']$q$, 2, 'set_my_phone y get_player_phone son SECURITY DEFINER con search_path vacío');
 
 rollback;
