@@ -9,7 +9,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Migraciones 0001 a 0016 aplicadas en Supabase. 0007 a 0015 se aplicaron por MCP; 0001 a 0006 y 0016, por el SQL Editor.
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
 - Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario) y `match_load_test.sql` (nóminas y carga).
-- 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel. 0029: nómina por puestos (titulares y banca).
+- 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel. 0029: nómina por puestos (titulares y banca). 0030: teléfono opcional del jugador (solo base de datos, sin UI).
 - CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones.
 
 ## Flujo de la plataforma
