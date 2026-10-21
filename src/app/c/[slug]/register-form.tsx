@@ -159,6 +159,15 @@ export function RegisterForm({
         />
       </label>
 
+      {kind === "jugador" && (
+        <PhoneField
+          id={phoneId}
+          defaultValue={f?.phone}
+          error={phoneError}
+          onChange={() => phoneError && setPhoneError(null)}
+        />
+      )}
+
       <label className={labelClass}>
         Contraseña
         <input
@@ -259,13 +268,6 @@ export function RegisterForm({
               />
             </label>
           </div>
-
-          <PhoneField
-            id={phoneId}
-            defaultValue={f?.phone}
-            error={phoneError}
-            onChange={() => phoneError && setPhoneError(null)}
-          />
         </>
       ) : (
         <label className={labelClass}>
