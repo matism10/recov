@@ -21,12 +21,13 @@ export const RANKING_PREVIEW = 5;
 
 export function LoadSection({ result }: { result: LoadResult<TeamLoad> }) {
   return (
-    <section className="mb-8">
+    // Una sola lámina: título, resumen, ranking y el enlace al ranking completo.
+    <section className={`mb-8 ${metricCardClass}`}>
       <SectionTitle className="mb-1">Carga del plantel</SectionTitle>
       {!result.ok ? (
         <MetricsError />
       ) : result.data.matches_count === 0 ? (
-        <p className={`mt-3 text-sm text-muted ${metricCardClass}`}>
+        <p className="mt-2 text-sm text-muted">
           Aún no hay partidos con participación cargada. Se carga desde Nóminas o desde el
           calendario, en cada partido.
         </p>
@@ -34,7 +35,7 @@ export function LoadSection({ result }: { result: LoadResult<TeamLoad> }) {
         <div className="space-y-4">
           <LoadIntro load={result.data} />
           <LoadSummary load={result.data} />
-          <LoadRanking load={result.data} limit={RANKING_PREVIEW} />
+          <LoadRanking load={result.data} limit={RANKING_PREVIEW} bare />
           {result.data.players.length > RANKING_PREVIEW && (
             <Link href="/metricas/carga" className={`w-full text-sm sm:w-auto ${buttonSecondary}`}>
               Ver ranking completo
@@ -107,11 +108,20 @@ export function LoadSummary({ load }: { load: TeamLoad }) {
 }
 
 // Ranking por carga (todos o los primeros `limit`).
-export function LoadRanking({ load, limit }: { load: TeamLoad; limit?: number }) {
+// `bare`: sin tarjeta propia, para ir dentro de otra lámina.
+export function LoadRanking({
+  load,
+  limit,
+  bare = false,
+}: {
+  load: TeamLoad;
+  limit?: number;
+  bare?: boolean;
+}) {
   const n = load.matches_count;
   const rows = limit ? load.players.slice(0, limit) : load.players;
   return (
-    <div className={metricCardClass}>
+    <div className={bare ? "border-t border-line pt-4" : metricCardClass}>
       <h3 className="mb-2 font-medium text-ink">
         Ranking por carga{limit ? ` · primeros ${Math.min(limit, load.players.length)}` : ""}
       </h3>
