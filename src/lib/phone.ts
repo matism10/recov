@@ -24,3 +24,9 @@ export function normalizePhone(input: string): string | null {
 
   return PHONE_RE.test(phone) ? phone : null;
 }
+
+// Para mostrar: los celulares chilenos como "+56 9 1234 5678"; el resto tal cual.
+export function formatPhone(phone: string): string {
+  const m = /^\+569(\d{4})(\d{4})$/.exec(phone);
+  return m ? `+56 9 ${m[1]} ${m[2]}` : phone;
+}

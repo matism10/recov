@@ -1,9 +1,19 @@
 "use client";
 
-import { useActionState, useState, useTransition, type ChangeEvent } from "react";
+import {
+  startTransition as startAction,
+  useActionState,
+  useId,
+  useState,
+  useTransition,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { createClient } from "@/lib/supabase/client";
 import { resizeAvatar } from "@/app/avatar-resize";
 import { Avatar } from "@/app/avatar";
+import { PhoneField } from "@/app/phone-field";
+import { PHONE_ERROR, formatPhone, normalizePhone } from "@/lib/phone";
 import {
   ErrorMessage,
   SuccessMessage,
@@ -14,7 +24,14 @@ import {
   optionalClass,
   textButton,
 } from "@/app/ui";
-import { changePassword, setAvatar, updateProfile, type ProfileState } from "./actions";
+import {
+  changePassword,
+  setAvatar,
+  updatePhone,
+  updateProfile,
+  type PhoneState,
+  type ProfileState,
+} from "./actions";
 
 const optional = <span className={optionalClass}>(opcional)</span>;
 
@@ -268,6 +285,68 @@ export function PasswordForm() {
       <button type="submit" disabled={pending} className={`w-full ${buttonSecondary}`}>
         {pending ? "Guardando…" : "Cambia la contraseña"}
       </button>
+    </form>
+  );
+}
+
+// Teléfono del jugador: se valida y normaliza antes de enviar (la acción lo
+// revisa de nuevo). "Quita" lo borra.
+export function PhoneForm({ phone }: { phone: string | null }) {
+  const [state, formAction, pending] = useActionState<PhoneState, FormData>(updatePhone, {
+    phone: phone ?? "",
+  });
+  const [clientError, setClientError] = useState<string | null>(null);
+  const id = useId();
+  const saved = state.phone ?? "";
+  const error = clientError ?? state.error ?? null;
+
+  // Validar en onSubmit: si se cortara dentro de la acción, React igual limpia el campo.
+  function validate(e: FormEvent<HTMLFormElement>) {
+    const input = e.currentTarget.elements.namedItem("phone");
+    if (input instanceof HTMLInputElement && normalizePhone(input.value) === null) {
+      e.preventDefault();
+      setClientError(PHONE_ERROR);
+      input.focus();
+    }
+  }
+
+  function submit(formData: FormData) {
+    setClientError(null);
+    formData.set("phone", normalizePhone(String(formData.get("phone") ?? "")) ?? "");
+    formAction(formData);
+  }
+
+  function remove() {
+    setClientError(null);
+    const formData = new FormData();
+    formData.set("phone", "");
+    startAction(() => formAction(formData));
+  }
+
+  return (
+    <form action={submit} onSubmit={validate} className="space-y-4">
+      {/* key: tras guardar, el campo muestra el número ya normalizado */}
+      <PhoneField
+        key={saved}
+        id={id}
+        defaultValue={saved ? formatPhone(saved) : ""}
+        error={error}
+        onChange={() => clientError && setClientError(null)}
+        disabled={pending}
+      />
+      {state.ok && !pending && !clientError && (
+        <SuccessMessage>{saved ? "Teléfono guardado." : "Teléfono quitado."}</SuccessMessage>
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending} className={`flex-1 ${buttonSecondary}`}>
+          {pending ? "Guardando…" : "Guarda el teléfono"}
+        </button>
+        {saved && (
+          <button type="button" onClick={remove} disabled={pending} className={textButton}>
+            Quita
+          </button>
+        )}
+      </div>
     </form>
   );
 }

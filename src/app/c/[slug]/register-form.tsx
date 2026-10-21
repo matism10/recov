@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useId, useState, type ChangeEvent } from "react";
+import { useActionState, useId, useState, type ChangeEvent, type FormEvent } from "react";
 import { ROLE_LABEL, STAFF_SIGNUP_ROLES } from "@/lib/roles";
 import { resizeAvatar } from "@/app/avatar-resize";
-import { InfoPopover } from "@/app/info-popover";
+import { PhoneField } from "@/app/phone-field";
 import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 import { registerMember, type RegisterState } from "./actions";
 import { ErrorMessage, buttonPrimary, inputClass, labelClass, optionalClass, textButton } from "@/app/ui";
@@ -11,9 +11,6 @@ import { ErrorMessage, buttonPrimary, inputClass, labelClass, optionalClass, tex
 type Kind = "jugador" | "staff";
 
 const optional = <span className={optionalClass}>(opcional)</span>;
-
-const PHONE_HELP =
-  "Facilita la comunicación directa entre el staff y tú ante dudas puntuales: cómo vas con tu lesión, si estás disponible para entrenar o jugar. Solo lo ve el staff de tu club. Es opcional.";
 
 export function RegisterForm({
   slug,
@@ -56,17 +53,20 @@ export function RegisterForm({
   }
 
   // La foto ya achicada viaja en el FormData; el input de archivo no tiene name.
-  function submit(formData: FormData) {
-    // El teléfono se valida y normaliza antes de enviar (la acción lo revisa de nuevo).
-    if (kind === "jugador") {
-      const phone = normalizePhone(String(formData.get("phone") ?? ""));
-      if (phone === null) {
-        setPhoneError(PHONE_ERROR);
-        document.getElementById(`${phoneId}-input`)?.focus();
-        return;
-      }
-      formData.set("phone", phone);
+  // El teléfono se valida antes de enviar (la acción lo revisa de nuevo). Va en
+  // onSubmit: si se cortara dentro de la acción, React igual limpia el formulario.
+  function validate(e: FormEvent<HTMLFormElement>) {
+    const input = e.currentTarget.elements.namedItem("phone");
+    if (input instanceof HTMLInputElement && normalizePhone(input.value) === null) {
+      e.preventDefault();
+      setPhoneError(PHONE_ERROR);
+      input.focus();
     }
+  }
+
+  function submit(formData: FormData) {
+    const phone = normalizePhone(String(formData.get("phone") ?? ""));
+    if (phone) formData.set("phone", phone);
     setPhoneError(null);
     if (avatar) formData.set("avatar", avatar, "foto.jpg");
     formAction(formData);
@@ -90,7 +90,7 @@ export function RegisterForm({
   }
 
   return (
-    <form action={submit} className="space-y-4">
+    <form action={submit} onSubmit={validate} className="space-y-4">
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="kind" value={kind} />
 
@@ -260,34 +260,12 @@ export function RegisterForm({
             </label>
           </div>
 
-          <div className="relative">
-            <div className="flex items-center gap-1">
-              <label htmlFor={`${phoneId}-input`} className={labelClass}>
-                Teléfono {optional}
-              </label>
-              <InfoPopover id={`${phoneId}-help`} label="Para qué se usa el teléfono">
-                {PHONE_HELP}
-              </InfoPopover>
-            </div>
-            <input
-              id={`${phoneId}-input`}
-              name="phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="9 1234 5678"
-              defaultValue={f?.phone}
-              onChange={() => phoneError && setPhoneError(null)}
-              aria-invalid={phoneError ? true : undefined}
-              aria-describedby={`${phoneId}-help${phoneError ? ` ${phoneId}-error` : ""}`}
-              className={inputClass}
-            />
-            {phoneError && (
-              <ErrorMessage className="mt-1">
-                <span id={`${phoneId}-error`}>{phoneError}</span>
-              </ErrorMessage>
-            )}
-          </div>
+          <PhoneField
+            id={phoneId}
+            defaultValue={f?.phone}
+            error={phoneError}
+            onChange={() => phoneError && setPhoneError(null)}
+          />
         </>
       ) : (
         <label className={labelClass}>

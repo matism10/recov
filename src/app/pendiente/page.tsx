@@ -36,8 +36,8 @@ export default async function PendingPage({
       </p>
       {telefono === "no-guardado" && (
         <p role="status" className="max-w-md rounded-xl bg-mist px-4 py-3 text-sm text-ink">
-          Tu cuenta quedó creada, pero no pudimos guardar tu teléfono. Podrás agregarlo más
-          adelante.
+          Tu cuenta quedó creada, pero no pudimos guardar tu teléfono. Podrás agregarlo desde
+          tu perfil cuando el club confirme tu cuenta.
         </p>
       )}
       <form action={signOut}>

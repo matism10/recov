@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 
 export type ProfileState = { ok?: boolean; error?: string };
 
@@ -119,4 +120,28 @@ export async function setAvatar(path: string | null): Promise<ProfileState> {
     };
   }
   return done();
+}
+
+export type PhoneState = ProfileState & { phone?: string };
+
+// Teléfono del jugador (0030): set_my_phone lo guarda o, vacío, lo borra.
+// Solo lo ven el jugador y el staff confirmado de su club.
+export async function updatePhone(
+  prevState: PhoneState,
+  formData: FormData,
+): Promise<PhoneState> {
+  // Con error se conserva el número guardado, para no vaciar el campo.
+  const fail = (error: string): PhoneState => ({ error, phone: prevState.phone });
+  const phone = normalizePhone(text(formData, "phone"));
+  if (phone === null) return fail(PHONE_ERROR);
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_my_phone", { p_phone: phone || null });
+  if (error) {
+    return fail(
+      error.code === "P0001" ? error.message : "No se pudo guardar el teléfono. Intenta de nuevo.",
+    );
+  }
+  revalidatePath("/perfil");
+  return { ok: true, phone };
 }
