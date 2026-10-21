@@ -33,16 +33,18 @@ export function Pitch({
   bench?: { title: string; markers: PitchMarker[] };
   below?: ReactNode;
 }) {
+  // Con banca, la misma superficie se ensancha: a la izquierda la cancha y, junto
+  // a la línea lateral, la zona de la banca (dentro del verde, para que se note).
   return (
     <div className="space-y-3">
-      <div className={`mx-auto flex max-w-[480px] gap-2 ${bench ? "" : "justify-center"}`}>
-        <div
-          role="group"
-          aria-label="Cancha"
-          className={`relative aspect-[100/140] min-w-0 flex-1 overflow-hidden rounded-2xl ${
-            GRASS.has(kind) ? "bg-[#2f7d4c]" : "bg-[#c99560]"
-          } ${bench ? "" : "max-w-[420px]"}`}
-        >
+      <div
+        role="group"
+        aria-label="Cancha"
+        className={`relative mx-auto w-full overflow-hidden rounded-2xl ${
+          bench ? "aspect-[126/140] max-w-[480px]" : "aspect-[100/140] max-w-[420px]"
+        } ${GRASS.has(kind) ? "bg-[#2f7d4c]" : "bg-[#c99560]"}`}
+      >
+        <div className={`absolute inset-y-0 left-0 ${bench ? "w-[79.4%]" : "w-full"}`}>
           <FieldLines kind={kind} />
           {markers.map((m) => (
             <div
@@ -58,11 +60,13 @@ export function Pitch({
           <div
             role="group"
             aria-label={bench.title}
-            className="flex w-16 shrink-0 flex-col items-center gap-1 rounded-2xl bg-mist py-2"
+            className="absolute inset-y-0 right-0 flex w-[20.6%] flex-col items-center justify-evenly border-l-2 border-dashed border-white/60 bg-black/15 py-1"
           >
-            <p className="text-[11px] font-semibold text-muted">{bench.title}</p>
+            <p className="rounded-full bg-white/90 px-2 py-px text-[10px] font-bold tracking-wide text-ink uppercase">
+              {bench.title}
+            </p>
             {bench.markers.map((m) => (
-              <MarkerButton key={m.key} marker={m} />
+              <MarkerButton key={m.key} marker={m} onField compact />
             ))}
           </div>
         )}
@@ -72,7 +76,15 @@ export function Pitch({
   );
 }
 
-function MarkerButton({ marker: m, onField = false }: { marker: PitchMarker; onField?: boolean }) {
+function MarkerButton({
+  marker: m,
+  onField = false,
+  compact = false,
+}: {
+  marker: PitchMarker;
+  onField?: boolean;
+  compact?: boolean; // banca: círculo más chico para que entren todos los puestos
+}) {
   const hidden = !m.ariaLabel;
   return (
     <button
@@ -82,10 +94,12 @@ function MarkerButton({ marker: m, onField = false }: { marker: PitchMarker; onF
       aria-hidden={hidden ? true : undefined}
       tabIndex={hidden ? -1 : 0}
       aria-label={m.ariaLabel}
-      className="flex min-h-11 min-w-11 flex-col items-center gap-0.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-brand-strong"
+      className="flex min-h-11 min-w-11 flex-col items-center gap-0.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-white"
     >
       <span
-        className={`flex size-9 items-center justify-center rounded-full border-2 text-xs font-bold tabular-nums shadow-sm transition ${
+        className={`flex items-center justify-center rounded-full border-2 text-xs font-bold tabular-nums shadow-sm transition ${
+          compact ? "size-7" : "size-9"
+        } ${
           m.active
             ? "border-white bg-brand text-ink"
             : m.filled
@@ -98,7 +112,9 @@ function MarkerButton({ marker: m, onField = false }: { marker: PitchMarker; onF
         {m.code}
       </span>
       <span
-        className={`max-w-[84px] truncate rounded-full px-1.5 py-px text-[10px] leading-tight font-semibold ${
+        className={`truncate rounded-full px-1.5 py-px leading-tight font-semibold ${
+          compact ? "max-w-[64px] text-[9px]" : "max-w-[84px] text-[10px]"
+        } ${
           m.active
             ? "bg-brand text-ink"
             : onField

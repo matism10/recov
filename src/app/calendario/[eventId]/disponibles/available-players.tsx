@@ -6,6 +6,7 @@ import { Ban, CircleAlert, CircleCheck, CircleHelp, Search, type LucideIcon } fr
 import { matchesName } from "@/lib/search";
 import {
   PITCH_LAYOUTS,
+  benchHint,
   pitchKind,
   shortPlayerName,
   shortPositionLabel,
@@ -465,12 +466,20 @@ function LineupPitch({
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [onlyAvailable, setOnlyAvailable] = useState(false);
+  // Banca: filtro por posición ("sugeridos" si el puesto tiene sugerencia).
+  const [benchFilter, setBenchFilter] = useState<string>("todas");
+
   const byId = new Map(players.map((p) => [p.player_id, p]));
   const holder = (slot: number) => {
     for (const [pid, s] of lineup) if (s === slot) return byId.get(pid) ?? null;
     return null;
   };
-  const choose = (slot: number) => setSelected(selected === slot ? null : slot);
+  const choose = (slot: number) => {
+    setSelected(selected === slot ? null : slot);
+    setBenchFilter(benchHint(kind, slot) ? "sugeridos" : "todas");
+  };
+  const playsIn = (p: Row, positions: string[]) =>
+    positions.includes(primaryOf(p)) || positions.includes(secondaryByPlayer[p.player_id] ?? "");
 
   const spots = PITCH_LAYOUTS[kind].filter((s) => s.slot <= nomina.starters);
   const markers = spots.map((s) => {
@@ -497,16 +506,20 @@ function LineupPitch({
   ];
   const benchMarkers: PitchMarker[] = benchSlots.map((slot) => {
     const h = holder(slot);
+    const hint = benchHint(kind, slot);
     return {
       key: `${slot}`,
       code: String(slot),
-      label: h ? shortPlayerName(h.full_name) : "—",
+      label: h ? shortPlayerName(h.full_name) : (hint?.label ?? "—"),
       active: selected === slot,
       filled: !!h,
-      ariaLabel: `${slotLabel(kind, nomina.starters, slot)}: ${h ? h.full_name : "vacío"}`,
+      ariaLabel: `${slotLabel(kind, nomina.starters, slot)}${hint ? ` (sugerido: ${hint.label})` : ""}: ${
+        h ? h.full_name : "vacío"
+      }`,
       onClick: () => choose(slot),
     };
   });
+
 
   const position =
     selected !== null ? spots.find((s) => s.slot === selected)?.position : undefined;
@@ -537,7 +550,20 @@ function LineupPitch({
           ),
         },
       ]
-    : [{ title: "Plantel", list: avail([...players]) }];
+    : benchGroups();
+
+  // Banca: filtro por posición (sugeridos, todas o una posición).
+  function benchGroups(): { title: string; list: Row[]; folded?: boolean }[] {
+    const hint = selected !== null ? benchHint(kind, selected) : null;
+    if (benchFilter === "sugeridos" && hint) {
+      return [{ title: `Sugeridos: ${hint.label}`, list: avail(players.filter((p) => playsIn(p, hint.positions))) }];
+    }
+    if (benchFilter !== "todas") {
+      return [{ title: benchFilter, list: avail(players.filter((p) => primaryOf(p) === benchFilter)) }];
+    }
+    return [{ title: "Todo el plantel", list: avail([...players]) }];
+  }
+  const benchPositions = [...new Set([...players].sort(byPosition).map(primaryOf))];
 
   const assignRow = (p: Row) => {
     const slot = lineup.get(p.player_id);
@@ -577,7 +603,13 @@ function LineupPitch({
   return (
     <PitchLayout
       selectedKey={selected}
-      pitch={<Pitch kind={kind} markers={markers} bench={{ title: "Banca", markers: benchMarkers }} />}
+      pitch={
+        <Pitch
+          kind={kind}
+          markers={markers}
+          bench={{ title: "Banca", markers: benchMarkers }}
+        />
+      }
       panel={
         selected === null ? (
           <p className={`p-5 text-sm text-muted ${cardClass}`}>
@@ -586,9 +618,37 @@ function LineupPitch({
         ) : (
           <section aria-live="polite" className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-x-4">
-              <SectionTitle>{slotLabel(kind, nomina.starters, selected)}</SectionTitle>
+              <div>
+                <SectionTitle>{slotLabel(kind, nomina.starters, selected)}</SectionTitle>
+                {benchHint(kind, selected) && (
+                  <p className="text-sm text-muted">Sugerido: {benchHint(kind, selected)!.label}</p>
+                )}
+              </div>
               <OnlyAvailableToggle checked={onlyAvailable} onChange={setOnlyAvailable} />
             </div>
+            {!position && (
+              <div
+                role="group"
+                aria-label="Filtrar por posición"
+                className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+              >
+                {[
+                  ...(benchHint(kind, selected) ? [{ value: "sugeridos", label: "Sugeridos" }] : []),
+                  { value: "todas", label: "Todas" },
+                  ...benchPositions.map((p) => ({ value: p, label: p })),
+                ].map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    aria-pressed={benchFilter === o.value}
+                    onClick={() => setBenchFilter(o.value)}
+                    className={`shrink-0 ${chipButton(benchFilter === o.value)}`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {current ? (
               <div className={`flex flex-wrap items-center justify-between gap-3 p-4 ${cardClass}`}>
                 <p className="text-sm text-ink">
