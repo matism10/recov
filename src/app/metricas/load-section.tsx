@@ -1,19 +1,13 @@
 // Sección "Carga del plantel" de /metricas (solo staff): resumen (jugadores con
-// carga alta y sin minutos o sin partidos) y el ranking ordenado por carga, con
+// carga alta y sin minutos o sin partidos, cada uno con su lista) y el ranking ordenado por carga, con
 // mini barras de los últimos partidos escaladas a la duración del deporte. En
 // Métricas se muestran los primeros 5; /metricas/carga tiene el ranking completo.
 import Link from "next/link";
 import { CircleAlert } from "lucide-react";
-import {
-  LOAD_STATUS_LABEL,
-  LOAD_STATUS_STYLE,
-  NOMINA_MODE_LABEL,
-  totalLabel,
-  type LoadResult,
-  type PlayerLoad,
-  type TeamLoad,
-} from "@/lib/match-load";
-import { LoadMiniBars, matchDateLabel } from "@/app/load-chart";
+import { NOMINA_MODE_LABEL, type LoadResult, type TeamLoad } from "@/lib/match-load";
+import { matchDateLabel } from "@/app/load-chart";
+import { LoadRow } from "./load-row";
+import { LoadSummary } from "./load-summary";
 import { MetricsError, metricCardClass } from "@/app/metrics";
 import { SectionTitle, buttonSecondary } from "@/app/ui";
 
@@ -79,34 +73,6 @@ export function LoadIntro({ load }: { load: TeamLoad }) {
   );
 }
 
-// Resumen: cuántos con carga alta y cuántos sin minutos (o sin partidos en "jugó").
-export function LoadSummary({ load }: { load: TeamLoad }) {
-  const n = load.matches_count;
-  const jugo = load.mode === "jugo";
-  const ready = n >= 3;
-  const high = load.players.filter((p) => p.status === "alta").length;
-  const none = load.players.filter((p) => p.status === "sin_minutos" || p.status === "sin_partidos").length;
-  const cards = [
-    { value: high, label: "con carga alta" },
-    {
-      value: none,
-      label: jugo
-        ? `sin partidos en los últimos ${n}`
-        : `sin minutos en los últimos ${n} ${n === 1 ? "partido" : "partidos"}`,
-    },
-  ];
-  return (
-    <dl className="grid grid-cols-2 gap-3">
-      {cards.map((c) => (
-        <div key={c.label} className="flex flex-col-reverse rounded-xl bg-mist p-4">
-          <dt className="text-sm text-muted">{c.label}</dt>
-          <dd className="font-display text-3xl font-bold text-ink tabular-nums">{ready ? c.value : "—"}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 // Ranking por carga (todos o los primeros `limit`).
 // `bare`: sin tarjeta propia, para ir dentro de otra lámina.
 export function LoadRanking({
@@ -127,37 +93,16 @@ export function LoadRanking({
       </h3>
       <ol className="divide-y divide-line">
         {rows.map((p, i) => (
-          <li key={p.player_id} className="flex items-center gap-3 py-2.5">
-            <span className="w-5 shrink-0 text-right text-xs text-muted tabular-nums">{i + 1}</span>
-            <Link
-              href={`/jugadores/${p.player_id}`}
-              className="min-w-0 flex-1 truncate font-medium text-ink hover:underline"
-            >
-              {p.full_name}
-            </Link>
-            <LoadMiniBars
-              values={p.values}
-              mode={load.mode}
-              matchMinutes={load.match_minutes}
-              label={`Últimos partidos de ${p.full_name}`}
-            />
-            <span className="w-16 shrink-0 text-right text-sm font-semibold text-ink tabular-nums sm:w-20">
-              {totalLabel(load.mode, p.total, n)}
-            </span>
-            <span className="w-24 shrink-0 text-right">{p.status && <StatusChip status={p.status} />}</span>
-          </li>
+          <LoadRow
+            key={p.player_id}
+            player={p}
+            rank={i + 1}
+            mode={load.mode}
+            matchMinutes={load.match_minutes}
+            matchesCount={n}
+          />
         ))}
       </ol>
     </div>
-  );
-}
-
-function StatusChip({ status }: { status: NonNullable<PlayerLoad["status"]> }) {
-  return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${LOAD_STATUS_STYLE[status]}`}
-    >
-      {LOAD_STATUS_LABEL[status]}
-    </span>
   );
 }

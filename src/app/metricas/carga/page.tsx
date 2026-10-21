@@ -5,7 +5,8 @@ import { isStaff, type UserRole } from "@/lib/roles";
 import { getTeamLoad } from "@/lib/match-load";
 import { MetricsError, metricCardClass } from "@/app/metrics";
 import { PageTitle, textButton } from "@/app/ui";
-import { LoadIntro, LoadRanking, LoadSummary } from "../load-section";
+import { LoadIntro, LoadRanking } from "../load-section";
+import { LoadSummary } from "../load-summary";
 
 // Ranking completo de carga del plantel (solo staff; team_match_load lo valida).
 export default async function LoadRankingPage() {
