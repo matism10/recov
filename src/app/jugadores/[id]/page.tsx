@@ -23,6 +23,7 @@ import { getMyLoad, getTeamLoad } from "@/lib/match-load";
 import { LoadBlock } from "@/app/load-block";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
+import { WhatsAppButton } from "@/app/whatsapp-button";
 import {
   AvailabilityBadge,
   InjuryStatusBadge,
@@ -106,6 +107,13 @@ export default async function PlayerPage({
           .order("position")
       : { data: [] };
 
+  // Teléfono para contactarlo: solo el staff, y solo si el jugador lo dejó.
+  // get_player_phone devuelve null a quien no corresponde (0030).
+  const { data: phone } =
+    staff && player.user_id !== user.id
+      ? await supabase.rpc("get_player_phone", { p_player_id: player.id })
+      : { data: null };
+
   const avatarUrl = (await getAvatarUrls(supabase, [player.user_id])).get(player.user_id);
   const availability = player.availability as Availability;
   const latestReturn = open
@@ -133,6 +141,11 @@ export default async function PlayerPage({
               {player.position && `${player.position} · `}
               {pendingReview ? "Lesión por revisar" : returnLabel(latestReturn ?? null)}
             </p>
+            {phone && (
+              <div className="mt-3">
+                <WhatsAppButton phone={phone as string} name={player.full_name} />
+              </div>
+            )}
           </div>
         </div>
       </header>
