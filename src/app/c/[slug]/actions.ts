@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { STAFF_SIGNUP_ROLES, type StaffSignupRole } from "@/lib/roles";
+import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 
 const MAX_NAME = 100;
 const MIN_PASSWORD = 6;
@@ -16,6 +17,7 @@ export type RegisterFields = {
   secondaryPosition: string;
   height: string;
   weight: string;
+  phone: string;
   role: string;
 };
 
@@ -43,6 +45,7 @@ export async function registerMember(
     secondaryPosition: text(formData, "secondary_position"),
     height: text(formData, "height_cm"),
     weight: text(formData, "weight_kg").replace(",", "."),
+    phone: text(formData, "phone"),
     role: text(formData, "role"),
   };
   const fail = (error: string): RegisterState => ({ error, fields });
@@ -72,6 +75,7 @@ export async function registerMember(
 
   let height: number | null = null;
   let weight: number | null = null;
+  let phone = "";
 
   if (kind === "jugador") {
     const { data: positions } = await supabase
@@ -104,6 +108,9 @@ export async function registerMember(
       }
       weight = Math.round(weight * 10) / 10;
     }
+    const normalized = normalizePhone(fields.phone);
+    if (normalized === null) return fail(PHONE_ERROR);
+    phone = normalized;
   } else if (!STAFF_SIGNUP_ROLES.includes(fields.role as StaffSignupRole)) {
     return fail("Elige tu puesto.");
   }
@@ -173,6 +180,13 @@ export async function registerMember(
   const avatar = formData.get("avatar");
   if (avatar instanceof File && avatar.size > 0) {
     await saveAvatar(supabase, avatar);
+  }
+
+  // Teléfono opcional (solo jugadores): si no se guarda, el registro ya quedó
+  // hecho; /pendiente avisa que se puede agregar después.
+  if (phone) {
+    const { error: phoneError } = await supabase.rpc("set_my_phone", { p_phone: phone });
+    if (phoneError) redirect("/pendiente?telefono=no-guardado");
   }
 
   redirect("/pendiente");

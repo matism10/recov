@@ -1,14 +1,19 @@
 "use client";
 
-import { useActionState, useState, type ChangeEvent } from "react";
+import { useActionState, useId, useState, type ChangeEvent } from "react";
 import { ROLE_LABEL, STAFF_SIGNUP_ROLES } from "@/lib/roles";
 import { resizeAvatar } from "@/app/avatar-resize";
+import { InfoPopover } from "@/app/info-popover";
+import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 import { registerMember, type RegisterState } from "./actions";
 import { ErrorMessage, buttonPrimary, inputClass, labelClass, optionalClass, textButton } from "@/app/ui";
 
 type Kind = "jugador" | "staff";
 
 const optional = <span className={optionalClass}>(opcional)</span>;
+
+const PHONE_HELP =
+  "Facilita la comunicación directa entre el staff y tú ante dudas puntuales: cómo vas con tu lesión, si estás disponible para entrenar o jugar. Solo lo ve el staff de tu club. Es opcional.";
 
 export function RegisterForm({
   slug,
@@ -26,6 +31,8 @@ export function RegisterForm({
   const [avatar, setAvatar] = useState<Blob | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const phoneId = useId();
 
   async function pickAvatar(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -50,6 +57,17 @@ export function RegisterForm({
 
   // La foto ya achicada viaja en el FormData; el input de archivo no tiene name.
   function submit(formData: FormData) {
+    // El teléfono se valida y normaliza antes de enviar (la acción lo revisa de nuevo).
+    if (kind === "jugador") {
+      const phone = normalizePhone(String(formData.get("phone") ?? ""));
+      if (phone === null) {
+        setPhoneError(PHONE_ERROR);
+        document.getElementById(`${phoneId}-input`)?.focus();
+        return;
+      }
+      formData.set("phone", phone);
+    }
+    setPhoneError(null);
     if (avatar) formData.set("avatar", avatar, "foto.jpg");
     formAction(formData);
   }
@@ -240,6 +258,35 @@ export function RegisterForm({
                 className={inputClass}
               />
             </label>
+          </div>
+
+          <div className="relative">
+            <div className="flex items-center gap-1">
+              <label htmlFor={`${phoneId}-input`} className={labelClass}>
+                Teléfono {optional}
+              </label>
+              <InfoPopover id={`${phoneId}-help`} label="Para qué se usa el teléfono">
+                {PHONE_HELP}
+              </InfoPopover>
+            </div>
+            <input
+              id={`${phoneId}-input`}
+              name="phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="9 1234 5678"
+              defaultValue={f?.phone}
+              onChange={() => phoneError && setPhoneError(null)}
+              aria-invalid={phoneError ? true : undefined}
+              aria-describedby={`${phoneId}-help${phoneError ? ` ${phoneId}-error` : ""}`}
+              className={inputClass}
+            />
+            {phoneError && (
+              <ErrorMessage className="mt-1">
+                <span id={`${phoneId}-error`}>{phoneError}</span>
+              </ErrorMessage>
+            )}
           </div>
         </>
       ) : (

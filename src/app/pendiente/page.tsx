@@ -3,7 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { textButton } from "@/app/ui";
 
-export default async function PendingPage() {
+export default async function PendingPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { telefono } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -29,6 +34,12 @@ export default async function PendingPage() {
       <p className="max-w-md text-muted">
         La dirección del club te confirmará pronto.
       </p>
+      {telefono === "no-guardado" && (
+        <p role="status" className="max-w-md rounded-xl bg-mist px-4 py-3 text-sm text-ink">
+          Tu cuenta quedó creada, pero no pudimos guardar tu teléfono. Podrás agregarlo más
+          adelante.
+        </p>
+      )}
       <form action={signOut}>
         <button className={textButton}>
           Cerrar sesión
