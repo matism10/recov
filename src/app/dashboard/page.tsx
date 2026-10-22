@@ -35,7 +35,7 @@ import { NextMatch } from "./next-match";
 import { MetricsStrip, loadMetricsStrip } from "./metrics-strip";
 import { MyMatches } from "./my-matches";
 import { canManageNominas, getMyLoad } from "@/lib/match-load";
-import { ResumenCover, signResumenCover } from "./resumen-cover";
+import { ResumenCover } from "./resumen-cover";
 import { LoadBlock } from "@/app/load-block";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
@@ -139,14 +139,7 @@ export default async function DashboardPage() {
         )
       : null,
   );
-  // Portada: se firma en paralelo con el resto de las consultas.
-  const coverPromise = confirmed.then((profile) =>
-    profile?.club?.cover_path
-      ? signResumenCover(supabase, profile.club.cover_path, profile.avatar_path ?? null)
-      : null,
-  );
-
-  const [profile, squad, { data: nextMatch }, byRole, metricsData, coverUrls] = await Promise.all([
+  const [profile, squad, { data: nextMatch }, byRole, metricsData] = await Promise.all([
     profilePromise,
     // Plantel confirmado y activo, con fotos y la fase en curso de cada jugador.
     getSquad(supabase),
@@ -162,7 +155,6 @@ export default async function DashboardPage() {
       .maybeSingle(),
     byRolePromise,
     metricsPromise,
-    coverPromise,
   ]);
 
   if (profile?.status === "pendiente") redirect("/pendiente");
@@ -246,12 +238,12 @@ export default async function DashboardPage() {
 
   return (
     <>
-    {/* Portada del club: se firma aquí, no en el layout. */}
-    {club?.cover_path && coverUrls && (
+    {/* Portada del club: solo en el Resumen, no en el layout. */}
+    {club?.cover_path && (
       <ResumenCover
         club={{ ...club, cover_path: club.cover_path }}
         fullName={profile.full_name ?? ""}
-        urls={Promise.resolve(coverUrls)}
+        avatarPath={profile.avatar_path ?? null}
       />
     )}
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">

@@ -7,15 +7,14 @@ import { MobileNavBar } from "./mobile-nav";
 import { ClubHeader as ClubHeaderBar } from "./club-header";
 import { clubIdentity } from "@/lib/club-identity";
 
-// Igual que las fotos de perfil del resto de la app (src/lib/avatars.ts).
-const AVATAR_URL_SECONDS = 60 * 60;
+import { photoUrl } from "@/lib/photos";
 
 // Datos de la navegación (sidebar de escritorio, barra móvil y encabezado del club).
 // Solo para usuarios confirmados: sin sesión, pendientes o rechazados no ven
 // navegación. Las páginas siguen validando su propio acceso. `cache` evita repetir
 // las consultas cuando varias piezas de la navegación las piden en el mismo request.
-// Viajes a Supabase: el perfil (con el club y la ruta de la foto) y, en paralelo, el
-// conteo de pendientes (solo dirección) y la firma de la foto propia.
+// Viajes a Supabase: el perfil (con el club y la ruta de la foto) y, solo para la
+// dirección, el conteo de pendientes. La foto propia va por /foto, sin firmar.
 const getNavData = cache(async () => {
   const supabase = await getSupabase();
   // getClaims verifica el JWT de la sesión (firmado con ES256) contra las claves
@@ -42,12 +41,7 @@ const getNavData = cache(async () => {
           .eq("status", "pendiente")
           .then(({ count }) => count ?? 0)
       : 0,
-    profile.avatar_path
-      ? supabase.storage
-          .from("avatars")
-          .createSignedUrl(profile.avatar_path as string, AVATAR_URL_SECONDS)
-          .then(({ data }) => data?.signedUrl ?? null)
-      : null,
+    profile.avatar_path ? photoUrl("avatars", profile.avatar_path) : null,
   ]);
 
   return {

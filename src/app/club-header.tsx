@@ -33,7 +33,15 @@ function ClubShield({
       {identity.logoUrl ? (
         // Logo público de Storage: no pasa por next/image.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={identity.logoUrl} alt="" className="h-full w-full bg-white object-contain p-1" />
+        <img
+          src={identity.logoUrl}
+          alt=""
+          // El cuadro mide 40 a 56 px según dónde vaya; el CSS manda, esto solo reserva espacio.
+          width={56}
+          height={56}
+          decoding="async"
+          className="h-full w-full bg-white object-contain p-1"
+        />
       ) : (
         <span aria-hidden="true">{initials(identity.name)}</span>
       )}
@@ -92,7 +100,8 @@ export function ClubHero({
           alt={`Portada de ${identity.name}`}
           fill
           priority
-          // URL firmada de Storage (cambia cada hora): sin optimizar.
+          // Foto privada por /foto: el optimizador de Next la pediría sin la sesión de
+          // quien mira, así que va sin optimizar (ya se sube a 1600 px como máximo).
           unoptimized
           sizes="(min-width: 1024px) calc(100vw - 15rem), 100vw"
           className="object-cover"

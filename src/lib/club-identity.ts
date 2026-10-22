@@ -1,7 +1,7 @@
 // Identidad del club para el encabezado (ClubHeader): nombre, deporte, categoría,
 // escudo y portada. La portada vive en el bucket privado "club-covers" (0025) y se
-// lee con URL firmada.
-import type { createClient } from "@/lib/supabase/server";
+// lee por /foto (src/lib/photos.ts).
+import { photoUrl } from "@/lib/photos";
 
 export type ClubIdentity = {
   name: string;
@@ -23,18 +23,10 @@ const SPORT_LABEL: Record<string, string> = {
   hockey: "Hockey",
 };
 
-const SIGNED_URL_SECONDS = 60 * 60;
-
-// URL firmada de la portada. RLS: solo los confirmados del club la pueden leer.
-export async function clubCoverUrl(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  path: string | null | undefined,
-) {
-  if (!path) return null;
-  const { data } = await supabase.storage
-    .from("club-covers")
-    .createSignedUrl(path, SIGNED_URL_SECONDS);
-  return data?.signedUrl ?? null;
+// URL estable de la portada (/foto). Storage decide quién la ve: solo los
+// confirmados del club.
+export function clubCoverUrl(path: string | null | undefined) {
+  return path ? photoUrl("club-covers", path) : null;
 }
 
 // Identidad del club para el encabezado, sin consultas: la portada va como ruta y

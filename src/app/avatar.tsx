@@ -4,6 +4,8 @@ const SIZES = {
   md: "size-10 text-sm",
   lg: "size-16 text-lg",
 };
+// Tamaño en pantalla (px), para reservar el espacio de la imagen antes de que cargue.
+const PX = { sm: 36, md: 40, lg: 64 };
 
 function initials(name: string) {
   return name
@@ -31,9 +33,18 @@ export function Avatar({
       className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full ${onTint ? "bg-white" : "bg-brand-soft"} font-medium text-brand-text ${SIZES[size]}`}
     >
       {url ? (
-        // URL firmada de Storage que vence: no pasa por next/image.
+        // Foto privada por /foto (o una vista previa local): no pasa por next/image,
+        // cuyo optimizador la pediría sin la sesión de quien mira.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className="h-full w-full object-cover" />
+        <img
+          src={url}
+          alt=""
+          width={PX[size]}
+          height={PX[size]}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover"
+        />
       ) : (
         <span aria-hidden="true">{initials(name)}</span>
       )}

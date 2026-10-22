@@ -69,7 +69,7 @@ export default async function SettingsPage() {
         </p>
         <CoverForm
           clubName={club?.name ?? ""}
-          url={await clubCoverUrl(supabase, club?.cover_path)}
+          url={clubCoverUrl(club?.cover_path)}
           position={{ x: club?.cover_position_x ?? 50, y: club?.cover_position_y ?? 50 }}
           folder={me.club_id}
         />
