@@ -13,8 +13,8 @@ import {
   type EventRow,
 } from "@/lib/events";
 import { PageTitle, buttonPrimary } from "@/app/ui";
-import { CalendarView } from "./calendar-view";
-import { requireMember } from "./member";
+import { CalendarView } from "../calendar-view";
+import { requireMember } from "../member";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -6,7 +6,7 @@ import { isStaff, type UserRole } from "@/lib/roles";
 import { formatDate, type InjuryStatus } from "@/lib/injuries";
 import { getAvatarUrls } from "@/lib/avatars";
 import { Avatar } from "@/app/avatar";
-import { InjuryProgress } from "./injury-progress";
+import { InjuryProgress } from "../injury-progress";
 import { InjuryStatusBadge, PageTitle, SectionTitle, cardClass } from "@/app/ui";
 
 const OPEN_STATUSES: InjuryStatus[] = ["en_evaluacion", "activa"];
