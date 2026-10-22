@@ -8,8 +8,8 @@ export type ClubIdentity = {
   sportLabel: string;
   category: string | null;
   logoUrl: string | null;
-  coverUrl: string | null;
-  // Encuadre de la portada: object-position en % (0–100).
+  // Ruta de la portada en Storage (sin firmar): la firma la página del Resumen.
+  coverPath: string | null;
   coverPosition: { x: number; y: number };
 };
 
@@ -37,24 +37,22 @@ export async function clubCoverUrl(
   return data?.signedUrl ?? null;
 }
 
-export async function getClubIdentity(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  club: {
-    name: string;
-    sport: string | null;
-    category: string | null;
-    coverPath: string | null;
-    coverPosition: { x: number; y: number };
-    uploadedLogoUrl: string | null;
-  },
-): Promise<ClubIdentity> {
+// Identidad del club para el encabezado, sin consultas: la portada va como ruta y
+// se firma solo donde se muestra (el Resumen), con clubCoverUrl.
+export function clubIdentity(club: {
+  name: string;
+  sport: string | null;
+  category: string | null;
+  coverPath: string | null;
+  coverPosition: { x: number; y: number };
+  uploadedLogoUrl: string | null;
+}): ClubIdentity {
   return {
     name: club.name,
     sportLabel: (club.sport && SPORT_LABEL[club.sport]) || "",
     category: club.category,
-    // Escudo: el logo que el club subió; sin logo, las iniciales.
     logoUrl: club.uploadedLogoUrl,
-    coverUrl: await clubCoverUrl(supabase, club.coverPath),
+    coverPath: club.coverPath,
     coverPosition: club.coverPosition,
   };
 }

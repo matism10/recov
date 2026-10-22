@@ -1,29 +1,35 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { isDirection, isStaff, type UserRole } from "@/lib/roles";
-import { getAvatarUrls } from "@/lib/avatars";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { MobileNavBar } from "./mobile-nav";
 import { ClubHeader as ClubHeaderBar } from "./club-header";
-import { getClubIdentity } from "@/lib/club-identity";
+import { clubIdentity } from "@/lib/club-identity";
 
-// Datos de la navegación (sidebar de escritorio y barra móvil). Solo para usuarios
-// confirmados: sin sesión, pendientes o rechazados no ven navegación. Las páginas
-// siguen validando su propio acceso. `cache` evita repetir las consultas cuando
-// varias piezas de la navegación las piden en el mismo request.
+// Igual que las fotos de perfil del resto de la app (src/lib/avatars.ts).
+const AVATAR_URL_SECONDS = 60 * 60;
+
+// Datos de la navegación (sidebar de escritorio, barra móvil y encabezado del club).
+// Solo para usuarios confirmados: sin sesión, pendientes o rechazados no ven
+// navegación. Las páginas siguen validando su propio acceso. `cache` evita repetir
+// las consultas cuando varias piezas de la navegación las piden en el mismo request.
+// Viajes a Supabase: el perfil (con el club y la ruta de la foto) y, en paralelo, el
+// conteo de pendientes (solo dirección) y la firma de la foto propia.
 const getNavData = cache(async () => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // getClaims verifica el JWT de la sesión (firmado con ES256) contra las claves
+  // públicas del proyecto, sin ir al servidor de Auth. Aquí basta: solo decide qué
+  // navegación se muestra, el proxy ya refrescó la sesión y cada dato lo protege RLS.
+  const { data: auth } = await supabase.auth.getClaims();
+  const userId = auth?.claims?.sub;
+  if (!userId) return null;
 
   // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, roles, status, clubs!profiles_club_id_fkey(name, logo_path, sport, category, cover_path, cover_position_x, cover_position_y)")
-    .eq("id", user.id)
+    .select("full_name, roles, status, avatar_path, clubs!profiles_club_id_fkey(name, logo_path, sport, category, cover_path, cover_position_x, cover_position_y)")
+    .eq("id", userId)
     .maybeSingle();
   if (profile?.status !== "confirmado") return null;
 
@@ -31,19 +37,25 @@ const getNavData = cache(async () => {
   const roles = (profile.roles ?? []) as UserRole[];
   const direction = isDirection(roles);
 
-  // RLS: solo la dirección ve perfiles pendientes.
-  let pendingCount = 0;
-  if (direction) {
-    const { count } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pendiente");
-    pendingCount = count ?? 0;
-  }
-  const avatarUrl = (await getAvatarUrls(supabase, [user.id])).get(user.id) ?? null;
+  const [pendingCount, avatarUrl] = await Promise.all([
+    // RLS: solo la dirección ve perfiles pendientes.
+    direction
+      ? supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pendiente")
+          .then(({ count }) => count ?? 0)
+      : 0,
+    profile.avatar_path
+      ? supabase.storage
+          .from("avatars")
+          .createSignedUrl(profile.avatar_path as string, AVATAR_URL_SECONDS)
+          .then(({ data }) => data?.signedUrl ?? null)
+      : null,
+  ]);
 
   return {
-    identity: await getClubIdentity(supabase, {
+    identity: clubIdentity({
       name: club?.name ?? "",
       sport: club?.sport ?? null,
       category: club?.category ?? null,

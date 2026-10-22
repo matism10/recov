@@ -35,6 +35,7 @@ import { NextMatch } from "./next-match";
 import { MetricsStrip } from "./metrics-strip";
 import { MyMatches } from "./my-matches";
 import { canManageNominas, getMyLoad } from "@/lib/match-load";
+import { ResumenCover, signResumenCover } from "./resumen-cover";
 import { LoadBlock } from "@/app/load-block";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
@@ -55,7 +56,7 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "full_name, roles, status, clubs!profiles_club_id_fkey(name, kine_delegate_id, nomina_delegate_id, dashboard_metrics, dashboard_metrics_mobile)",
+      "full_name, roles, status, avatar_path, clubs!profiles_club_id_fkey(name, kine_delegate_id, nomina_delegate_id, dashboard_metrics, dashboard_metrics_mobile, sport, category, logo_path, cover_path, cover_position_x, cover_position_y)",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -80,6 +81,12 @@ export default async function DashboardPage() {
       </main>
     );
   }
+
+  // Portada: se empieza a firmar ya, en paralelo con el resto de las consultas.
+  const coverClub = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
+  const coverUrls = coverClub?.cover_path
+    ? signResumenCover(supabase, coverClub.cover_path, profile.avatar_path ?? null)
+    : null;
 
   // Plantel confirmado y activo, con fotos y la fase en curso de cada jugador.
   const { players, avatarUrls, phaseByPlayer } = await getSquad(supabase);
@@ -202,6 +209,15 @@ export default async function DashboardPage() {
   }
 
   return (
+    <>
+    {/* Portada del club: se firma aquí, no en el layout. */}
+    {club?.cover_path && coverUrls && (
+      <ResumenCover
+        club={{ ...club, cover_path: club.cover_path }}
+        fullName={profile.full_name ?? ""}
+        urls={coverUrls}
+      />
+    )}
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
@@ -531,5 +547,6 @@ export default async function DashboardPage() {
         )}
       </section>
     </main>
+    </>
   );
 }
