@@ -1,4 +1,5 @@
 import { signIn } from "./actions";
+import { InstallGuide } from "@/app/install-guide";
 import { ErrorMessage, buttonPrimary, cardClass, inputClass, labelClass } from "@/app/ui";
 
 export default async function LoginPage({
@@ -10,42 +11,47 @@ export default async function LoginPage({
 
   return (
     <main className="flex flex-1 items-center justify-center bg-white px-4">
-      <form action={signIn} className={`w-full max-w-sm space-y-5 p-8 ${cardClass}`}>
-        <div>
-          <h1 className="text-2xl font-extrabold text-ink">Recov</h1>
-          <p className="mt-1 text-sm text-muted">
-            Ingresa con tu cuenta del club.
-          </p>
-        </div>
+      <div className="w-full max-w-sm">
+        <form action={signIn} className={`w-full space-y-5 p-8 ${cardClass}`}>
+          <div>
+            <h1 className="text-2xl font-extrabold text-ink">Recov</h1>
+            <p className="mt-1 text-sm text-muted">
+              Ingresa con tu cuenta del club.
+            </p>
+          </div>
 
-        <label className={labelClass}>
-          Correo
-          <input
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className={inputClass}
-          />
-        </label>
+          <label className={labelClass}>
+            Correo
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              className={inputClass}
+            />
+          </label>
 
-        <label className={labelClass}>
-          Contraseña
-          <input
-            name="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            className={inputClass}
-          />
-        </label>
+          <label className={labelClass}>
+            Contraseña
+            <input
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              className={inputClass}
+            />
+          </label>
 
-        {error && <ErrorMessage>Correo o contraseña incorrectos.</ErrorMessage>}
+          {error && (
+            <ErrorMessage>Correo o contraseña incorrectos.</ErrorMessage>
+          )}
 
-        <button type="submit" className={`w-full ${buttonPrimary}`}>
-          Entra
-        </button>
-      </form>
+          <button type="submit" className={`w-full ${buttonPrimary}`}>
+            Entra
+          </button>
+        </form>
+        <InstallGuide />
+      </div>
     </main>
   );
 }
