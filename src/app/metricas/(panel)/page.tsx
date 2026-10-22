@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isStaff, type UserRole } from "@/lib/roles";
 import {
   getAvailabilitySeries,
@@ -14,7 +14,7 @@ import {
 } from "@/lib/metrics";
 import { getAvatarUrls } from "@/lib/avatars";
 import { getTeamLoad } from "@/lib/match-load";
-import { LoadSection } from "./load-section";
+import { LoadSection } from "../load-section";
 import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
 import { PageTitle, SectionTitle, textButton } from "@/app/ui";
 import {
@@ -23,31 +23,21 @@ import {
   InjuriesByWeekBlock,
   RecurringPlayersBlock,
   UpcomingReturnsBlock,
-} from "./blocks";
+} from "../blocks";
 
 // Métricas del plantel para el staff. Las funciones dash_* validan en la base que
 // quien llama sea staff confirmado de su club.
 export default async function MetricsPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("roles, status, clubs!profiles_club_id_fkey(name)")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (me?.status === "pendiente") redirect("/pendiente");
-  if (me?.status !== "confirmado" || !isStaff((me.roles ?? []) as UserRole[])) {
-    redirect("/dashboard");
-  }
-
-  const [summary, series, byWeek, byPlace, byPosition, recurring, upcoming, load] = await Promise.all([
+  // En paralelo: perfil y todas las métricas (las funciones dash_* y la carga validan
+  // que sea staff; si no lo es, se redirige antes de mostrar). Luego, estado y foto
+  // solo de los jugadores de "Jugadores recurrentes" y "Próximas altas"; si esa
+  // lectura falla, esos bloques usan iniciales y omiten el estado.
+  const [me, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, load] = await Promise.all([
+    getProfile(user.id),
     getDashSummary(supabase),
     getAvailabilitySeries(supabase, 12),
     getInjuriesByWeek(supabase, 12),
@@ -58,8 +48,11 @@ export default async function MetricsPage() {
     getTeamLoad(supabase, 4),
   ]);
 
-  // Estado y foto solo de los jugadores de "Jugadores recurrentes" y "Próximas altas".
-  // Si esta lectura falla, esos bloques usan iniciales y omiten el estado.
+  if (me?.status === "pendiente") redirect("/pendiente");
+  if (me?.status !== "confirmado" || !isStaff((me.roles ?? []) as UserRole[])) {
+    redirect("/dashboard");
+  }
+
   const listedIds = [
     ...new Set([
       ...(recurring.ok ? recurring.data.map((p) => p.player_id) : []),

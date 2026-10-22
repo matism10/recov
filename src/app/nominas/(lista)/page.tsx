@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ClipboardList } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isStaff, type UserRole } from "@/lib/roles";
 import { canManageNominas } from "@/lib/match-load";
 import { chileDateTime, eventTitle, longDayLabel } from "@/lib/events";
@@ -18,26 +18,16 @@ type MatchRow = {
 // quien las arma (head coach, manager y el delegado), el acceso directo a armar
 // la del próximo partido. RLS: el staff ve las convocatorias de su club.
 export default async function NominasPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("roles, status, clubs!profiles_club_id_fkey(sport, nomina_delegate_id)")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (me?.status === "pendiente") redirect("/pendiente");
-  const roles = (me?.roles ?? []) as UserRole[];
-  if (me?.status !== "confirmado" || !isStaff(roles)) redirect("/dashboard");
-  const club = Array.isArray(me.clubs) ? me.clubs[0] : me.clubs;
-  const canNomina = canManageNominas(roles, user.id, club?.nomina_delegate_id);
-
   const nowIso = new Date().toISOString();
-  const [{ data: next }, { data: callups }, { data: sizes }] = await Promise.all([
+  // En paralelo: perfil (y con su deporte, titulares y banca), próximo partido, y la
+  // convocatoria con sus partidos y participación. RLS: datos del club; sin acceso
+  // se redirige antes de mostrar nada.
+  const [me, { data: next }, { data: callups }] = await Promise.all([
+    getProfile(user.id),
     supabase
       .from("events")
       .select("id, starts_at, opponent, location")
@@ -48,7 +38,27 @@ export default async function NominasPage() {
       .limit(1)
       .maybeSingle(),
     supabase.from("event_callups").select("event_id, slot").is("removed_at", null),
+  ]);
+  if (me?.status === "pendiente") redirect("/pendiente");
+  const roles = (me?.roles ?? []) as UserRole[];
+  if (!me || me.status !== "confirmado" || !isStaff(roles)) redirect("/dashboard");
+  const club = me.club;
+  const canNomina = canManageNominas(roles, user.id, club?.nomina_delegate_id);
+
+  const ids = [...new Set((callups ?? []).map((c) => c.event_id as string))];
+  const [{ data: sizes }, { data: matches }, { data: loaded }] = await Promise.all([
     supabase.from("sports").select("starters, bench_size").eq("slug", club?.sport ?? "").maybeSingle(),
+    ids.length
+      ? supabase
+          .from("events")
+          .select("id, starts_at, opponent, location")
+          .in("id", ids)
+          .is("cancelled_at", null)
+          .order("starts_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    ids.length
+      ? supabase.from("event_participations").select("event_id").in("event_id", ids)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const starters = (sizes?.starters as number | undefined) ?? 0;
@@ -63,19 +73,6 @@ export default async function NominasPage() {
     if (slot !== null && slot > starters) n.banca++;
     byEvent.set(k, n);
   }
-
-  const ids = [...byEvent.keys()];
-  const [{ data: matches }, { data: loaded }] = ids.length
-    ? await Promise.all([
-        supabase
-          .from("events")
-          .select("id, starts_at, opponent, location")
-          .in("id", ids)
-          .is("cancelled_at", null)
-          .order("starts_at", { ascending: false }),
-        supabase.from("event_participations").select("event_id").in("event_id", ids),
-      ])
-    : [{ data: [] }, { data: [] }];
   const withParticipation = new Set((loaded ?? []).map((p) => p.event_id as string));
   const all = (matches ?? []) as MatchRow[];
   const now = Date.parse(nowIso);

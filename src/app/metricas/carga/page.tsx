@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isStaff, type UserRole } from "@/lib/roles";
 import { getTeamLoad } from "@/lib/match-load";
 import { MetricsError, metricCardClass } from "@/app/metrics";
@@ -10,16 +10,13 @@ import { LoadSummary } from "../load-summary";
 
 // Ranking completo de carga del plantel (solo staff; team_match_load lo valida).
 export default async function LoadRankingPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
-  const { data: me } = await supabase.from("profiles").select("roles, status").eq("id", user.id).maybeSingle();
+  // En paralelo: perfil y la carga del plantel (team_match_load valida que sea staff).
+  const [me, result] = await Promise.all([getProfile(user.id), getTeamLoad(supabase, 4)]);
   if (me?.status === "pendiente") redirect("/pendiente");
   if (me?.status !== "confirmado" || !isStaff((me.roles ?? []) as UserRole[])) redirect("/dashboard");
-
-  const result = await getTeamLoad(supabase, 4);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

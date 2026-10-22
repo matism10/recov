@@ -1,35 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import type { UserRole } from "@/lib/roles";
 import { InjuryForm } from "./injury-form";
 import { textButton } from "@/app/ui";
 
 export default async function ReportInjuryPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("roles, status")
-    .eq("id", user.id)
-    .maybeSingle();
+  // En paralelo: perfil y ficha propia (RLS: el jugador confirmado ve la suya).
+  const [me, { data: player }] = await Promise.all([
+    getProfile(user.id),
+    supabase.from("players").select("id, club_id").eq("user_id", user.id).maybeSingle(),
+  ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
   if (me?.status !== "confirmado" || !((me.roles ?? []) as UserRole[]).includes("jugador")) {
     redirect("/dashboard");
   }
-
-  // RLS: el jugador confirmado ve su propia ficha del plantel.
-  const { data: player } = await supabase
-    .from("players")
-    .select("id, club_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
   if (!player) redirect("/dashboard");
 
   return (
