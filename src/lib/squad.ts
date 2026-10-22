@@ -15,25 +15,27 @@ export type SquadPlayer = {
 };
 
 export async function getSquad(supabase: Client, extraAvatarIds: string[] = []) {
-  // RLS: solo jugadores del club del usuario. La dirección también ve los
-  // pendientes, así que se filtra el plantel confirmado.
-  const { data } = await supabase
+  // Las fases en curso no dependen de los jugadores: van en paralelo con la cadena
+  // jugadores → fotos (que sí necesita los user_id de los jugadores).
+  const playersWithAvatars = supabase
     .from("players")
     .select("id, full_name, position, secondary_position, availability, user_id")
     .eq("active", true)
     .eq("status", "confirmado")
-    .order("full_name");
-  const players = (data ?? []) as SquadPlayer[];
+    .order("full_name")
+    .then(async ({ data }) => {
+      const players = (data ?? []) as SquadPlayer[];
+      const avatarUrls = await getAvatarUrls(supabase, [
+        ...players.map((p) => p.user_id),
+        ...extraAvatarIds,
+      ]);
+      return { players, avatarUrls };
+    });
 
-  // Foto de perfil de los jugadores con cuenta (y de quien la pida, p. ej. el usuario).
-  const avatarUrls = await getAvatarUrls(supabase, [
-    ...players.map((p) => p.user_id),
-    ...extraAvatarIds,
+  const [{ players, avatarUrls }, { data: currentPhases }] = await Promise.all([
+    playersWithAvatars,
+    supabase.rpc("squad_current_phases"),
   ]);
-
-  // Fase de recuperación en curso de cada jugador: solo el nombre, visible para
-  // todo el club (los jugadores no ven el resto de la lesión de sus compañeros).
-  const { data: currentPhases } = await supabase.rpc("squad_current_phases");
   const phaseByPlayer = new Map(
     ((currentPhases ?? []) as { player_id: string; phase_name: string }[]).map((p) => [
       p.player_id,

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSupabase } from "@/lib/session";
 import { isDirection, isStaff, type UserRole } from "@/lib/roles";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { SidebarNav } from "./sidebar-nav";
@@ -17,7 +17,7 @@ const AVATAR_URL_SECONDS = 60 * 60;
 // Viajes a Supabase: el perfil (con el club y la ruta de la foto) y, en paralelo, el
 // conteo de pendientes (solo dirección) y la firma de la foto propia.
 const getNavData = cache(async () => {
-  const supabase = await createClient();
+  const supabase = await getSupabase();
   // getClaims verifica el JWT de la sesión (firmado con ES256) contra las claves
   // públicas del proyecto, sin ir al servidor de Auth. Aquí basta: solo decide qué
   // navegación se muestra, el proxy ya refrescó la sesión y cada dato lo protege RLS.
@@ -25,15 +25,11 @@ const getNavData = cache(async () => {
   const userId = auth?.claims?.sub;
   if (!userId) return null;
 
-  // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, roles, status, avatar_path, clubs!profiles_club_id_fkey(name, logo_path, sport, category, cover_path, cover_position_x, cover_position_y)")
-    .eq("id", userId)
-    .maybeSingle();
+  // El mismo perfil que lee la página en este request (una sola consulta).
+  const profile = await getProfile(userId);
   if (profile?.status !== "confirmado") return null;
 
-  const club = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
+  const club = profile.club;
   const roles = (profile.roles ?? []) as UserRole[];
   const direction = isDirection(roles);
 

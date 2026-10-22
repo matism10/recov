@@ -39,23 +39,17 @@ const SPAN: Record<DashboardMetric, string> = {
   proximas_altas: "sm:col-span-2 lg:col-span-4",
 };
 
-// Franja de métricas del Resumen, solo para el staff: las que eligió el head coach
-// para computador (desde lg) y para celular (hasta lg), o las de siempre. Solo se
-// piden los datos de las métricas elegidas. Quien la monta decide si el usuario es
-// staff; las funciones lo validan de nuevo.
-export async function MetricsStrip({
-  supabase,
-  desktop,
-  mobile,
-}: {
-  supabase: Awaited<ReturnType<typeof createClient>>;
-  desktop: DashboardMetric[];
-  mobile: DashboardMetric[];
-}) {
+type Client = Awaited<ReturnType<typeof createClient>>;
+
+// Datos de la franja: solo los de las métricas elegidas. El Resumen lo llama apenas
+// conoce el perfil, para que corra en paralelo con sus otras consultas.
+export async function loadMetricsStrip(
+  supabase: Client,
+  desktop: DashboardMetric[],
+  mobile: DashboardMetric[],
+) {
   // Todas las elegidas, en el orden del catálogo; cada una se muestra donde se eligió.
   const metrics = DASHBOARD_METRICS.filter((m) => desktop.includes(m) || mobile.includes(m));
-  const visibility = (m: DashboardMetric) =>
-    desktop.includes(m) && mobile.includes(m) ? "" : desktop.includes(m) ? "hidden lg:block" : "lg:hidden";
   const has = (m: DashboardMetric) => metrics.includes(m);
   const needsSummary = ["total", "disponibles", "lesionados", "reintegro"].some((m) =>
     has(m as DashboardMetric),
@@ -83,6 +77,27 @@ export async function MetricsStrip({
   const avatarUrls = status
     ? await getAvatarUrls(supabase, [...status.values()].map((p) => p.user_id))
     : new Map<string, string>();
+
+  return { metrics, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, status, avatarUrls };
+}
+
+// Franja de métricas del Resumen, solo para el staff: las que eligió el head coach
+// para computador (desde lg) y para celular (hasta lg), o las de siempre. Quien la
+// monta decide si el usuario es staff y le pasa los datos ya pedidos
+// (loadMetricsStrip); las funciones lo validan de nuevo.
+export async function MetricsStrip({
+  data,
+  desktop,
+  mobile,
+}: {
+  data: ReturnType<typeof loadMetricsStrip>;
+  desktop: DashboardMetric[];
+  mobile: DashboardMetric[];
+}) {
+  const { metrics, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, status, avatarUrls } =
+    await data;
+  const visibility = (m: DashboardMetric) =>
+    desktop.includes(m) && mobile.includes(m) ? "" : desktop.includes(m) ? "hidden lg:block" : "lg:hidden";
 
   const card = (node: ReactNode) => (summary?.ok ? node : <MetricsError />);
   const render: Record<DashboardMetric, () => ReactNode> = {
