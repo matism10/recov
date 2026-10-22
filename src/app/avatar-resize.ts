@@ -1,6 +1,8 @@
-// Achica la foto de perfil en el navegador (máximo 512 px, JPEG): pesa poco y
-// entra en el límite del bucket avatars y de las server actions.
-const AVATAR_SIZE = 512;
+// Achica la foto de perfil en el navegador (máximo 256 px, JPEG): se muestra a 64 px
+// como máximo (128 en pantallas de alta densidad), así que 256 alcanza con margen y
+// pesa una cuarta parte que a 512. JPEG y no WebP: algunos Safari no generan WebP
+// desde canvas y entregarían un PNG más pesado.
+const AVATAR_SIZE = 256;
 
 export async function resizeAvatar(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);

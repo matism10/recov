@@ -3,6 +3,8 @@ const SIZES = {
   sm: "size-10 text-sm",
   lg: "size-20 text-xl",
 };
+// Tamaño en pantalla (px), para reservar el espacio de la imagen antes de que cargue.
+const PX = { sm: 40, lg: 80 };
 
 function initials(name: string) {
   return name
@@ -29,7 +31,14 @@ export function ClubLogo({
       {url ? (
         // Archivo público de Storage: no pasa por next/image.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className="h-full w-full object-contain p-1" />
+        <img
+          src={url}
+          alt=""
+          width={PX[size]}
+          height={PX[size]}
+          decoding="async"
+          className="h-full w-full object-contain p-1"
+        />
       ) : (
         <span aria-hidden="true">{initials(name)}</span>
       )}

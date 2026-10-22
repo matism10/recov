@@ -1,41 +1,16 @@
-// Portada del club en el Resumen. Se firma aquí y no en el layout, para no firmarla
-// en cada pantalla, junto con la foto propia (el avatar del encabezado en celular).
-// Va justo después del marco que pone el layout, que se oculta al llegar esta (ClubHero).
-import { createClient } from "@/lib/supabase/server";
+// Portada del club en el Resumen, con la foto propia (el avatar del encabezado en
+// celular). Va justo después del marco que pone el layout, que se oculta al llegar
+// esta (ClubHero). Las imágenes van por /foto (URL estable, sin firmar en cada carga).
+import { getSupabase } from "@/lib/session";
 import { clubCoverUrl, clubIdentity } from "@/lib/club-identity";
 import { clubLogoUrl } from "@/lib/club-logo";
+import { photoUrl } from "@/lib/photos";
 import { ClubHero } from "@/app/club-header";
-
-const AVATAR_URL_SECONDS = 60 * 60;
-
-type Client = Awaited<ReturnType<typeof createClient>>;
-export type ResumenCoverUrls = { coverUrl: string | null; avatarUrl: string | null };
-
-// Firma la portada y la foto propia en paralelo. La página la llama apenas tiene el
-// perfil, sin esperarla, para que corra mientras se hacen sus otras consultas.
-export function signResumenCover(
-  supabase: Client,
-  coverPath: string,
-  avatarPath: string | null,
-): Promise<ResumenCoverUrls> {
-  return Promise.all([
-    clubCoverUrl(supabase, coverPath),
-    avatarPath
-      ? supabase.storage
-          .from("avatars")
-          .createSignedUrl(avatarPath, AVATAR_URL_SECONDS)
-          .then(({ data }) => data?.signedUrl ?? null)
-      : null,
-  ])
-    .then(([coverUrl, avatarUrl]) => ({ coverUrl, avatarUrl }))
-    // Si falla, el Resumen queda con el marco sin foto (nunca una promesa rechazada suelta).
-    .catch(() => ({ coverUrl: null, avatarUrl: null }));
-}
 
 export async function ResumenCover({
   club,
   fullName,
-  urls,
+  avatarPath,
 }: {
   club: {
     name: string;
@@ -47,12 +22,9 @@ export async function ResumenCover({
     cover_position_y: number | null;
   };
   fullName: string;
-  urls: Promise<ResumenCoverUrls>;
+  avatarPath: string | null;
 }) {
-  const [{ coverUrl, avatarUrl }, supabase] = await Promise.all([urls, createClient()]);
-  // Sin URL (no se pudo firmar), queda el marco del layout sin foto.
-  if (!coverUrl) return null;
-
+  const supabase = await getSupabase();
   const identity = clubIdentity({
     name: club.name,
     sport: club.sport,
@@ -61,5 +33,12 @@ export async function ResumenCover({
     coverPosition: { x: club.cover_position_x ?? 50, y: club.cover_position_y ?? 50 },
     uploadedLogoUrl: clubLogoUrl(supabase, club.logo_path),
   });
-  return <ClubHero identity={identity} coverUrl={coverUrl} fullName={fullName} avatarUrl={avatarUrl} />;
+  return (
+    <ClubHero
+      identity={identity}
+      coverUrl={clubCoverUrl(club.cover_path)}
+      fullName={fullName}
+      avatarUrl={avatarPath ? photoUrl("avatars", avatarPath) : null}
+    />
+  );
 }
