@@ -164,7 +164,9 @@ export function ClubHeader({
   }
 
   return (
-    <header className="flex h-14 w-full items-center justify-between gap-3 bg-white px-4 lg:h-16 lg:px-8">
+    // Área segura arriba (app instalada): si iOS deja el contenido bajo la barra de
+    // estado, el encabezado baja lo justo; si no, el margen es 0 y nada cambia.
+    <header className="flex h-[calc(3.5rem+env(safe-area-inset-top))] w-full items-center justify-between gap-3 bg-white px-4 pt-[env(safe-area-inset-top)] lg:h-16 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
         <ClubShield identity={identity} className="size-10 text-sm" />
         <div className="min-w-0">

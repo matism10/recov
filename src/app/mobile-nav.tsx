@@ -15,6 +15,7 @@ import {
 } from "@/app/nav-items";
 import { signOut } from "@/app/login/actions";
 import { chipClass } from "@/app/ui";
+import { InstallBanner } from "@/app/install-banner";
 
 // Ítem de la barra: ícono sobre etiqueta, mismo estilo activo que la sidebar.
 const barItemClass = (active: boolean) =>
@@ -93,6 +94,14 @@ export function MobileNavBar({
           )}
         </ul>
       </nav>
+      {/* Guía para instalar la app, justo encima de la barra (sin taparla). */}
+      <InstallBanner
+        bottomClass={
+          player
+            ? "bottom-[calc(4.75rem+1.5rem+env(safe-area-inset-bottom)+0.5rem)]"
+            : "bottom-[calc(4.75rem+env(safe-area-inset-bottom)+0.5rem)]"
+        }
+      />
     </>
   );
 }

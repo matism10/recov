@@ -15,6 +15,10 @@ const archivo = Archivo({
 export const metadata: Metadata = {
   title: "Recov",
   description: "Seguimiento de lesiones para clubes deportivos amateur",
+  // Web App instalada en iPhone: pantalla completa, título y barra de estado clara.
+  // El manifest (src/app/manifest.ts) cubre Android y escritorio.
+  appleWebApp: { capable: true, title: "Recov", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 // viewport-fit=cover: el contenido llega hasta los bordes del celular y la barra
@@ -23,6 +27,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Color de la barra del sistema en la app instalada (Android). Solo modo claro.
+  themeColor: "#38BDF8",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
