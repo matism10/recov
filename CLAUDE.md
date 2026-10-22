@@ -5,7 +5,7 @@ Recov es una plataforma web de seguimiento de lesiones para clubes deportivos am
 
 **Stack:** Next.js (App Router) + Supabase (Auth, Postgres con RLS, Storage) + Vercel.
 
-**Marca:** el logo oficial (confirmado el 22 oct 2026) está en `docs/brand/` (ver su README). Todo uso del logo sale de `docs/brand/recov-logo.png` (recortado, esquinas transparentes); en la app: `src/app/recov-logo.png` (menú), `icon.png` y `favicon.ico` (pestaña) y `apple-icon.png` (iPhone). Celeste del logo: `#0CA9FE`.
+**Marca:** el logo oficial (confirmado el 22 oct 2026) está en `docs/brand/` (ver su README). Todo uso del logo sale de `docs/brand/recov-logo.png` (recortado, esquinas transparentes); en la app: `src/app/recov-logo.png` (menú), `icon.png` y `favicon.ico` (pestaña) y `public/icons/` (Web App instalable: manifest en `src/app/manifest.ts`, ícono de iPhone `apple-touch-icon.png`). Celeste del logo: `#0CA9FE`.
 
 **Roles** (`profiles.roles` es un arreglo: una persona puede tener varios):
 - **Dirección:** `head_coach` y `manager`. Confirman o rechazan registros (`/registros`) y gestionan el staff (`/staff`: roles y delegación).
