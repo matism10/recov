@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Hourglass } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canManageInjuries, isStaff, type Availability, type UserRole } from "@/lib/roles";
 import { getAvatarUrls } from "@/lib/avatars";
 import { Avatar } from "@/app/avatar";
@@ -26,8 +26,8 @@ import {
   buttonPrimary,
   textButton,
 } from "@/app/ui";
-import { PhasesPanel } from "./phases-panel";
-import { ReviewForm } from "./review-form";
+import { PhasesPanel } from "../phases-panel";
+import { ReviewForm } from "../review-form";
 
 const SIGNED_URL_SECONDS = 5 * 60;
 
@@ -40,95 +40,79 @@ export default async function InjuryPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("roles, status, club_id")
-    .eq("id", user.id)
-    .maybeSingle();
+  // En paralelo: perfil (con el club y su delegado), la lesión, sus documentos y
+  // sus fases. RLS decide qué devuelve cada una; nada se muestra antes de los
+  // controles de acceso de abajo.
+  const [me, { data: injury }, { data: documents }, { data: phases }] = await Promise.all([
+    getProfile(user.id),
+    // RLS: el staff ve las lesiones del club; el jugador, solo las suyas.
+    supabase
+      .from("injuries")
+      .select(
+        "id, player_id, type, severity, status, description, started_on, expected_return_on, doctor_estimate_value, doctor_estimate_unit, occurred_during, reviewed_by, reviewed_at, players(full_name, availability, user_id)",
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    // RLS: el jugador ve los suyos; del staff, solo quien tiene acceso a documentos médicos.
+    supabase
+      .from("documents")
+      .select("id, file_name, storage_path, created_at")
+      .eq("injury_id", id)
+      .order("created_at"),
+    // RLS: el staff ve las fases del club; el jugador, las de sus lesiones.
+    supabase
+      .from("injury_phases")
+      .select("id, name, status, started_on, ended_on")
+      .eq("injury_id", id)
+      .is("archived_at", null)
+      .order("position"),
+  ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
-  if (me?.status !== "confirmado") redirect("/dashboard");
-
-  // RLS: el staff ve las lesiones del club; el jugador, solo las suyas.
-  const { data: injury } = await supabase
-    .from("injuries")
-    .select(
-      "id, player_id, type, severity, status, description, started_on, expected_return_on, doctor_estimate_value, doctor_estimate_unit, occurred_during, reviewed_by, reviewed_at, players(full_name, availability, user_id)",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  if (!me || me.status !== "confirmado") redirect("/dashboard");
   if (!injury) notFound();
 
   const roles = (me.roles ?? []) as UserRole[];
   const staff = isStaff(roles);
-
-  const { data: club } = await supabase
-    .from("clubs")
-    .select("kine_delegate_id")
-    .eq("id", me.club_id)
-    .maybeSingle();
   // Solo decide qué se muestra; review_injury valida el permiso real.
-  const canManage = canManageInjuries(roles, user.id, club?.kine_delegate_id);
+  const canManage = canManageInjuries(roles, user.id, me.club?.kine_delegate_id);
   const canSeeDocuments = !staff || canManage;
 
-  const [{ data: documents }, { data: phases }, { data: reviewer }] =
-    await Promise.all([
-      // RLS: el jugador ve los suyos; del staff, solo quien tiene acceso a documentos médicos.
-      supabase
-        .from("documents")
-        .select("id, file_name, storage_path, created_at")
-        .eq("injury_id", id)
-        .order("created_at"),
-      // RLS: el staff ve las fases del club; el jugador, las de sus lesiones.
-      supabase
-        .from("injury_phases")
-        .select("id, name, status, started_on, ended_on")
-        .eq("injury_id", id)
-        .is("archived_at", null)
-        .order("position"),
-      injury.reviewed_by
-        ? supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", injury.reviewed_by)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-    ]);
+  const player = Array.isArray(injury.players) ? injury.players[0] : injury.players;
+  const isOwnInjury = player?.user_id === user.id;
 
-  const signedUrls = new Map<string, string>();
-  if (documents && documents.length > 0) {
-    const { data: urls } = await supabase.storage
-      .from("medical-docs")
-      .createSignedUrls(
+  // Lo que depende de la lesión, en paralelo: quién la revisó, la foto del jugador,
+  // su teléfono (solo staff y en lesión ajena; get_player_phone devuelve null a quien
+  // no corresponde, 0030) y los enlaces de los documentos (vencen a los 5 minutos).
+  const [{ data: reviewer }, playerAvatarUrl, { data: phone }, signedUrls] = await Promise.all([
+    injury.reviewed_by
+      ? supabase.from("profiles").select("full_name").eq("id", injury.reviewed_by).maybeSingle()
+      : Promise.resolve({ data: null }),
+    // Foto del jugador. RLS: solo fotos de perfiles visibles para quien consulta.
+    player?.user_id
+      ? getAvatarUrls(supabase, [player.user_id]).then((m) => m.get(player.user_id!) ?? null)
+      : null,
+    staff && !isOwnInjury
+      ? supabase.rpc("get_player_phone", { p_player_id: injury.player_id })
+      : Promise.resolve({ data: null }),
+    (async () => {
+      const urls = new Map<string, string>();
+      if (!documents || documents.length === 0) return urls;
+      const { data } = await supabase.storage.from("medical-docs").createSignedUrls(
         documents.map((d) => d.storage_path as string),
         SIGNED_URL_SECONDS,
       );
-    for (const u of urls ?? []) {
-      if (u.path && u.signedUrl) signedUrls.set(u.path, u.signedUrl);
-    }
-  }
+      for (const u of data ?? []) if (u.path && u.signedUrl) urls.set(u.path, u.signedUrl);
+      return urls;
+    })(),
+  ]);
 
-  const player = Array.isArray(injury.players) ? injury.players[0] : injury.players;
   const status = injury.status as InjuryStatus;
   const inEvaluation = status === "en_evaluacion";
-  const isOwnInjury = player?.user_id === user.id;
-  // Foto del jugador. RLS: solo fotos de perfiles visibles para quien consulta.
-  const playerAvatarUrl = player?.user_id
-    ? ((await getAvatarUrls(supabase, [player.user_id])).get(player.user_id) ?? null)
-    : null;
-  // Teléfono para contactar al jugador: solo el staff, y solo si lo dejó.
-  // get_player_phone devuelve null a quien no corresponde (0030).
-  const { data: phone } =
-    staff && !isOwnInjury
-      ? await supabase.rpc("get_player_phone", { p_player_id: injury.player_id })
-      : { data: null };
   // Qué secciones se ven: las mismas condiciones de antes.
   const showReview = canManage && (inEvaluation || status === "activa");
   const showPhases = staff || isOwnInjury;

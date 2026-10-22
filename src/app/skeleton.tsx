@@ -42,22 +42,28 @@ export function PersonRow({ tag = true, children }: { tag?: boolean; children?: 
   );
 }
 
+// Anchos de página, los mismos que usan las pantallas.
+const WIDTHS = {
+  wide: "max-w-3xl py-10 lg:max-w-6xl lg:px-8",
+  medium: "max-w-3xl py-10",
+  narrow: "max-w-lg py-10",
+  metrics: "max-w-6xl py-10 lg:px-8",
+  detail: "max-w-3xl py-8 lg:max-w-6xl lg:px-12 lg:py-12",
+};
+
 // Contenedor de la pantalla: el mismo ancho y márgenes que las páginas, y un aviso
 // para lectores de pantalla.
 export function PageSkeleton({
   label,
-  wide = true,
+  width = "wide",
   children,
 }: {
   label: string;
-  wide?: boolean;
+  width?: keyof typeof WIDTHS;
   children: ReactNode;
 }) {
   return (
-    <main
-      aria-busy="true"
-      className={`mx-auto w-full max-w-3xl flex-1 px-4 py-10 ${wide ? "lg:max-w-6xl" : ""} lg:px-8`}
-    >
+    <main aria-busy="true" className={`mx-auto w-full flex-1 px-4 ${WIDTHS[width]}`}>
       <p role="status" className="sr-only">
         Cargando {label}…
       </p>
@@ -76,5 +82,45 @@ export function TitleSkeleton({ subtitle = false, action = false }: { subtitle?:
       </div>
       {action && <Line className="h-11 w-36 shrink-0 rounded-xl" />}
     </div>
+  );
+}
+
+// Enlace "← Volver" sobre el título.
+export function BackSkeleton() {
+  return <Line className="mb-5 h-4 w-20" />;
+}
+
+// Campo de formulario: etiqueta y casilla.
+export function FieldSkeleton({ tall = false }: { tall?: boolean }) {
+  return (
+    <div className="space-y-2">
+      <Line className="h-4 w-28" />
+      <Block className={tall ? "h-24" : "h-11"} />
+    </div>
+  );
+}
+
+// Formulario simple: volver, título, campos y el botón principal.
+export function FormSkeleton({
+  label,
+  fields,
+  tallField = false,
+}: {
+  label: string;
+  fields: number;
+  tallField?: boolean;
+}) {
+  return (
+    <PageSkeleton label={label} width="narrow">
+      <BackSkeleton />
+      <TitleSkeleton subtitle />
+      <div className="space-y-5">
+        {Array.from({ length: fields }, (_, i) => (
+          <FieldSkeleton key={i} />
+        ))}
+        {tallField && <FieldSkeleton tall />}
+        <Line className="h-11 w-full rounded-xl" />
+      </div>
+    </PageSkeleton>
   );
 }

@@ -4,6 +4,7 @@ import { canManageEvents } from "@/lib/roles";
 import { EVENT_COLUMNS, EVENT_TYPE_LABEL, toCalendarEvent, type EventRow } from "@/lib/events";
 import { textButton } from "@/app/ui";
 import { EventForm } from "../../event-form";
+import { getSupabase } from "@/lib/session";
 import { requireMember } from "../../member";
 
 // Editar una ocurrencia: solo head coach, manager y entrenador (update_event lo
@@ -14,15 +15,14 @@ export default async function EditEventPage({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const { supabase, roles } = await requireMember();
+  // El evento solo necesita su id: sale en paralelo con la sesión. RLS: solo eventos
+  // del club; un id inválido o ajeno no devuelve filas.
+  const supabase = await getSupabase();
+  const eventPromise = supabase.from("events").select(EVENT_COLUMNS).eq("id", eventId).maybeSingle();
+  const { roles } = await requireMember();
   if (!canManageEvents(roles)) redirect("/calendario");
 
-  // RLS: solo eventos del club; un id inválido o ajeno no devuelve filas.
-  const { data } = await supabase
-    .from("events")
-    .select(EVENT_COLUMNS)
-    .eq("id", eventId)
-    .maybeSingle();
+  const { data } = await eventPromise;
   if (!data) redirect("/calendario");
   const event = toCalendarEvent(data as EventRow);
   if (event.cancelled) redirect(`/calendario?fecha=${event.day}&evento=${event.id}`);

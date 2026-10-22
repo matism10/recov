@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { ROLE_LABEL, isDirection, isStaff, type UserRole } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
@@ -11,40 +11,36 @@ type StaffProfile = { id: string; full_name: string | null; roles: UserRole[] };
 // Gestión del staff para la dirección (head coach y manager): roles, quitar del
 // staff y delegación de las funciones de kinesiólogo.
 export default async function StaffPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("roles, status, clubs!profiles_club_id_fkey(kine_delegate_id, nomina_delegate_id)")
-    .eq("id", user.id)
-    .maybeSingle();
+  // En paralelo: perfil (con los delegados del club) y el staff con sus fotos. RLS: la
+  // dirección ve los perfiles de su club; sin acceso se redirige antes de mostrar.
+  const [me, { staff, avatarUrls }] = await Promise.all([
+    getProfile(user.id),
+    supabase
+      .from("profiles")
+      .select("id, full_name, roles")
+      .eq("status", "confirmado")
+      .order("full_name")
+      .then(async ({ data: profiles }) => {
+        const staff = ((profiles ?? []) as StaffProfile[]).filter((p) => isStaff(p.roles ?? []));
+        const avatarUrls = await getAvatarUrls(
+          supabase,
+          staff.map((p) => p.id),
+        );
+        return { staff, avatarUrls };
+      }),
+  ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
-  if (me?.status !== "confirmado" || !isDirection((me.roles ?? []) as UserRole[])) {
+  if (!me || me.status !== "confirmado" || !isDirection((me.roles ?? []) as UserRole[])) {
     redirect("/dashboard");
   }
-  const club = Array.isArray(me.clubs) ? me.clubs[0] : me.clubs;
+  const club = me.club;
   const delegateId = (club?.kine_delegate_id as string | null) ?? null;
   const nominaDelegateId = (club?.nomina_delegate_id as string | null) ?? null;
-
-  // RLS: la dirección ve los perfiles de su club.
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name, roles")
-    .eq("status", "confirmado")
-    .order("full_name");
-
-  const staff = ((profiles ?? []) as StaffProfile[]).filter((p) => isStaff(p.roles ?? []));
-  const avatarUrls = await getAvatarUrls(
-    supabase,
-    staff.map((p) => p.id),
-  );
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">

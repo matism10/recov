@@ -11,9 +11,12 @@ export default async function ClubSignupPage({
   const { slug } = await params;
   const supabase = await createClient();
 
-  const { data: club } = await supabase
-    .rpc("club_public_info", { p_slug: slug })
-    .maybeSingle<{ name: string; sport: string }>();
+  // En paralelo: el club y la ruta de su logo (sin sesión: club_logo_path solo
+  // devuelve la ruta del logo, en un bucket público). Ambos dependen solo del link.
+  const [{ data: club }, { data: logoPath }] = await Promise.all([
+    supabase.rpc("club_public_info", { p_slug: slug }).maybeSingle<{ name: string; sport: string }>(),
+    supabase.rpc("club_logo_path", { p_slug: slug }),
+  ]);
 
   if (!club) {
     return (
@@ -25,8 +28,6 @@ export default async function ClubSignupPage({
     );
   }
 
-  // Sin sesión: club_logo_path solo devuelve la ruta del logo (bucket público).
-  const { data: logoPath } = await supabase.rpc("club_logo_path", { p_slug: slug });
   const logoUrl = clubLogoUrl(supabase, logoPath as string | null);
 
   const { data: positions } = await supabase

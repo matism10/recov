@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser } from "@/lib/session";
 import { signOut } from "@/app/login/actions";
 import { textButton } from "@/app/ui";
 
@@ -9,19 +9,11 @@ export default async function PendingPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { telefono } = await searchParams;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
   // RLS: cada usuario siempre puede leer su propio perfil, aunque esté pendiente.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("status")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await getProfile(user.id);
 
   // Confirmados, rechazados o sin perfil: el dashboard decide qué mostrar.
   if (profile?.status !== "pendiente") redirect("/dashboard");

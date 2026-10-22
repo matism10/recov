@@ -1,33 +1,34 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarX } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canManageEvents, isStaff, type UserRole } from "@/lib/roles";
 import { buttonPrimary, cardClass, textButton } from "@/app/ui";
 
 // "Armar nómina" sin un partido próximo: lo avisa y ofrece crearlo a quien puede
 // crear eventos (head coach, manager y entrenador).
 export default async function NoMatchPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
-  const { data: me } = await supabase.from("profiles").select("roles, status").eq("id", user.id).maybeSingle();
+  // En paralelo: perfil y el próximo partido (RLS: eventos del club).
+  const [me, { data: next }] = await Promise.all([
+    getProfile(user.id),
+    supabase
+      .from("events")
+      .select("id")
+      .eq("type", "competencia")
+      .is("cancelled_at", null)
+      .gt("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(1)
+      .maybeSingle(),
+  ]);
   if (me?.status === "pendiente") redirect("/pendiente");
   const roles = (me?.roles ?? []) as UserRole[];
   if (me?.status !== "confirmado" || !isStaff(roles)) redirect("/dashboard");
 
   // Si ya hay un partido próximo, va directo a su nómina.
-  const { data: next } = await supabase
-    .from("events")
-    .select("id")
-    .eq("type", "competencia")
-    .is("cancelled_at", null)
-    .gt("starts_at", new Date().toISOString())
-    .order("starts_at")
-    .limit(1)
-    .maybeSingle();
   if (next) redirect(`/calendario/${next.id}/disponibles`);
 
   return (

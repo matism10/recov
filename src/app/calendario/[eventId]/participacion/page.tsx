@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { EVENT_COLUMNS, eventTitle, longDayLabel, toCalendarEvent, type EventRow } from "@/lib/events";
 import { NOMINA_MODE_LABEL, canManageNominas, getLoadScale } from "@/lib/match-load";
 import { buttonSecondary, cardClass, textButton } from "@/app/ui";
+import { getSupabase } from "@/lib/session";
 import { requireMember } from "../../member";
 import { ParticipationForm, type ParticipationEntry } from "./participation-form";
 
@@ -15,11 +16,30 @@ export default async function ParticipationPage({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const { supabase, roles, club, userId } = await requireMember();
+  // El evento y lo cargado del partido solo necesitan su id: salen en paralelo con la
+  // sesión. RLS: datos del club; sin permiso de nóminas se redirige antes de mostrar.
+  const supabase = await getSupabase();
+  const eventPromise = supabase.from("events").select(EVENT_COLUMNS).eq("id", eventId).maybeSingle();
+  // Convocatoria vigente con sus jugadores, y participación ya cargada.
+  const callupPlayersPromise = supabase
+    .from("event_callups")
+    .select("player_id")
+    .eq("event_id", eventId)
+    .is("removed_at", null)
+    .then(async ({ data: callups }) => {
+      const ids = (callups ?? []).map((c) => c.player_id as string);
+      if (!ids.length) return [];
+      const { data: players } = await supabase.from("players").select("id, full_name, position").in("id", ids);
+      return players ?? [];
+    });
+  const loadedPromise = supabase
+    .from("event_participations")
+    .select("player_id, mode, minutes, range_bucket, played")
+    .eq("event_id", eventId);
+  const { roles, club, userId } = await requireMember();
   if (!club || !canManageNominas(roles, userId, club.nomina_delegate_id)) redirect("/calendario");
 
-  // RLS: solo eventos del club.
-  const { data } = await supabase.from("events").select(EVENT_COLUMNS).eq("id", eventId).maybeSingle();
+  const { data } = await eventPromise;
   if (!data) redirect("/calendario");
   const event = toCalendarEvent(data as EventRow);
   const back = `/calendario?fecha=${event.day}&evento=${event.id}`;
@@ -50,25 +70,13 @@ export default async function ParticipationPage({
     );
   }
 
-  // Convocatoria vigente, participación ya cargada, escala y tope del deporte.
-  const [{ data: callups }, { data: loaded }, scale, { data: sport }] = await Promise.all([
-    supabase
-      .from("event_callups")
-      .select("player_id")
-      .eq("event_id", event.id)
-      .is("removed_at", null),
-    supabase
-      .from("event_participations")
-      .select("player_id, mode, minutes, range_bucket, played")
-      .eq("event_id", event.id),
+  // Convocados, participación ya cargada, escala y tope del deporte.
+  const [players, { data: loaded }, scale, { data: sport }] = await Promise.all([
+    callupPlayersPromise,
+    loadedPromise,
     getLoadScale(supabase, club.sport),
     supabase.from("sports").select("max_minutes").eq("slug", club.sport).maybeSingle(),
   ]);
-
-  const ids = (callups ?? []).map((c) => c.player_id as string);
-  const { data: players } = ids.length
-    ? await supabase.from("players").select("id, full_name, position").in("id", ids)
-    : { data: [] };
   const byPlayer = new Map((loaded ?? []).map((p) => [p.player_id as string, p]));
 
   // Valor inicial: lo ya cargado que sirva para el modo actual (un dato más

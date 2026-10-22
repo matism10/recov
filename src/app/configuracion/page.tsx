@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isDirection, type UserRole } from "@/lib/roles";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { cardClass, textButton } from "@/app/ui";
@@ -14,31 +14,26 @@ import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dash
 
 // Configuración del club: solo la dirección (head coach y manager).
 export default async function SettingsPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("roles, status, club_id, clubs!profiles_club_id_fkey(name, logo_path, cover_path, cover_position_x, cover_position_y, dashboard_metrics, dashboard_metrics_mobile, nomina_mode)")
-    .eq("id", user.id)
-    .maybeSingle();
+  // En paralelo: perfil (con el club) y si ya hay partidos con participación cargada.
+  // RLS: la dirección (staff) ve las participaciones de su club.
+  const [me, { count: loadedCount }] = await Promise.all([
+    getProfile(user.id),
+    supabase.from("event_participations").select("callup_id", { count: "exact", head: true }),
+  ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
-  if (me?.status !== "confirmado" || !isDirection((me.roles ?? []) as UserRole[])) {
+  if (!me || me.status !== "confirmado" || !isDirection((me.roles ?? []) as UserRole[])) {
     redirect("/dashboard");
   }
-  const club = Array.isArray(me.clubs) ? me.clubs[0] : me.clubs;
+  // Un perfil confirmado siempre tiene club; si faltara, al Resumen.
+  if (!me.club_id) redirect("/dashboard");
+  const club = me.club;
   // Las métricas del Resumen las elige solo el head coach (set_dashboard_metrics lo valida).
   const isHeadCoach = ((me.roles ?? []) as UserRole[]).includes("head_coach");
-  // RLS: la dirección (staff) ve las participaciones de su club.
-  const { count: loadedCount } = await supabase
-    .from("event_participations")
-    .select("callup_id", { count: "exact", head: true });
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

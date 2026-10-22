@@ -14,6 +14,7 @@ import {
   type EventRow,
 } from "@/lib/events";
 import { ErrorMessage, cardClass, textButton } from "@/app/ui";
+import { getSupabase } from "@/lib/session";
 import { requireMember } from "../../member";
 import { AvailablePlayers } from "./available-players";
 
@@ -28,44 +29,49 @@ export default async function EventAvailablePage({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const { supabase, roles, club, userId } = await requireMember();
+  // El evento solo necesita su id: sale en paralelo con la sesión. RLS: solo eventos
+  // del club; un id inválido o ajeno no devuelve filas.
+  const supabase = await getSupabase();
+  const eventPromise = supabase.from("events").select(EVENT_COLUMNS).eq("id", eventId).maybeSingle();
+  const { roles, club, userId } = await requireMember();
   if (!isStaff(roles)) redirect("/calendario");
+  // Arma nóminas: head coach, manager y el delegado (solo decide qué se muestra y se pide).
+  const canNomina = canManageNominas(roles, userId, club?.nomina_delegate_id);
 
-  // RLS: solo eventos del club; un id inválido o ajeno no devuelve filas.
-  const { data } = await supabase
-    .from("events")
-    .select(EVENT_COLUMNS)
-    .eq("id", eventId)
-    .maybeSingle();
-  if (!data) redirect("/calendario");
-  const event = toCalendarEvent(data as EventRow);
-
-  const [{ data: rows, error }, { data: positions }, { data: secondary }] = await Promise.all([
-    supabase.rpc("event_availability", { p_event_id: event.id }),
+  // Todo depende solo del id del evento y del club: en paralelo. La convocatoria y el
+  // tamaño de la nómina se piden si la persona arma nóminas, y se usan solo en
+  // competencias no canceladas, como antes.
+  const [
+    { data },
+    { data: rows, error },
+    { data: positions },
+    { data: secondary },
+    { data: callupRows },
+    { data: sizeRow },
+  ] = await Promise.all([
+    eventPromise,
+    supabase.rpc("event_availability", { p_event_id: eventId }),
     // Orden de las posiciones según el deporte del club.
     supabase.from("positions").select("name").eq("sport", club?.sport ?? "").order("sort"),
     // Posición secundaria, para la vista cancha (RLS: jugadores del club).
     supabase.from("players").select("id, secondary_position").not("secondary_position", "is", null),
+    // Convocatoria vigente (RLS: el staff ve las del club).
+    canNomina
+      ? supabase.from("event_callups").select("player_id, slot").eq("event_id", eventId).is("removed_at", null)
+      : Promise.resolve({ data: [] }),
+    // Titulares y banca del deporte del club (0029).
+    canNomina
+      ? supabase.from("sports").select("starters, bench_size").eq("slug", club?.sport ?? "").maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+  if (!data) redirect("/calendario");
+  const event = toCalendarEvent(data as EventRow);
   const players = (rows ?? []) as EventAvailabilityRow[];
   const summary = summarizeAvailability(players);
 
-  // Convocatoria vigente (RLS: el staff ve las del club).
-  const nomina =
-    event.type === "competencia" &&
-    !event.cancelled &&
-    canManageNominas(roles, userId, club?.nomina_delegate_id);
-  const [{ data: callups }, { data: sizes }] = nomina
-    ? await Promise.all([
-        supabase
-          .from("event_callups")
-          .select("player_id, slot")
-          .eq("event_id", event.id)
-          .is("removed_at", null),
-        // Titulares y banca del deporte del club (0029).
-        supabase.from("sports").select("starters, bench_size").eq("slug", club?.sport ?? "").maybeSingle(),
-      ])
-    : [{ data: [] }, { data: null }];
+  const nomina = event.type === "competencia" && !event.cancelled && canNomina;
+  const callups = nomina ? callupRows : [];
+  const sizes = nomina ? sizeRow : null;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">

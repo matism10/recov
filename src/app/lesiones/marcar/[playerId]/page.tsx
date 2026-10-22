@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canManageInjuries, type UserRole } from "@/lib/roles";
 import { MarkForm } from "../mark-form";
 import { textButton } from "@/app/ui";
@@ -11,36 +11,30 @@ export default async function MarkInjuredPage({
   params: Promise<{ playerId: string }>;
 }) {
   const { playerId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("roles, status, clubs!profiles_club_id_fkey(kine_delegate_id)")
-    .eq("id", user.id)
-    .maybeSingle();
+  // En paralelo: perfil (con el delegado del club) y el jugador. RLS: solo jugadores
+  // del club; la dirección también ve pendientes, se filtran.
+  const [me, { data: player }] = await Promise.all([
+    getProfile(user.id),
+    supabase
+      .from("players")
+      .select("id, full_name, position")
+      .eq("id", playerId)
+      .eq("status", "confirmado")
+      .maybeSingle(),
+  ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
-  const club = Array.isArray(me?.clubs) ? me.clubs[0] : me?.clubs;
   if (
-    me?.status !== "confirmado" ||
-    !canManageInjuries((me.roles ?? []) as UserRole[], user.id, club?.kine_delegate_id)
+    !me ||
+    me.status !== "confirmado" ||
+    !canManageInjuries((me.roles ?? []) as UserRole[], user.id, me.club?.kine_delegate_id)
   ) {
     redirect("/dashboard");
   }
-
-  // RLS: solo jugadores del club; la dirección también ve pendientes, se filtran.
-  const { data: player } = await supabase
-    .from("players")
-    .select("id, full_name, position")
-    .eq("id", playerId)
-    .eq("status", "confirmado")
-    .maybeSingle();
   if (!player) redirect("/dashboard");
 
   return (
