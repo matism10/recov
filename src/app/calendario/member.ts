@@ -1,27 +1,21 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import type { UserRole } from "@/lib/roles";
 import type { NominaMode } from "@/lib/match-load";
 
 // Usuario confirmado del club, o redirección: sin sesión a /login, pendiente a
 // /pendiente y el resto al Resumen.
 export async function requireMember() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Sesión y perfil compartidos con el layout en el mismo request (src/lib/session.ts).
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // Desde 0005 hay dos relaciones profiles–clubs: hay que nombrar la FK.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("roles, status, clubs!profiles_club_id_fkey(name, sport, nomina_delegate_id, nomina_mode)")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await getProfile(user.id);
   if (profile?.status === "pendiente") redirect("/pendiente");
-  if (profile?.status !== "confirmado") redirect("/dashboard");
+  if (!profile || profile.status !== "confirmado") redirect("/dashboard");
 
-  const club = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
+  const club = profile.club;
   return {
     supabase,
     userId: user.id,

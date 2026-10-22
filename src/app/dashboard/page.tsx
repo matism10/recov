@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { signOut } from "@/app/login/actions";
 import {
   INJURED_AVAILABILITY,
@@ -32,7 +32,7 @@ import {
 } from "@/app/ui";
 import { SummarySquad } from "./squad-browser";
 import { NextMatch } from "./next-match";
-import { MetricsStrip } from "./metrics-strip";
+import { MetricsStrip, loadMetricsStrip } from "./metrics-strip";
 import { MyMatches } from "./my-matches";
 import { canManageNominas, getMyLoad } from "@/lib/match-load";
 import { ResumenCover, signResumenCover } from "./resumen-cover";
@@ -42,29 +42,133 @@ import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dash
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
 const RESUMEN_AVAILABLE = 10;
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
+type ReviewRow = {
+  id: string;
+  type: string;
+  status: string;
+  started_on: string;
+  players: { full_name: string } | { full_name: string }[] | null;
+};
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type OpenInjury = { id: string; player_id: string; type: string; started_on: string; expected_return_on: string | null };
+
+type MyInjury = {
+  id: string;
+  type: string;
+  status: string;
+  started_on: string;
+  expected_return_on: string | null;
+  closed_on: string | null;
+};
+
+export default async function DashboardPage() {
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // RLS: solo devuelve el perfil y el club del propio usuario.
-  // Desde 0005 hay dos relaciones profiles–clubs (club_id y kine_delegate_id):
-  // hay que nombrar la FK o PostgREST responde PGRST201 y profile queda null.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      "full_name, roles, status, avatar_path, clubs!profiles_club_id_fkey(name, kine_delegate_id, nomina_delegate_id, dashboard_metrics, dashboard_metrics_mobile, sport, category, logo_path, cover_path, cover_position_x, cover_position_y)",
-    )
-    .eq("id", user.id)
-    .maybeSingle();
+  // Todo lo que no depende de otra consulta va en paralelo. El perfil (RLS: solo el
+  // propio) decide el rol; apenas llega, salen las consultas que dependen del rol,
+  // la franja de métricas y la portada, sin esperar al plantel.
+  const profilePromise = getProfile(user.id);
+  const confirmed = profilePromise.then((p) => (p?.status === "confirmado" ? p : null));
+
+  const byRolePromise = confirmed.then(async (profile) => {
+    if (!profile) return null;
+    const roles = (profile.roles ?? []) as UserRole[];
+    const staff = isStaff(roles);
+    const isPlayer = roles.includes("jugador");
+    // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
+    // Solo decide qué se muestra; las funciones de la base validan el permiso real.
+    const canManage = canManageInjuries(roles, user.id, profile.club?.kine_delegate_id);
+    const [myLoad, open, myInjuries, toReview, myPending] = await Promise.all([
+      // Jugador: su carga de partidos y sus convocatorias (solo datos propios).
+      isPlayer ? getMyLoad(supabase) : null,
+      // "Lesiones activas" (staff): lesiones abiertas del club (RLS); abajo se toman
+      // solo las de los jugadores en Lesionado o Reintegro.
+      staff
+        ? supabase
+            .from("injuries")
+            .select("id, player_id, type, started_on, expected_return_on")
+            .in("status", ["en_evaluacion", "activa"])
+            .then(({ data }) => (data ?? []) as OpenInjury[])
+        : [],
+      // "Mis lesiones" (jugador). RLS: el jugador ve solo las suyas; se filtra por
+      // si además es staff.
+      isPlayer
+        ? supabase
+            .from("injuries")
+            .select(
+              "id, type, status, started_on, expected_return_on, closed_on, players!inner(user_id)",
+            )
+            .eq("players.user_id", user.id)
+            .order("started_on", { ascending: false })
+            .then(({ data }) => data as MyInjury[] | null)
+        : null,
+      // Bandeja "Por revisar": lesiones esperando el diagnóstico del jugador y
+      // diagnósticos que el jugador ya subió y nadie ha revisado.
+      canManage
+        ? supabase
+            .from("injuries")
+            .select("id, type, status, started_on, players(full_name)")
+            .or("status.eq.en_evaluacion,and(status.eq.activa,reviewed_at.is.null)")
+            .order("started_on")
+            .then(({ data }) => (data ?? []) as ReviewRow[])
+        : [],
+      // RLS: el jugador ve solo sus lesiones; se filtra por si además es staff.
+      isPlayer
+        ? supabase
+            .from("injuries")
+            .select("id, players!inner(user_id)")
+            .eq("status", "en_evaluacion")
+            .eq("players.user_id", user.id)
+            .limit(1)
+            .maybeSingle()
+            .then(({ data }) => data as { id: string } | null)
+        : null,
+    ]);
+    return { myLoad, open, myInjuries, toReview, myPending };
+  });
+
+  // Franja de métricas (staff): sus datos salen ya, en paralelo con el resto.
+  const metricsPromise = confirmed.then((profile) =>
+    profile && isStaff((profile.roles ?? []) as UserRole[])
+      ? loadMetricsStrip(
+          supabase,
+          dashboardMetricsOf(profile.club?.dashboard_metrics ?? null),
+          dashboardMetricsOf(profile.club?.dashboard_metrics_mobile ?? null, DEFAULT_DASHBOARD_METRICS_MOBILE),
+        )
+      : null,
+  );
+  // Portada: se firma en paralelo con el resto de las consultas.
+  const coverPromise = confirmed.then((profile) =>
+    profile?.club?.cover_path
+      ? signResumenCover(supabase, profile.club.cover_path, profile.avatar_path ?? null)
+      : null,
+  );
+
+  const [profile, squad, { data: nextMatch }, byRole, metricsData, coverUrls] = await Promise.all([
+    profilePromise,
+    // Plantel confirmado y activo, con fotos y la fase en curso de cada jugador.
+    getSquad(supabase),
+    // Próximo partido: la competencia no cancelada más cercana. RLS: eventos del club.
+    supabase
+      .from("events")
+      .select("id, starts_at, opponent")
+      .eq("type", "competencia")
+      .is("cancelled_at", null)
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(1)
+      .maybeSingle(),
+    byRolePromise,
+    metricsPromise,
+    coverPromise,
+  ]);
 
   if (profile?.status === "pendiente") redirect("/pendiente");
 
   // Sin perfil o rechazado: no tiene acceso a los datos del club.
-  if (!profile || profile.status !== "confirmado") {
+  if (!profile || profile.status !== "confirmado" || !byRole) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
         <h1 className="text-xl font-semibold text-ink">
@@ -82,37 +186,17 @@ export default async function DashboardPage() {
     );
   }
 
-  // Portada: se empieza a firmar ya, en paralelo con el resto de las consultas.
-  const coverClub = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
-  const coverUrls = coverClub?.cover_path
-    ? signResumenCover(supabase, coverClub.cover_path, profile.avatar_path ?? null)
-    : null;
-
-  // Plantel confirmado y activo, con fotos y la fase en curso de cada jugador.
-  const { players, avatarUrls, phaseByPlayer } = await getSquad(supabase);
+  const { players, avatarUrls, phaseByPlayer } = squad;
   // En el Resumen, solo los primeros disponibles; el plantel completo está en /plantel.
   const availablePlayers = players
     .filter((p) => p.availability === "disponible")
     .slice(0, RESUMEN_AVAILABLE);
 
-  const club = Array.isArray(profile.clubs) ? profile.clubs[0] : profile.clubs;
+  const club = profile.club;
   const roles = (profile.roles ?? []) as UserRole[];
-  // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
-  // Solo decide qué se muestra; las funciones de la base validan el permiso real.
   const canManage = canManageInjuries(roles, user.id, club?.kine_delegate_id);
   // Arma nóminas: head coach, manager y el delegado de nóminas (solo decide qué se muestra).
   const canNomina = canManageNominas(roles, user.id, club?.nomina_delegate_id);
-
-  // Próximo partido: la competencia no cancelada más cercana. RLS: eventos del club.
-  const { data: nextMatch } = await supabase
-    .from("events")
-    .select("id, starts_at, opponent")
-    .eq("type", "competencia")
-    .is("cancelled_at", null)
-    .gte("starts_at", new Date().toISOString())
-    .order("starts_at")
-    .limit(1)
-    .maybeSingle();
 
   const staff = isStaff(roles);
   const isPlayer = roles.includes("jugador");
@@ -121,38 +205,30 @@ export default async function DashboardPage() {
   const me = isPlayer ? players.find((p) => p.user_id === user.id) : undefined;
   const myStatus = me?.availability as Availability | undefined;
   const myPhase = me && myStatus === "lesionado" ? phaseByPlayer.get(me.id) : undefined;
-  // Jugador: su carga de partidos y sus convocatorias (solo datos propios).
-  const myLoad = me ? await getMyLoad(supabase) : null;
+  // Jugador: su carga de partidos y sus convocatorias (solo si tiene ficha en el plantel).
+  const myLoad = me ? byRole.myLoad : null;
 
   // "Lesiones activas" (staff): jugadores en Lesionado o Reintegro, con el id, el
-  // inicio y la fecha de regreso de su lesión abierta. RLS: el staff ve las lesiones del club.
+  // inicio y la fecha de regreso de su lesión abierta.
   const injuredPlayers = players.filter((p) =>
     (INJURED_AVAILABILITY as readonly string[]).includes(p.availability),
   );
+  const injuredIds = new Set(injuredPlayers.map((p) => p.id));
   const openByPlayer = new Map<
     string,
     { id: string; type: string; startedOn: string; expectedReturnOn: string | null }
   >();
-  if (staff && injuredPlayers.length > 0) {
-    const { data: open } = await supabase
-      .from("injuries")
-      .select("id, player_id, type, started_on, expected_return_on")
-      .in("status", ["en_evaluacion", "activa"])
-      .in(
-        "player_id",
-        injuredPlayers.map((p) => p.id),
-      );
-    // Si tiene más de una lesión abierta, manda la que termina más tarde.
-    for (const i of open ?? []) {
-      const current = openByPlayer.get(i.player_id)?.expectedReturnOn;
-      if (!current || (i.expected_return_on && i.expected_return_on > current)) {
-        openByPlayer.set(i.player_id, {
-          id: i.id,
-          type: i.type,
-          startedOn: i.started_on,
-          expectedReturnOn: i.expected_return_on,
-        });
-      }
+  // Si tiene más de una lesión abierta, manda la que termina más tarde.
+  for (const i of byRole.open) {
+    if (!injuredIds.has(i.player_id)) continue;
+    const current = openByPlayer.get(i.player_id)?.expectedReturnOn;
+    if (!current || (i.expected_return_on && i.expected_return_on > current)) {
+      openByPlayer.set(i.player_id, {
+        id: i.id,
+        type: i.type,
+        startedOn: i.started_on,
+        expectedReturnOn: i.expected_return_on,
+      });
     }
   }
 
@@ -162,51 +238,11 @@ export default async function DashboardPage() {
   const injuryHref = (playerId: string, injury?: { id: string }) =>
     injury ? `/lesiones/${injury.id}` : `/jugadores/${playerId}`;
 
-  // "Mis lesiones" (jugador). RLS: el jugador ve solo las suyas; se filtra por
-  // si además es staff.
-  let injuries = null;
-  if (isPlayer) {
-    ({ data: injuries } = await supabase
-      .from("injuries")
-      .select(
-        "id, type, status, started_on, expected_return_on, closed_on, players!inner(user_id)",
-      )
-      .eq("players.user_id", user.id)
-      .order("started_on", { ascending: false }));
-  }
-
-  // Bandeja "Por revisar": lesiones esperando el diagnóstico del jugador y
-  // diagnósticos que el jugador ya subió y nadie ha revisado.
-  let toReview: {
-    id: string;
-    type: string;
-    status: string;
-    started_on: string;
-    players: { full_name: string } | { full_name: string }[] | null;
-  }[] = [];
-  if (canManage) {
-    const { data } = await supabase
-      .from("injuries")
-      .select("id, type, status, started_on, players(full_name)")
-      .or("status.eq.en_evaluacion,and(status.eq.activa,reviewed_at.is.null)")
-      .order("started_on");
-    toReview = data ?? [];
-  }
+  const injuries = byRole.myInjuries;
+  const toReview = byRole.toReview;
   const awaitingDiagnosis = toReview.filter((i) => i.status === "en_evaluacion");
   const diagnosisToReview = toReview.filter((i) => i.status === "activa");
-
-  // RLS: el jugador ve solo sus lesiones; se filtra por si además es staff.
-  let myPendingInjury: { id: string } | null = null;
-  if (isPlayer) {
-    const { data } = await supabase
-      .from("injuries")
-      .select("id, players!inner(user_id)")
-      .eq("status", "en_evaluacion")
-      .eq("players.user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    myPendingInjury = data;
-  }
+  const myPendingInjury = byRole.myPending;
 
   return (
     <>
@@ -215,7 +251,7 @@ export default async function DashboardPage() {
       <ResumenCover
         club={{ ...club, cover_path: club.cover_path }}
         fullName={profile.full_name ?? ""}
-        urls={coverUrls}
+        urls={Promise.resolve(coverUrls)}
       />
     )}
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
@@ -238,9 +274,9 @@ export default async function DashboardPage() {
 
       {/* Franja de métricas: solo staff. En celular, disponibles y lesionados, justo
           bajo el título. */}
-      {staff && (
+      {staff && metricsData && (
         <MetricsStrip
-          supabase={supabase}
+          data={Promise.resolve(metricsData)}
           desktop={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
           mobile={dashboardMetricsOf(
             club?.dashboard_metrics_mobile as string[] | null,

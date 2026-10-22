@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import {
   isStaff,
   type Availability,
@@ -19,7 +19,7 @@ import {
   type PhaseStatus,
 } from "@/lib/injuries";
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
-import { getMyLoad, getTeamLoad } from "@/lib/match-load";
+import { getMyLoad, getTeamLoad, type LoadResult, type MyLoad, type TeamLoad } from "@/lib/match-load";
 import { LoadBlock } from "@/app/load-block";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
@@ -44,37 +44,79 @@ export default async function PlayerPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await getSupabase();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("roles, status")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (me?.status === "pendiente") redirect("/pendiente");
-  if (me?.status !== "confirmado") redirect("/dashboard");
-  const staff = isStaff((me.roles ?? []) as UserRole[]);
-
+  // Todo lo que no depende de otra consulta va en paralelo; las fases esperan a las
+  // lesiones y la foto al jugador. Nada se muestra antes de los controles de acceso
+  // de abajo, y RLS protege cada consulta.
+  const profilePromise = getProfile(user.id);
+  const staffPromise = profilePromise.then(
+    (me) => me?.status === "confirmado" && isStaff((me.roles ?? []) as UserRole[]),
+  );
   // RLS: solo jugadores del club.
-  const { data: player } = await supabase
+  const playerPromise = supabase
     .from("players")
     .select("id, full_name, position, availability, user_id")
     .eq("id", id)
     .eq("status", "confirmado")
-    .maybeSingle();
+    .maybeSingle()
+    .then(({ data }) => data);
+  // RLS: el staff ve las lesiones del club.
+  const injuriesPromise = supabase
+    .from("injuries")
+    .select(
+      "id, type, status, severity, started_on, expected_return_on, closed_on, occurred_during, reviewed_at",
+    )
+    .eq("player_id", id)
+    .order("started_on", { ascending: false })
+    .then(({ data }) => data ?? []);
+
+  const [me, staff, player, all, loadResult, phases, avatarUrl, phone] = await Promise.all([
+    profilePromise,
+    staffPromise,
+    playerPromise,
+    injuriesPromise,
+    // Carga de los últimos 6 partidos: el staff la toma de la carga del plantel;
+    // el jugador, de su propia función (sin datos de otros).
+    staffPromise.then(
+      (isStaffUser): Promise<LoadResult<TeamLoad> | LoadResult<MyLoad>> =>
+        isStaffUser ? getTeamLoad(supabase, 6) : getMyLoad(supabase),
+    ),
+    // Fases de las lesiones abiertas.
+    injuriesPromise.then(async (injuries) => {
+      const openIds = injuries
+        .filter((i) => OPEN_STATUSES.includes(i.status as InjuryStatus))
+        .map((i) => i.id);
+      if (openIds.length === 0) return [];
+      const { data } = await supabase
+        .from("injury_phases")
+        .select("id, injury_id, name, status, started_on, ended_on")
+        .in("injury_id", openIds)
+        .is("archived_at", null)
+        .order("position");
+      return data ?? [];
+    }),
+    // Foto del jugador.
+    playerPromise.then(async (p) =>
+      p ? (await getAvatarUrls(supabase, [p.user_id])).get(p.user_id) : undefined,
+    ),
+    // Teléfono para contactarlo: solo el staff. get_player_phone devuelve null a quien
+    // no corresponde (0030); abajo se descarta si es la propia ficha.
+    staffPromise.then((isStaffUser) =>
+      isStaffUser
+        ? supabase.rpc("get_player_phone", { p_player_id: id }).then(({ data }) => data as string | null)
+        : null,
+    ),
+  ]);
+
+  if (me?.status === "pendiente") redirect("/pendiente");
+  if (me?.status !== "confirmado") redirect("/dashboard");
   // El jugador no ve lesiones de otros: fuera de su propia ficha, es solo para el staff.
   if (!staff && player?.user_id !== user.id) redirect("/dashboard");
   if (!player) notFound();
 
-  // Carga de los últimos 6 partidos: el staff la toma de la carga del plantel;
-  // el jugador, de su propia función (sin datos de otros).
-  const loadResult = staff ? await getTeamLoad(supabase, 6) : await getMyLoad(supabase);
   const load = loadResult.ok ? loadResult.data : null;
   const playerLoad = loadResult.ok
     ? "players" in loadResult.data
@@ -82,39 +124,10 @@ export default async function PlayerPage({
       : loadResult.data.player
     : null;
 
-  // RLS: el staff ve las lesiones del club.
-  const { data: injuries } = await supabase
-    .from("injuries")
-    .select(
-      "id, type, status, severity, started_on, expected_return_on, closed_on, occurred_during, reviewed_at",
-    )
-    .eq("player_id", id)
-    .order("started_on", { ascending: false });
-
-  const all = injuries ?? [];
   const open = all.filter((i) => OPEN_STATUSES.includes(i.status as InjuryStatus));
+  // Teléfono solo en la ficha de otro jugador (el propio no muestra el botón).
+  const contactPhone = staff && player.user_id !== user.id ? phone : null;
 
-  const { data: phases } =
-    open.length > 0
-      ? await supabase
-          .from("injury_phases")
-          .select("id, injury_id, name, status, started_on, ended_on")
-          .in(
-            "injury_id",
-            open.map((i) => i.id),
-          )
-          .is("archived_at", null)
-          .order("position")
-      : { data: [] };
-
-  // Teléfono para contactarlo: solo el staff, y solo si el jugador lo dejó.
-  // get_player_phone devuelve null a quien no corresponde (0030).
-  const { data: phone } =
-    staff && player.user_id !== user.id
-      ? await supabase.rpc("get_player_phone", { p_player_id: player.id })
-      : { data: null };
-
-  const avatarUrl = (await getAvatarUrls(supabase, [player.user_id])).get(player.user_id);
   const availability = player.availability as Availability;
   const latestReturn = open
     .map((i) => i.expected_return_on as string | null)
@@ -141,9 +154,9 @@ export default async function PlayerPage({
               {player.position && `${player.position} · `}
               {pendingReview ? "Lesión por revisar" : returnLabel(latestReturn ?? null)}
             </p>
-            {phone && (
+            {contactPhone && (
               <div className="mt-3">
-                <WhatsAppButton phone={phone as string} name={player.full_name} />
+                <WhatsAppButton phone={contactPhone} name={player.full_name} />
               </div>
             )}
           </div>
