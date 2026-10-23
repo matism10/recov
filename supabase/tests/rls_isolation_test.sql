@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0030.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0034.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -1076,5 +1076,23 @@ select pg_temp.expect_count($q$select 1 from pg_policies where schemaname = 'pub
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname in ('set_my_phone', 'get_player_phone')
   and p.prosecdef and p.proconfig = array['search_path=""']$q$, 2, 'set_my_phone y get_player_phone son SECURITY DEFINER con search_path vacío');
+
+-- =======================================================================
+-- Correo "ya puedes entrar": sale desde la app, no desde la base (0034)
+-- =======================================================================
+select pg_temp.expect_count($q$select 1 from pg_trigger where tgname = 'profiles_member_confirmed_email' and not tgisinternal$q$, 0, 'ya no existe el trigger del correo');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where (n.nspname, p.proname) in (('private', 'queue_member_confirmed_email'), ('public', 'claim_member_email'))$q$, 0, 'ya no existen las funciones del envío por base');
+select pg_temp.expect_count($q$select 1 from pg_class where oid = 'private.member_emails'::regclass and relrowsecurity$q$, 1, 'private.member_emails sigue con RLS (sin uso)');
+select pg_temp.expect_count($q$select 1 where has_table_privilege('authenticated', 'private.member_emails', 'SELECT')
+  or has_table_privilege('anon', 'private.member_emails', 'SELECT')$q$, 0, 'anon y authenticated no leen private.member_emails');
+
+-- Confirmar un registro no encola nada en la base.
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_ok($q$select public.review_member('c0000000-0000-0000-0000-00000000000a', 'confirmar')$q$, 'la dirección confirma al jugador pendiente c0');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from private.member_emails where profile_id = 'c0000000-0000-0000-0000-00000000000a'$q$, 0, 'confirmar no deja filas en member_emails');
+select pg_temp.expect_count($q$select 1 from net.http_request_queue
+  where convert_from(body, 'utf8') like '%c0000000-0000-0000-0000-00000000000a%'$q$, 0, 'confirmar no encola llamados HTTP');
 
 rollback;

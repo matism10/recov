@@ -36,7 +36,12 @@ function playerDetails(p: PendingPlayer) {
     .join(" · ");
 }
 
-export default async function RegistrosPage() {
+export default async function RegistrosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ correo?: string }>;
+}) {
+  const { correo } = await searchParams;
   const supabase = await getSupabase();
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -99,6 +104,13 @@ export default async function RegistrosPage() {
           Confirma a quienes se registraron con el link del club.
         </p>
       </header>
+
+      {/* Tras confirmar: la decisión quedó guardada, pero el correo no salió. */}
+      {correo === "no-enviado" && (
+        <p role="status" className="mb-6 rounded-xl border border-line bg-mist px-4 py-3 text-sm text-ink">
+          Aprobado, pero no pudimos enviar el correo. Avísale tú que ya puede entrar.
+        </p>
+      )}
 
       {pending.length === 0 ? (
         <p className="rounded-xl bg-mist p-8 text-center text-muted border border-line">
