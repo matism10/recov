@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getUserEmail } from "@/lib/supabase/admin";
+import { sendEmail } from "@/lib/email";
+import { approvedEmail } from "./approved-email";
 
 export type ReviewState = { error?: string };
 
@@ -22,7 +27,7 @@ export async function reviewMember(
 
   // review_member verifica que quien llama sea de la dirección y del mismo club.
   // En el staff asigna el puesto solicitado.
-  const supabase = await createClient();
+  const supabase = await getSupabase();
   const { error } = await supabase.rpc("review_member", {
     p_profile_id: profileId,
     p_decision: decision,
@@ -38,8 +43,45 @@ export async function reviewMember(
     };
   }
 
+  // La decisión ya quedó guardada. Al confirmar, se avisa por correo; si el
+  // correo falla, la confirmación se mantiene y la dirección ve un aviso.
+  const emailSent = decision === "confirmar" ? await notifyApproved(profileId) : true;
+
   revalidatePath("/registros");
   revalidatePath("/dashboard");
   revalidatePath("/", "layout"); // contador de pendientes del sidebar
-  return {};
+  // La fila revisada desaparece de la lista, así que el aviso va arriba de la página.
+  redirect(emailSent ? "/registros" : "/registros?correo=no-enviado");
+}
+
+async function notifyApproved(profileId: string): Promise<boolean> {
+  try {
+    const supabase = await getSupabase();
+    const [user, email, { data: member }, requestHeaders] = await Promise.all([
+      getSessionUser(),
+      getUserEmail(profileId),
+      // RLS: la dirección lee los perfiles de su club.
+      supabase.from("profiles").select("full_name").eq("id", profileId).maybeSingle(),
+      headers(),
+    ]);
+    if (!email || !user) return false;
+
+    const me = await getProfile(user.id);
+    const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+    const loginUrl = `${proto}://${host}/login`;
+
+    const result = await sendEmail(
+      approvedEmail({
+        to: email,
+        fullName: (member?.full_name as string | null) ?? null,
+        clubName: me?.club?.name ?? "Tu club",
+        loginUrl,
+      }),
+    );
+    return result.ok;
+  } catch (error) {
+    console.error("[registros] Aviso por correo:", error instanceof Error ? error.message : error);
+    return false;
+  }
 }

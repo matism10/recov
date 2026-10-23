@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getProfile, getSessionUser } from "@/lib/session";
 import { signOut } from "@/app/login/actions";
 import { textButton } from "@/app/ui";
+import { InstallGuide } from "@/app/install-guide";
+import { PendingWatcher } from "./pending-watcher";
 
 export default async function PendingPage({
   searchParams,
@@ -21,10 +23,10 @@ export default async function PendingPage({
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
       <h1 className="text-xl font-semibold text-ink">
-        Tu perfil está en revisión
+        El staff está revisando tu perfil
       </h1>
       <p className="max-w-md text-muted">
-        La dirección del club te confirmará pronto.
+        Te llegará un correo cuando estés listo para acceder a la plataforma.
       </p>
       {telefono === "no-guardado" && (
         <p role="status" className="max-w-md rounded-xl bg-mist px-4 py-3 text-sm text-ink">
@@ -37,6 +39,11 @@ export default async function PendingPage({
           Cerrar sesión
         </button>
       </form>
+      <PendingWatcher userId={user.id} />
+      {/* En celular: cómo instalar Recov mientras espera (cuelga bajo lo anterior). */}
+      <div className="w-full max-w-sm text-left">
+        <InstallGuide />
+      </div>
     </main>
   );
 }
