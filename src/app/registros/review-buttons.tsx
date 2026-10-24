@@ -15,8 +15,11 @@ export function ReviewButtons({ profileId }: { profileId: string }) {
     <form action={formAction} className="flex flex-col items-end gap-2">
       <input type="hidden" name="profile_id" value={profileId} />
 
+      {/* Las key separan los dos grupos: sin ellas React reutiliza el botón "Rechaza"
+          como "Sí, rechaza" (tipo submit) durante el mismo clic y el formulario se
+          envía sin pedir confirmación. */}
       {confirmingReject ? (
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div key="confirmar-rechazo" className="flex flex-wrap items-center justify-end gap-3">
           <span className="text-sm text-muted">¿Rechazar este registro?</span>
           <button
             type="submit"
@@ -37,7 +40,7 @@ export function ReviewButtons({ profileId }: { profileId: string }) {
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
+        <div key="acciones" className="flex items-center gap-3">
           <button
             type="submit"
             name="decision"

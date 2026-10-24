@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0034.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0036.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -1087,9 +1087,40 @@ select pg_temp.expect_count($q$select 1 from pg_class where oid = 'private.membe
 select pg_temp.expect_count($q$select 1 where has_table_privilege('authenticated', 'private.member_emails', 'SELECT')
   or has_table_privilege('anon', 'private.member_emails', 'SELECT')$q$, 0, 'anon y authenticated no leen private.member_emails');
 
+-- =======================================================================
+-- Sin verificación de correo (0036) y límite de correos de recuperación (0035)
+-- =======================================================================
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'public.create_email_verification(uuid)', 'EXECUTE')
+  or has_function_privilege('anon', 'public.create_email_verification(uuid)', 'EXECUTE')
+  or has_function_privilege('authenticated', 'public.verify_email(text)', 'EXECUTE')
+  or has_function_privilege('anon', 'public.verify_email(text)', 'EXECUTE')
+  or has_function_privilege('authenticated', 'public.allow_auth_email(text, text)', 'EXECUTE')
+  or has_function_privilege('anon', 'public.allow_auth_email(text, text)', 'EXECUTE')$q$, 0, 'la app no usa las funciones de verificación ni el límite de correos');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('service_role', 'public.allow_auth_email(text, text)', 'EXECUTE')$q$, 1, 'service_role usa el límite de correos');
+select pg_temp.expect_count($q$select 1 where has_table_privilege('authenticated', 'private.email_verification_tokens', 'SELECT')
+  or has_table_privilege('anon', 'private.email_verification_tokens', 'SELECT')
+  or has_table_privilege('authenticated', 'private.auth_email_log', 'SELECT')
+  or has_table_privilege('anon', 'private.auth_email_log', 'SELECT')$q$, 0, 'nadie de la app lee tokens ni el registro de correos');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname in ('allow_auth_email', 'review_member')
+  and p.prosecdef and p.proconfig = array['search_path=""']$q$, 2, 'allow_auth_email y review_member son SECURITY DEFINER con search_path vacío');
+
+set local role service_role;
+select pg_temp.expect_count($q$select 1 where public.allow_auth_email('Prueba@Test.cl', 'recuperacion')$q$, 1, 'primer correo de recuperación: permitido');
+select pg_temp.expect_count($q$select 1 where public.allow_auth_email(' prueba@test.cl ', 'recuperacion')$q$, 0, 'otro en el mismo minuto (mismo correo, otra escritura): bloqueado');
+reset role;
+update private.auth_email_log set sent_at = sent_at - interval '2 minutes'
+  where email_hash = encode(extensions.digest('prueba@test.cl', 'sha256'), 'hex');
+insert into private.auth_email_log (email_hash, kind, sent_at)
+  select encode(extensions.digest('prueba@test.cl', 'sha256'), 'hex'), 'recuperacion', now() - interval '10 minutes' from generate_series(1, 4);
+set local role service_role;
+select pg_temp.expect_count($q$select 1 where public.allow_auth_email('prueba@test.cl', 'recuperacion')$q$, 0, 'más de 5 en una hora: bloqueado');
+reset role;
+select pg_temp.expect_count($q$select 1 from private.auth_email_log where email_hash = encode(extensions.digest('prueba@test.cl', 'sha256'), 'hex') and kind = 'recuperacion'$q$, 5, 'se guarda el hash del correo, no el correo');
+
 -- Confirmar un registro no encola nada en la base.
 select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
-select pg_temp.expect_ok($q$select public.review_member('c0000000-0000-0000-0000-00000000000a', 'confirmar')$q$, 'la dirección confirma al jugador pendiente c0');
+select pg_temp.expect_ok($q$select public.review_member('c0000000-0000-0000-0000-00000000000a', 'confirmar')$q$, 'la dirección confirma al jugador pendiente c0 sin verificar su correo');
 select pg_temp.back();
 select pg_temp.expect_count($q$select 1 from private.member_emails where profile_id = 'c0000000-0000-0000-0000-00000000000a'$q$, 0, 'confirmar no deja filas en member_emails');
 select pg_temp.expect_count($q$select 1 from net.http_request_queue

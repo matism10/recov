@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { STAFF_SIGNUP_ROLES, type StaffSignupRole } from "@/lib/roles";
 import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
+import { emailDomainReceivesMail } from "@/lib/email-domain";
 
 const MAX_NAME = 100;
 const MIN_PASSWORD = 6;
@@ -113,6 +114,11 @@ export async function registerMember(
     phone = normalized;
   } else if (!STAFF_SIGNUP_ROLES.includes(fields.role as StaffSignupRole)) {
     return fail("Elige tu puesto.");
+  }
+
+  // El dominio del correo tiene que poder recibir correos (atrapa errores de tipeo).
+  if (!(await emailDomainReceivesMail(fields.email))) {
+    return fail("Ese correo no puede recibir mensajes. Revisa que esté bien escrito.");
   }
 
   // Crear la cuenta. Si el correo ya existe (por ejemplo, un intento anterior
