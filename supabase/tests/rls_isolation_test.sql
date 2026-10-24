@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0036.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0037.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -1125,5 +1125,46 @@ select pg_temp.back();
 select pg_temp.expect_count($q$select 1 from private.member_emails where profile_id = 'c0000000-0000-0000-0000-00000000000a'$q$, 0, 'confirmar no deja filas en member_emails');
 select pg_temp.expect_count($q$select 1 from net.http_request_queue
   where convert_from(body, 'utf8') like '%c0000000-0000-0000-0000-00000000000a%'$q$, 0, 'confirmar no encola llamados HTTP');
+
+-- =======================================================================
+-- Membresías por plantel: club_members (0037, fase "expand")
+-- =======================================================================
+-- a. Todo perfil tiene su membresía idéntica (mismo club, roles, estado y puesto pedido).
+select pg_temp.expect_count($q$select 1 from public.profiles p
+  where not exists (select 1 from public.club_members m
+                    where m.user_id = p.id and m.club_id = p.club_id and m.roles = p.roles
+                      and m.status = p.status and m.requested_role is not distinct from p.requested_role)$q$,
+  0, 'ningún perfil queda sin su membresía idéntica');
+
+-- b. Los cambios en profiles se reflejan en club_members; un perfil nuevo crea su membresía.
+update public.profiles set roles = '{entrenador,preparador_fisico}' where id = '40000000-0000-0000-0000-00000000000a';
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '40000000-0000-0000-0000-00000000000a'
+  and club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and roles = '{entrenador,preparador_fisico}'$q$, 1, 'cambiar los roles en profiles se refleja en club_members');
+update public.profiles set status = 'rechazado' where id = '50000000-0000-0000-0000-00000000000a';
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '50000000-0000-0000-0000-00000000000a' and status = 'rechazado'$q$, 1, 'cambiar el status en profiles se refleja en club_members');
+insert into public.profiles (id, club_id, roles, full_name, status, requested_role)
+  values ('e0000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002', '{}', 'Nuevo B', 'pendiente', 'kinesiologo');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = 'e0000000-0000-0000-0000-00000000000a'
+  and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and roles = '{}' and status = 'pendiente' and requested_role = 'kinesiologo'$q$, 1, 'un perfil nuevo crea su membresía');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = 'e0000000-0000-0000-0000-00000000000a'$q$, 1, 'una sola membresía por perfil nuevo');
+
+-- c. Cada usuario solo ve sus propias filas.
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_count($q$select 1 from public.club_members$q$, 1, 'head coach A ve solo su membresía');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id <> '10000000-0000-0000-0000-00000000000a'$q$, 0, 'head coach A no ve membresías de otros de su club');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000b');   -- jugador B1
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '60000000-0000-0000-0000-00000000000b'$q$, 1, 'jugador B1 ve su membresía');
+select pg_temp.expect_count($q$select 1 from public.club_members where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'jugador B1 no ve membresías del club A');
+select pg_temp.expect_no_rows($q$update public.club_members set status = 'confirmado'$q$, 'jugador B1 edita club_members directo');
+select pg_temp.expect_fail($q$insert into public.club_members (user_id, club_id) values ('60000000-0000-0000-0000-00000000000b', 'aaaaaaaa-0000-0000-0000-000000000001')$q$, 'jugador B1 se agrega a otro plantel directo');
+select pg_temp.back();
+
+-- d. anon no lee club_members.
+select pg_temp.as_anon();
+select pg_temp.expect_count($q$select 1 from public.club_members$q$, 0, 'anónimo no lee club_members');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.sync_profile_to_member()', 'EXECUTE')
+  or has_function_privilege('anon', 'private.sync_profile_to_member()', 'EXECUTE')$q$, 0, 'nadie de la app ejecuta la función del trigger');
 
 rollback;
