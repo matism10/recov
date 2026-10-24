@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0037.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0038.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -1148,10 +1148,11 @@ select pg_temp.expect_count($q$select 1 from public.club_members where user_id =
   and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and roles = '{}' and status = 'pendiente' and requested_role = 'kinesiologo'$q$, 1, 'un perfil nuevo crea su membresía');
 select pg_temp.expect_count($q$select 1 from public.club_members where user_id = 'e0000000-0000-0000-0000-00000000000a'$q$, 1, 'una sola membresía por perfil nuevo');
 
--- c. Cada usuario solo ve sus propias filas.
+-- c. Cada usuario ve sus propias filas. Desde 0038 la dirección ve además las de
+--    su club (también pendientes): estas dos pruebas cambiaron con 0038.
 select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
-select pg_temp.expect_count($q$select 1 from public.club_members$q$, 1, 'head coach A ve solo su membresía');
-select pg_temp.expect_count($q$select 1 from public.club_members where user_id <> '10000000-0000-0000-0000-00000000000a'$q$, 0, 'head coach A no ve membresías de otros de su club');
+select pg_temp.expect_count($q$select 1 from public.club_members where club_id <> 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'head coach A no ve membresías de otros planteles');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '80000000-0000-0000-0000-00000000000a' and status = 'pendiente'$q$, 1, 'head coach A (dirección) ve las membresías pendientes de su club');
 select pg_temp.back();
 select pg_temp.as_user('60000000-0000-0000-0000-00000000000b');   -- jugador B1
 select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '60000000-0000-0000-0000-00000000000b'$q$, 1, 'jugador B1 ve su membresía');
@@ -1166,5 +1167,149 @@ select pg_temp.expect_count($q$select 1 from public.club_members$q$, 0, 'anónim
 select pg_temp.back();
 select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.sync_profile_to_member()', 'EXECUTE')
   or has_function_privilege('anon', 'private.sync_profile_to_member()', 'EXECUTE')$q$, 0, 'nadie de la app ejecuta la función del trigger');
+
+-- =======================================================================
+-- Multi-plantel (0038): helpers con club_id y políticas que los usan
+-- =======================================================================
+-- b. Equivalencia: para cada cuenta (las reales del proyecto y las de esta prueba),
+--    los helpers nuevos con el plantel de la cuenta dan lo mismo que los viejos.
+create temp table helper_diff (user_id uuid, helper text);
+do $$
+declare u record; r public.user_role;
+begin
+  for u in select id, club_id from public.profiles loop
+    perform set_config('request.jwt.claims', json_build_object('sub', u.id, 'role', 'authenticated')::text, true);
+    foreach r in array enum_range(null::public.user_role) loop
+      if private.has_role(r) is distinct from private.has_role(u.club_id, r) then insert into helper_diff values (u.id, 'has_role ' || r); end if;
+    end loop;
+    if private.is_staff() is distinct from private.is_staff(u.club_id) then insert into helper_diff values (u.id, 'is_staff'); end if;
+    if private.is_direction() is distinct from private.is_direction(u.club_id) then insert into helper_diff values (u.id, 'is_direction'); end if;
+    if private.has_kine_powers() is distinct from private.has_kine_powers(u.club_id) then insert into helper_diff values (u.id, 'has_kine_powers'); end if;
+    if private.can_manage_nominas() is distinct from private.can_manage_nominas(u.club_id) then insert into helper_diff values (u.id, 'can_manage_nominas'); end if;
+    if private.can_view_documents() is distinct from private.can_view_documents(u.club_id) then insert into helper_diff values (u.id, 'can_view_documents'); end if;
+    if private.current_player_id() is distinct from private.current_player_id(u.club_id) then insert into helper_diff values (u.id, 'current_player_id'); end if;
+    if (private.current_club_id() is not null) is distinct from private.is_confirmed_member(u.club_id) then insert into helper_diff values (u.id, 'is_confirmed_member'); end if;
+    if (private.member_club_id() = u.club_id) is distinct from private.is_member(u.club_id) then insert into helper_diff values (u.id, 'is_member'); end if;
+  end loop;
+end $$;
+select pg_temp.expect_count($q$select 1 from helper_diff$q$, 0, 'helpers nuevos con el plantel de la cuenta = helpers viejos');
+
+-- Datos ficticios: X es entrenador en el club A y jugador en el club B; P es jugador
+-- confirmado en A y tiene una membresía pendiente en B; Q es staff pendiente en A.
+insert into auth.users (id, email) values
+  ('f1000000-0000-0000-0000-00000000000a', 'multi-x@test.cl'),
+  ('f2000000-0000-0000-0000-00000000000a', 'multi-p@test.cl'),
+  ('f3000000-0000-0000-0000-00000000000a', 'multi-q@test.cl');
+insert into public.profiles (id, club_id, roles, full_name, status, requested_role) values
+  ('f1000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{entrenador}', 'Multi X', 'confirmado', null),
+  ('f2000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',    'Multi P', 'confirmado', null),
+  ('f3000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{}',           'Multi Q', 'pendiente',  'entrenador');
+insert into public.club_members (user_id, club_id, roles, status) values
+  ('f1000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}', 'confirmado'),
+  ('f2000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}', 'pendiente');
+insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
+  ('f1b00000-1111-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'Multi X', 'Multi', 'X', 'Portero', 'confirmado', 'f1000000-0000-0000-0000-00000000000a');
+insert into public.injuries (id, club_id, player_id, type, severity) values
+  ('f1b00000-2222-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'f1b00000-1111-0000-0000-000000000001', 'Esguince de X', 'leve');
+insert into public.documents (club_id, player_id, storage_path, file_name) values
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'f1b00000-1111-0000-0000-000000000001',
+   'bbbbbbbb-0000-0000-0000-000000000002/f1b00000-1111-0000-0000-000000000001/informe-x.pdf', 'informe-x.pdf');
+select set_config('test.a_injuries', (select count(*)::text from public.injuries where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'), true);
+select set_config('test.b_injuries', (select count(*)::text from public.injuries where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'), true);
+
+-- c. Dos planteles: X es staff en A y jugador en B.
+select pg_temp.as_user('f1000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 where (select count(*) from public.injuries where club_id = 'aaaaaaaa-0000-0000-0000-000000000001')
+  = current_setting('test.a_injuries')::bigint$q$, 1, 'X (entrenador en A) ve todas las lesiones del plantel A');
+select pg_temp.expect_count($q$select 1 where current_setting('test.b_injuries')::int > 1$q$, 1, 'el club B tiene lesiones de otros jugadores');
+select pg_temp.expect_count($q$select 1 from public.injuries where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 1, 'X (jugador en B) ve solo una lesión de B');
+select pg_temp.expect_count($q$select 1 from public.injuries where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'
+  and player_id = 'f1b00000-1111-0000-0000-000000000001'$q$, 1, 'esa lesión es la suya');
+select pg_temp.expect_count($q$select 1 from public.documents where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'
+  and player_id <> 'f1b00000-1111-0000-0000-000000000001'$q$, 0, 'X no ve documentos médicos de otros en B');
+select pg_temp.expect_count($q$select 1 from public.documents where player_id = 'f1b00000-1111-0000-0000-000000000001'$q$, 1, 'X ve su propio documento en B');
+select pg_temp.expect_count($q$select 1 from public.documents where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'X (entrenador) no ve documentos médicos de A');
+select pg_temp.expect_count($q$select 1 from public.clubs where id in ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 2, 'X ve sus dos planteles');
+select pg_temp.expect_no_rows($q$update public.injuries set severity = 'grave' where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 'X (jugador en B) edita lesiones de B');
+select pg_temp.back();
+
+-- d. P tiene una membresía pendiente en B: ve la fila del club B y nada más de B.
+select pg_temp.as_user('f2000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 1, 'P (pendiente en B) ve la fila de su club B');
+select pg_temp.expect_count($q$select 1 from public.players where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'P no ve jugadores de B');
+select pg_temp.expect_count($q$select 1 from public.injuries where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'P no ve lesiones de B');
+select pg_temp.expect_count($q$select 1 from public.injury_phases where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'P no ve fases de B');
+select pg_temp.expect_count($q$select 1 from public.documents where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'P no ve documentos de B');
+select pg_temp.expect_count($q$select 1 from public.events where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'P no ve eventos de B');
+select pg_temp.expect_count($q$select 1 from public.availability_log where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'P no ve el historial de B');
+select pg_temp.expect_count($q$select 1 from public.profiles where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'P no ve perfiles de B');
+select pg_temp.expect_count($q$select 1 from public.club_members where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'
+  and user_id <> 'f2000000-0000-0000-0000-00000000000a'$q$, 0, 'P no ve membresías de otros en B');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = 'f2000000-0000-0000-0000-00000000000a'$q$, 2, 'P ve sus dos membresías');
+select pg_temp.back();
+
+-- e. club_members: la dirección ve las pendientes de su club; el resto solo las confirmadas.
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = 'f3000000-0000-0000-0000-00000000000a'
+  and club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'pendiente'$q$, 1, 'la dirección de A ve la membresía pendiente de Q');
+select pg_temp.expect_count($q$select 1 from public.club_members where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'
+  and user_id <> '10000000-0000-0000-0000-00000000000a'$q$, 0, 'la dirección de A no ve membresías de B');
+select pg_temp.back();
+select pg_temp.as_user('f1000000-0000-0000-0000-00000000000a');   -- X: entrenador en A, no dirección
+select pg_temp.expect_count($q$select 1 from public.club_members where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  and status <> 'confirmado'$q$, 0, 'un entrenador (no dirección) no ve membresías pendientes ni rechazadas');
+select pg_temp.expect_count($q$select 1 where (select count(*) from public.club_members
+  where club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'confirmado') > 1$q$, 1, 'un entrenador ve las membresías confirmadas de su club');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = 'f1000000-0000-0000-0000-00000000000a'$q$, 2, 'X ve sus dos membresías');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');   -- kine B: solo del club B
+select pg_temp.expect_count($q$select 1 from public.club_members where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'un usuario de otro club no ve membresías de A');
+select pg_temp.back();
+select pg_temp.as_user('f3000000-0000-0000-0000-00000000000a');   -- Q: pendiente en A
+select pg_temp.expect_count($q$select 1 from public.club_members$q$, 1, 'un pendiente ve solo su membresía');
+select pg_temp.back();
+
+-- f. Avatars: dueño, plantel compartido confirmado, dirección y rutas malformadas.
+insert into storage.objects (bucket_id, name) values
+  ('avatars', 'bbbbbbbb-0000-0000-0000-000000000002/60000000-0000-0000-0000-00000000000b/b1.jpg'),
+  ('avatars', 'aaaaaaaa-0000-0000-0000-000000000001/30000000-0000-0000-0000-00000000000a/kine.jpg'),
+  ('avatars', 'aaaaaaaa-0000-0000-0000-000000000001/f3000000-0000-0000-0000-00000000000a/q.jpg'),
+  ('avatars', 'no-es-uuid/tampoco-uuid/raro.jpg');
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');   -- jugador A1 (solo club A)
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'avatars' and name like '%/60000000-0000-0000-0000-00000000000b/b1.jpg'$q$, 0, 'sin plantel compartido no se lee el avatar de otro');
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'avatars' and name like '%/30000000-0000-0000-0000-00000000000a/kine.jpg'$q$, 1, 'con plantel compartido confirmado sí');
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'avatars' and name like '%/f3000000-0000-0000-0000-00000000000a/q.jpg'$q$, 0, 'un jugador no ve el avatar de un pendiente');
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'avatars' and name = 'no-es-uuid/tampoco-uuid/raro.jpg'$q$, 0, 'una ruta sin uuid queda denegada sin error');
+select pg_temp.back();
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'avatars' and name like '%/f3000000-0000-0000-0000-00000000000a/q.jpg'$q$, 1, 'la dirección lee el avatar de un pendiente de su plantel');
+select pg_temp.back();
+select pg_temp.as_user('f3000000-0000-0000-0000-00000000000a');   -- Q (pendiente): su propio avatar
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'avatars' and name like '%/f3000000-0000-0000-0000-00000000000a/q.jpg'$q$, 1, 'el dueño siempre lee su avatar');
+select pg_temp.expect_fail($q$insert into storage.objects (bucket_id, name) values ('avatars', 'no-es-uuid/f3000000-0000-0000-0000-00000000000a/x.jpg')$q$, 'subir a una carpeta de club sin uuid');
+select pg_temp.back();
+
+-- g. anon no accede a nada nuevo; permisos de los helpers iguales a sus pares.
+select pg_temp.as_anon();
+select pg_temp.expect_count($q$select 1 from public.club_members$q$, 0, 'anónimo no lee club_members');
+select pg_temp.expect_count($q$select 1 from storage.objects where bucket_id = 'avatars'$q$, 0, 'anónimo no lee avatars');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private' and p.oid in ('private.safe_uuid(text)'::regprocedure, 'private.is_member(uuid)'::regprocedure,
+    'private.is_confirmed_member(uuid)'::regprocedure, 'private.has_role(uuid, public.user_role)'::regprocedure,
+    'private.is_staff(uuid)'::regprocedure, 'private.is_direction(uuid)'::regprocedure, 'private.has_kine_powers(uuid)'::regprocedure,
+    'private.can_manage_nominas(uuid)'::regprocedure, 'private.can_view_documents(uuid)'::regprocedure,
+    'private.current_player_id(uuid)'::regprocedure, 'private.can_see_member(uuid)'::regprocedure)
+  and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('service_role', p.oid, 'EXECUTE'))$q$, 0, 'anon y service_role no ejecutan los helpers nuevos');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.can_manage_nominas(uuid)', 'EXECUTE')
+  or has_function_privilege('authenticated', 'private.can_manage_nominas()', 'EXECUTE')$q$, 0, 'can_manage_nominas (vieja y nueva) solo la ejecuta postgres');
+select pg_temp.expect_count($q$select 1 from unnest(array['private.safe_uuid(text)', 'private.is_member(uuid)', 'private.is_confirmed_member(uuid)',
+    'private.has_role(uuid, public.user_role)', 'private.is_staff(uuid)', 'private.is_direction(uuid)', 'private.has_kine_powers(uuid)',
+    'private.can_view_documents(uuid)', 'private.current_player_id(uuid)', 'private.can_see_member(uuid)']) f
+  where has_function_privilege('authenticated', f::regprocedure, 'EXECUTE')$q$, 10, 'authenticated ejecuta los 10 helpers que usan las políticas (como is_staff())');
+select pg_temp.expect_count($q$select 1 from pg_proc where oid in ('private.current_club_id()'::regprocedure, 'private.member_club_id()'::regprocedure,
+    'private.has_role(public.user_role)'::regprocedure, 'private.is_staff()'::regprocedure, 'private.is_direction()'::regprocedure,
+    'private.has_kine_powers()'::regprocedure, 'private.can_manage_nominas()'::regprocedure, 'private.can_view_documents()'::regprocedure,
+    'private.current_player_id()'::regprocedure)$q$, 9, 'los 9 helpers viejos siguen existiendo');
 
 rollback;
