@@ -16,11 +16,17 @@ export function SquadViews({
   ...props
 }: SquadProps & { sport: string | null; positions: string[] }) {
   const kind = pitchKind(sport);
-  const [view, setView] = useState<"lista" | "cancha">("lista");
+  // Parte en la cancha; la lista (con búsqueda y filtros) queda a un toque.
+  const [view, setView] = useState<"lista" | "cancha">("cancha");
 
   return (
     <div className="space-y-4">
-      {kind && <ViewToggle view={view} onChange={setView} />}
+      {kind && (
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium text-ink">Vista</p>
+          <ViewToggle view={view} onChange={setView} />
+        </div>
+      )}
       {view === "cancha" && kind ? (
         <SquadPitch kind={kind} positions={positions} {...props} />
       ) : (
