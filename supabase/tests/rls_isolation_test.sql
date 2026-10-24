@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0038.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0039.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -97,6 +97,9 @@ insert into public.profiles (id, club_id, roles, full_name, status, requested_ro
   ('80000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{}',              'Staff Pend A',   'pendiente',  'nutricionista'),
   ('30000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{kinesiologo}',   'Kine B',         'confirmado', null),
   ('60000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}',       'Jugador B1',     'confirmado', null);
+-- Desde 0039 insertar en profiles ya no crea la membresía: se crea aquí (preparación).
+insert into public.club_members (user_id, club_id, roles, status, requested_role)
+select id, club_id, roles, status, requested_role from public.profiles on conflict do nothing;
 
 insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
   ('a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A1',    'Jugador', 'A1',   'Pilar',   'confirmado', '60000000-0000-0000-0000-00000000000a'),
@@ -662,7 +665,8 @@ select pg_temp.back();
 
 -- Sin acceso: jugador, staff pendiente, jugador pendiente, cuenta sin perfil y anónimo.
 -- 8…a quedó sin roles en la sección 6: se vuelve a dejar pendiente con un puesto de staff.
-update public.profiles set status = 'pendiente', roles = '{nutricionista}' where id = '80000000-0000-0000-0000-00000000000a';
+-- Desde 0039 el estado se cambia en club_members (se refleja en profiles).
+update public.club_members set status = 'pendiente', roles = '{nutricionista}' where user_id = '80000000-0000-0000-0000-00000000000a' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001';
 select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_dash_fail('jugador A1');
 select pg_temp.back();
@@ -1020,11 +1024,11 @@ select pg_temp.as_user('50000000-0000-0000-0000-00000000000a');   -- nutricionis
 select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'nutricionista A ve el teléfono de A1');
 select pg_temp.back();
 -- Preparador físico: se le da el rol al nutricionista solo para esta prueba.
-update public.profiles set roles = '{preparador_fisico}' where id = '50000000-0000-0000-0000-00000000000a';
+update public.club_members set roles = '{preparador_fisico}' where user_id = '50000000-0000-0000-0000-00000000000a' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001';   -- desde 0039, en club_members
 select pg_temp.as_user('50000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_count($q$select 1 where public.get_player_phone('a1000000-1111-0000-0000-000000000001') = '+56987654321'$q$, 1, 'preparador físico A ve el teléfono de A1');
 select pg_temp.back();
-update public.profiles set roles = '{nutricionista}' where id = '50000000-0000-0000-0000-00000000000a';
+update public.club_members set roles = '{nutricionista}' where user_id = '50000000-0000-0000-0000-00000000000a' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001';   -- desde 0039, en club_members
 
 -- Staff de otro club y staff pendiente no lo ven.
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');   -- kine B
@@ -1136,16 +1140,22 @@ select pg_temp.expect_count($q$select 1 from public.profiles p
                       and m.status = p.status and m.requested_role is not distinct from p.requested_role)$q$,
   0, 'ningún perfil queda sin su membresía idéntica');
 
--- b. Los cambios en profiles se reflejan en club_members; un perfil nuevo crea su membresía.
-update public.profiles set roles = '{entrenador,preparador_fisico}' where id = '40000000-0000-0000-0000-00000000000a';
-select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '40000000-0000-0000-0000-00000000000a'
-  and club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and roles = '{entrenador,preparador_fisico}'$q$, 1, 'cambiar los roles en profiles se refleja en club_members');
-update public.profiles set status = 'rechazado' where id = '50000000-0000-0000-0000-00000000000a';
-select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '50000000-0000-0000-0000-00000000000a' and status = 'rechazado'$q$, 1, 'cambiar el status en profiles se refleja en club_members');
+-- b. (cambió con 0039: la sincronización se invirtió) Los cambios en club_members del
+--    plantel principal se reflejan en profiles; un perfil nuevo ya no crea su membresía.
+update public.club_members set roles = '{entrenador,preparador_fisico}'
+ where user_id = '40000000-0000-0000-0000-00000000000a' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '40000000-0000-0000-0000-00000000000a'
+  and roles = '{entrenador,preparador_fisico}'$q$, 1, 'cambiar los roles en club_members (plantel principal) se refleja en profiles');
+update public.club_members set status = 'rechazado'
+ where user_id = '50000000-0000-0000-0000-00000000000a' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '50000000-0000-0000-0000-00000000000a' and status = 'rechazado'$q$, 1, 'cambiar el status en club_members (plantel principal) se refleja en profiles');
 insert into public.profiles (id, club_id, roles, full_name, status, requested_role)
-  values ('e0000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002', '{}', 'Nuevo B', 'pendiente', 'kinesiologo');
-select pg_temp.expect_count($q$select 1 from public.club_members where user_id = 'e0000000-0000-0000-0000-00000000000a'
-  and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and roles = '{}' and status = 'pendiente' and requested_role = 'kinesiologo'$q$, 1, 'un perfil nuevo crea su membresía');
+  values ('e0000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002', '{}', 'Nuevo B', 'pendiente', null);
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = 'e0000000-0000-0000-0000-00000000000a'$q$, 0, 'un perfil nuevo ya no crea su membresía');
+insert into public.club_members (user_id, club_id, roles, status, requested_role)
+  values ('e0000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002', '{}', 'pendiente', 'kinesiologo');
+select pg_temp.expect_count($q$select 1 from public.profiles where id = 'e0000000-0000-0000-0000-00000000000a'
+  and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and status = 'pendiente' and requested_role = 'kinesiologo'$q$, 1, 'una membresía nueva en el plantel principal se refleja en profiles');
 select pg_temp.expect_count($q$select 1 from public.club_members where user_id = 'e0000000-0000-0000-0000-00000000000a'$q$, 1, 'una sola membresía por perfil nuevo');
 
 -- c. Cada usuario ve sus propias filas. Desde 0038 la dirección ve además las de
@@ -1204,6 +1214,9 @@ insert into public.profiles (id, club_id, roles, full_name, status, requested_ro
   ('f1000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{entrenador}', 'Multi X', 'confirmado', null),
   ('f2000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',    'Multi P', 'confirmado', null),
   ('f3000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{}',           'Multi Q', 'pendiente',  'entrenador');
+-- Desde 0039 insertar en profiles ya no crea la membresía: se crea aquí (preparación).
+insert into public.club_members (user_id, club_id, roles, status, requested_role)
+select id, club_id, roles, status, requested_role from public.profiles on conflict do nothing;
 insert into public.club_members (user_id, club_id, roles, status) values
   ('f1000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}', 'confirmado'),
   ('f2000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}', 'pendiente');
@@ -1311,5 +1324,272 @@ select pg_temp.expect_count($q$select 1 from pg_proc where oid in ('private.curr
     'private.has_role(public.user_role)'::regprocedure, 'private.is_staff()'::regprocedure, 'private.is_direction()'::regprocedure,
     'private.has_kine_powers()'::regprocedure, 'private.can_manage_nominas()'::regprocedure, 'private.can_view_documents()'::regprocedure,
     'private.current_player_id()'::regprocedure)$q$, 9, 'los 9 helpers viejos siguen existiendo');
+
+-- =======================================================================
+-- Multi-plantel (0039): las funciones públicas escriben en club_members
+-- =======================================================================
+create function pg_temp.expect_error(q text, msg text, label text) returns void language plpgsql as $$
+declare got text;
+begin
+  begin
+    execute q;
+  exception when others then
+    got := sqlerrm;
+  end;
+  if got is null then raise exception 'FAIL: % (debía fallar con "%" y no falló)', label, msg; end if;
+  if got <> msg then raise exception 'FAIL: % (esperado "%", llegó "%")', label, msg, got; end if;
+end $$;
+
+-- Datos ficticios: club C sin miembros de prueba, head coach del club B (HB) y cuentas nuevas.
+insert into public.clubs (id, name, sport, slug) values ('cccccccc-0000-0000-0000-000000000003', 'Club C', 'futbol', 'club-c');
+insert into auth.users (id, email) values
+  ('9b000000-0000-0000-0000-000000000001', 'hc-b@test.cl'),
+  ('9a000000-0000-0000-0000-000000000001', 'multi-m1@test.cl'),
+  ('9a000000-0000-0000-0000-000000000002', 'multi-m2@test.cl'),
+  ('9a000000-0000-0000-0000-000000000003', 'multi-m3@test.cl'),
+  ('9a000000-0000-0000-0000-000000000004', 'multi-m4@test.cl'),
+  ('9a000000-0000-0000-0000-000000000011', 'solo-s1@test.cl'),
+  ('9a000000-0000-0000-0000-000000000012', 'solo-s2@test.cl'),
+  ('9a000000-0000-0000-0000-000000000013', 'solo-s3@test.cl');
+insert into public.profiles (id, club_id, roles, full_name, status) values
+  ('9b000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', '{head_coach}', 'Head Coach B', 'confirmado');
+insert into public.club_members (user_id, club_id, roles, status) values
+  ('9b000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', '{head_coach}', 'confirmado');
+
+-- b. Un solo plantel, sin pasar p_club_id: todo funciona como antes.
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000011');   -- S1 se registra como jugador en A
+select pg_temp.expect_ok($q$select public.register_member('club-a', 'jugador', 'Sole', 'Uno', 'Wing')$q$, 'S1 se registra como jugador');
+select pg_temp.back();
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000012');   -- S2 se registra como staff en A
+select pg_temp.expect_ok($q$select public.register_member('club-a', 'staff', 'Sara', 'Dos', null, null, null, null, 'nutricionista')$q$, 'S2 se registra como staff');
+select pg_temp.back();
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000013');   -- S3 se registra como staff en A
+select pg_temp.expect_ok($q$select public.register_member('club-a', 'staff', 'Simón', 'Tres', null, null, null, null, 'kinesiologo')$q$, 'S3 se registra como staff');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.profiles p join public.club_members m on m.user_id = p.id and m.club_id = p.club_id
+  where p.id in ('9a000000-0000-0000-0000-000000000011', '9a000000-0000-0000-0000-000000000012', '9a000000-0000-0000-0000-000000000013')
+    and p.club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and p.status = 'pendiente' and m.status = 'pendiente'
+    and m.roles = p.roles and m.requested_role is not distinct from p.requested_role$q$, 3, 'los registros crean perfil y membresía pendientes e iguales');
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_ok($q$select public.review_member('9a000000-0000-0000-0000-000000000011', 'confirmar')$q$, 'head coach A confirma a S1 (jugador)');
+select pg_temp.expect_ok($q$select public.review_member('9a000000-0000-0000-0000-000000000012', 'rechazar')$q$, 'head coach A rechaza a S2');
+select pg_temp.expect_ok($q$select public.review_member('9a000000-0000-0000-0000-000000000013', 'confirmar')$q$, 'head coach A confirma a S3 con el puesto pedido');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.club_members m join public.profiles p on p.id = m.user_id
+  join public.players pl on pl.user_id = m.user_id and pl.club_id = m.club_id
+  where m.user_id = '9a000000-0000-0000-0000-000000000011' and m.status = 'confirmado' and p.status = 'confirmado' and pl.status = 'confirmado'$q$, 1, 'S1 queda confirmado en membresía, perfil y ficha');
+select pg_temp.expect_count($q$select 1 from public.club_members m join public.profiles p on p.id = m.user_id
+  where m.user_id = '9a000000-0000-0000-0000-000000000012' and m.status = 'rechazado' and m.roles = '{}' and p.status = 'rechazado'$q$, 1, 'S2 queda rechazado en membresía y perfil');
+select pg_temp.expect_count($q$select 1 from public.club_members m join public.profiles p on p.id = m.user_id
+  where m.user_id = '9a000000-0000-0000-0000-000000000013' and m.roles = '{kinesiologo}' and p.roles = '{kinesiologo}' and p.status = 'confirmado'$q$, 1, 'S3 queda confirmado como kinesiólogo');
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_staff_roles('9a000000-0000-0000-0000-000000000013', array['entrenador']::public.user_role[])$q$, 'head coach A cambia el rol de S3');
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '9a000000-0000-0000-0000-000000000013' and roles = '{entrenador}'$q$, 1, 'el rol nuevo se ve en el perfil');
+select pg_temp.expect_ok($q$select public.set_kine_delegate('9a000000-0000-0000-0000-000000000013')$q$, 'head coach A delega kinesiología en S3');
+select pg_temp.expect_ok($q$select public.set_nomina_delegate('9a000000-0000-0000-0000-000000000013')$q$, 'head coach A delega nóminas en S3');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  and kine_delegate_id = '9a000000-0000-0000-0000-000000000013' and nomina_delegate_id = '9a000000-0000-0000-0000-000000000013'$q$, 1, 'S3 es delegado de kinesiología y de nóminas en A');
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_staff_roles('9a000000-0000-0000-0000-000000000013', array[]::public.user_role[])$q$, 'head coach A saca a S3 del staff');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  and kine_delegate_id is null and nomina_delegate_id is null$q$, 1, 'sacar a S3 limpia sus dos delegaciones');
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '9a000000-0000-0000-0000-000000000013' and status = 'rechazado' and roles = '{}'$q$, 1, 'S3 queda rechazado');
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000011');   -- S1
+select pg_temp.expect_ok($q$select public.update_my_profile('Sole', 'Uno Dos', 'Centro', null, 170, 70)$q$, 'S1 edita su perfil sin p_club_id');
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
+  values ('avatars', 'aaaaaaaa-0000-0000-0000-000000000001/9a000000-0000-0000-0000-000000000011/s1.jpg')$q$, 'S1 sube su foto');
+select pg_temp.expect_ok($q$select public.set_my_avatar('aaaaaaaa-0000-0000-0000-000000000001/9a000000-0000-0000-0000-000000000011/s1.jpg')$q$, 'S1 fija su foto sin p_club_id');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.profiles p join public.players pl on pl.user_id = p.id
+  where p.id = '9a000000-0000-0000-0000-000000000011' and p.full_name = 'Sole Uno Dos' and pl.full_name = 'Sole Uno Dos'
+    and pl.position = 'Centro' and pl.height_cm = 170 and pl.weight_kg = 70
+    and p.avatar_path = 'aaaaaaaa-0000-0000-0000-000000000001/9a000000-0000-0000-0000-000000000011/s1.jpg'$q$, 1, 'perfil, ficha y foto de S1 quedaron guardados');
+
+-- c. Segundo plantel como jugador: M1 (jugador confirmado en A) se registra en B.
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000001');
+select pg_temp.expect_ok($q$select public.register_member('club-a', 'jugador', 'Mara', 'Uno', 'Pilar')$q$, 'M1 se registra en A');
+select pg_temp.back();
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_member('9a000000-0000-0000-0000-000000000001', 'confirmar')$q$, 'head coach A confirma a M1');
+select pg_temp.back();
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000001');
+select pg_temp.expect_ok($q$select public.register_member('club-b', 'jugador', 'Otro', 'Nombre', 'Portero')$q$, 'M1 se registra como jugador en B');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '9a000000-0000-0000-0000-000000000001'
+  and full_name = 'Mara Uno' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'confirmado' and roles = '{jugador}'$q$, 1, 'el perfil de M1 no cambia (nombre, club_id, estado)');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '9a000000-0000-0000-0000-000000000001'
+  and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and status = 'pendiente' and roles = '{jugador}'$q$, 1, 'M1 queda con membresía pendiente en B');
+select pg_temp.expect_count($q$select 1 from public.players where user_id = '9a000000-0000-0000-0000-000000000001'
+  and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and status = 'pendiente' and position = 'Portero'$q$, 1, 'M1 tiene ficha pendiente en B');
+select pg_temp.expect_count($q$select 1 from public.club_members m join public.players pl on pl.user_id = m.user_id and pl.club_id = m.club_id
+  where m.user_id = '9a000000-0000-0000-0000-000000000001' and m.club_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+    and m.status = 'confirmado' and pl.status = 'confirmado' and pl.position = 'Pilar' and pl.full_name = 'Mara Uno'$q$, 1, 'la membresía y la ficha de M1 en A quedan intactas');
+
+-- d. Segundo plantel como staff: M2 (entrenador confirmado en A) pide ser kinesiólogo en B.
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000002');
+select pg_temp.expect_ok($q$select public.register_member('club-a', 'staff', 'Marta', 'Dos', null, null, null, null, 'entrenador')$q$, 'M2 se registra en A');
+select pg_temp.back();
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_member('9a000000-0000-0000-0000-000000000002', 'confirmar')$q$, 'head coach A confirma a M2');
+select pg_temp.back();
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000002');
+select pg_temp.expect_ok($q$select public.register_member('club-b', 'staff', 'Otra', 'Persona', null, null, null, null, 'kinesiologo')$q$, 'M2 se registra como staff en B');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '9a000000-0000-0000-0000-000000000002'
+  and full_name = 'Marta Dos' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'confirmado'
+  and roles = '{entrenador}' and requested_role = 'entrenador'$q$, 1, 'el perfil de M2 no cambia');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '9a000000-0000-0000-0000-000000000002'
+  and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and status = 'pendiente' and roles = '{}' and requested_role = 'kinesiologo'$q$, 1, 'M2 queda pendiente en B con el puesto pedido');
+select pg_temp.expect_count($q$select 1 from public.players where user_id = '9a000000-0000-0000-0000-000000000002'$q$, 0, 'el staff no tiene ficha de jugador');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '9a000000-0000-0000-0000-000000000002'
+  and club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'confirmado' and roles = '{entrenador}'$q$, 1, 'la membresía de M2 en A queda intacta');
+
+-- e. Registro duplicado en el mismo plantel: mensaje nuevo.
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000001');
+select pg_temp.expect_error($q$select public.register_member('club-b', 'jugador', 'Otro', 'Nombre', 'Portero')$q$,
+  'Ya tienes una solicitud o una cuenta en este plantel', 'M1 se registra dos veces en B');
+select pg_temp.expect_error($q$select public.register_member('club-a', 'staff', 'Mara', 'Uno', null, null, null, null, 'entrenador')$q$,
+  'Ya tienes una solicitud o una cuenta en este plantel', 'M1 se registra otra vez en A (como staff)');
+select pg_temp.back();
+
+-- f. review_member en B.
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_error($q$select public.review_member('9a000000-0000-0000-0000-000000000002', 'confirmar', null, 'bbbbbbbb-0000-0000-0000-000000000002')$q$,
+  'No tienes permiso para esta acción', 'la dirección de A revisa en B pasando p_club_id');
+select pg_temp.expect_error($q$select public.review_member('9b000000-0000-0000-0000-000000000001', 'confirmar', null, 'aaaaaaaa-0000-0000-0000-000000000001')$q$,
+  'Perfil no encontrado', 'la dirección de A revisa en A a alguien que solo está en B');
+select pg_temp.back();
+select pg_temp.as_user('9b000000-0000-0000-0000-000000000001');   -- head coach B
+select pg_temp.expect_ok($q$select public.review_member('9a000000-0000-0000-0000-000000000001', 'confirmar')$q$, 'la dirección de B confirma a M1');
+select pg_temp.expect_ok($q$select public.review_member('9a000000-0000-0000-0000-000000000002', 'rechazar')$q$, 'la dirección de B rechaza a M2');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.club_members m join public.players pl on pl.user_id = m.user_id and pl.club_id = m.club_id
+  where m.user_id = '9a000000-0000-0000-0000-000000000001' and m.club_id = 'bbbbbbbb-0000-0000-0000-000000000002'
+    and m.status = 'confirmado' and pl.status = 'confirmado'$q$, 1, 'M1 queda confirmado en B (membresía y ficha)');
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '9a000000-0000-0000-0000-000000000002'
+  and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and status = 'rechazado' and roles = '{}'$q$, 1, 'M2 queda rechazado en B');
+select pg_temp.expect_count($q$select 1 from public.club_members m join public.profiles p on p.id = m.user_id
+  where m.club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and m.status = 'confirmado' and p.status = 'confirmado'
+    and m.user_id in ('9a000000-0000-0000-0000-000000000001', '9a000000-0000-0000-0000-000000000002')$q$, 2, 'revisar en B no toca A ni el perfil');
+select pg_temp.expect_count($q$select 1 from public.players where user_id = '9a000000-0000-0000-0000-000000000001'
+  and club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'confirmado'$q$, 1, 'la ficha de M1 en A sigue confirmada');
+
+-- g. Delegados: M4 (perfil en A) es staff confirmado en B y puede ser delegado de B.
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000004');
+select pg_temp.expect_ok($q$select public.register_member('club-a', 'staff', 'Mateo', 'Cuatro', null, null, null, null, 'entrenador')$q$, 'M4 se registra en A');
+select pg_temp.back();
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_member('9a000000-0000-0000-0000-000000000004', 'confirmar')$q$, 'head coach A confirma a M4');
+select pg_temp.expect_ok($q$select public.set_nomina_delegate('9a000000-0000-0000-0000-000000000004')$q$, 'head coach A delega nóminas en M4 (en A)');
+select pg_temp.back();
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000004');
+select pg_temp.expect_ok($q$select public.register_member('club-b', 'staff', 'Mateo', 'Cuatro', null, null, null, null, 'kinesiologo')$q$, 'M4 se registra en B');
+select pg_temp.back();
+select pg_temp.as_user('9b000000-0000-0000-0000-000000000001');   -- head coach B
+select pg_temp.expect_ok($q$select public.review_member('9a000000-0000-0000-0000-000000000004', 'confirmar')$q$, 'la dirección de B confirma a M4');
+select pg_temp.expect_ok($q$select public.set_kine_delegate('9a000000-0000-0000-0000-000000000004')$q$, 'la dirección de B delega kinesiología en M4');
+select pg_temp.expect_ok($q$select public.set_nomina_delegate('9a000000-0000-0000-0000-000000000004')$q$, 'la dirección de B delega nóminas en M4');
+select pg_temp.expect_error($q$select public.set_kine_delegate('40000000-0000-0000-0000-00000000000a')$q$,
+  'La persona debe ser parte del staff confirmado', 'delegar kinesiología en alguien que no es de B');
+select pg_temp.expect_error($q$select public.set_nomina_delegate('40000000-0000-0000-0000-00000000000a')$q$,
+  'La persona debe ser parte del staff confirmado', 'delegar nóminas en alguien que no es de B');
+select pg_temp.expect_error($q$select public.set_kine_delegate('9a000000-0000-0000-0000-000000000001')$q$,
+  'La persona debe ser parte del staff confirmado', 'delegar kinesiología en un jugador de B');
+select pg_temp.expect_error($q$select public.set_nomina_delegate('9a000000-0000-0000-0000-000000000001')$q$,
+  'La persona debe ser parte del staff confirmado', 'delegar nóminas en un jugador de B');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.clubs c join public.profiles p on p.id = c.kine_delegate_id
+  where c.id = 'bbbbbbbb-0000-0000-0000-000000000002' and c.nomina_delegate_id = p.id
+    and p.id = '9a000000-0000-0000-0000-000000000004' and p.club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 1, 'M4 (perfil en A) es delegado de kinesiología y nóminas en B');
+select pg_temp.expect_fail($q$update public.clubs set kine_delegate_id = '40000000-0000-0000-0000-00000000000a'
+  where id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 'FK: delegado de kinesiología sin membresía en B');
+select pg_temp.expect_fail($q$update public.clubs set nomina_delegate_id = '40000000-0000-0000-0000-00000000000a'
+  where id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 'FK: delegado de nóminas sin membresía en B');
+
+-- h. set_staff_roles con '{}' en B: rechazado en B, sin delegaciones en B, A intacto.
+select pg_temp.as_user('9b000000-0000-0000-0000-000000000001');
+select pg_temp.expect_ok($q$select public.set_staff_roles('9a000000-0000-0000-0000-000000000004', array[]::public.user_role[])$q$, 'la dirección de B saca a M4 del staff');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '9a000000-0000-0000-0000-000000000004'
+  and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and status = 'rechazado' and roles = '{}'$q$, 1, 'M4 queda rechazado en B');
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'bbbbbbbb-0000-0000-0000-000000000002'
+  and kine_delegate_id is null and nomina_delegate_id is null$q$, 1, 'B queda sin delegado de kinesiología ni de nóminas');
+select pg_temp.expect_count($q$select 1 from public.club_members m join public.profiles p on p.id = m.user_id
+  where m.user_id = '9a000000-0000-0000-0000-000000000004' and m.club_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+    and m.status = 'confirmado' and m.roles = '{entrenador}' and p.status = 'confirmado' and p.roles = '{entrenador}'$q$, 1, 'M4 sigue confirmado en A');
+select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  and nomina_delegate_id = '9a000000-0000-0000-0000-000000000004'$q$, 1, 'M4 sigue siendo delegado de nóminas en A');
+
+-- i. update_my_profile con p_club_id = B.
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000001');
+select pg_temp.expect_ok($q$select public.update_my_profile('Mara', 'Nueva', 'Defensa central', null, 180, 75, 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 'M1 edita su perfil en B');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.players where user_id = '9a000000-0000-0000-0000-000000000001'
+  and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and position = 'Defensa central' and height_cm = 180 and weight_kg = 75$q$, 1, 'posición, altura y peso cambian en la ficha de B');
+select pg_temp.expect_count($q$select 1 from public.players where user_id = '9a000000-0000-0000-0000-000000000001'
+  and club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and position = 'Pilar' and height_cm is null and weight_kg is null$q$, 1, 'la ficha de A no cambia de posición, altura ni peso');
+select pg_temp.expect_count($q$select 1 from public.players where user_id = '9a000000-0000-0000-0000-000000000001'
+  and full_name = 'Mara Nueva' and first_name = 'Mara' and last_name = 'Nueva'$q$, 2, 'el nombre cambia en sus dos fichas');
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '9a000000-0000-0000-0000-000000000001' and full_name = 'Mara Nueva'$q$, 1, 'el nombre cambia en el perfil');
+
+-- j. set_my_avatar con p_club_id: vale donde es miembro (aunque esté pendiente), no donde no lo es.
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000003');
+select pg_temp.expect_ok($q$select public.register_member('club-a', 'jugador', 'Tomás', 'Tres', 'Hooker')$q$, 'M3 se registra en A');
+select pg_temp.expect_ok($q$select public.register_member('club-b', 'jugador', 'Tomás', 'Tres', 'Portero')$q$, 'M3 se registra en B');
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
+  values ('avatars', 'bbbbbbbb-0000-0000-0000-000000000002/9a000000-0000-0000-0000-000000000003/m3.jpg')$q$, 'M3 (pendiente en B) sube su foto a la carpeta de B');
+select pg_temp.expect_ok($q$select public.set_my_avatar('bbbbbbbb-0000-0000-0000-000000000002/9a000000-0000-0000-0000-000000000003/m3.jpg', 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 'M3 fija su foto con p_club_id de B');
+select pg_temp.expect_error($q$select public.set_my_avatar('cccccccc-0000-0000-0000-000000000003/9a000000-0000-0000-0000-000000000003/m3.jpg', 'cccccccc-0000-0000-0000-000000000003')$q$,
+  'Debes estar registrado en un club', 'M3 fija una foto en un plantel donde no es miembro');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '9a000000-0000-0000-0000-000000000003'
+  and avatar_path = 'bbbbbbbb-0000-0000-0000-000000000002/9a000000-0000-0000-0000-000000000003/m3.jpg'$q$, 1, 'la foto de M3 quedó guardada');
+
+-- k. Espejo: el plantel principal se refleja en profiles; uno secundario no.
+update public.club_members set roles = '{entrenador,nutricionista}'
+ where user_id = '9a000000-0000-0000-0000-000000000004' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001';
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '9a000000-0000-0000-0000-000000000004' and roles = '{entrenador,nutricionista}'$q$, 1, 'un cambio en el plantel principal llega a profiles');
+update public.club_members set status = 'rechazado', requested_role = 'kinesiologo'
+ where user_id = '9a000000-0000-0000-0000-000000000001' and club_id = 'bbbbbbbb-0000-0000-0000-000000000002';
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '9a000000-0000-0000-0000-000000000001'
+  and status = 'confirmado' and requested_role is null and roles = '{jugador}'$q$, 1, 'un cambio en un plantel secundario no toca profiles');
+
+-- l. member_emails admite una fila por perfil y plantel.
+insert into private.member_emails (profile_id, club_id) values
+  ('9a000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001'),
+  ('9a000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.expect_count($q$select 1 from private.member_emails where profile_id = '9a000000-0000-0000-0000-000000000001'$q$, 2, 'member_emails guarda (perfil, A) y (perfil, B)');
+
+-- m. Permisos: anon y usuarios sin permiso no ejecutan las funciones.
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select public.review_member('9a000000-0000-0000-0000-000000000003', 'confirmar')$q$, 'anónimo ejecuta review_member');
+select pg_temp.expect_fail($q$select public.set_staff_roles('9a000000-0000-0000-0000-000000000002', '{entrenador}')$q$, 'anónimo ejecuta set_staff_roles');
+select pg_temp.expect_fail($q$select public.set_kine_delegate(null)$q$, 'anónimo ejecuta set_kine_delegate');
+select pg_temp.expect_fail($q$select public.set_nomina_delegate(null)$q$, 'anónimo ejecuta set_nomina_delegate');
+select pg_temp.expect_fail($q$select public.set_my_avatar(null)$q$, 'anónimo ejecuta set_my_avatar');
+select pg_temp.expect_fail($q$select public.update_my_profile('A', 'B')$q$, 'anónimo ejecuta update_my_profile');
+select pg_temp.expect_fail($q$select public.register_member('club-a', 'jugador', 'A', 'B', 'Pilar')$q$, 'anónimo ejecuta register_member');
+select pg_temp.back();
+select pg_temp.as_user('9a000000-0000-0000-0000-000000000001');   -- M1, jugador en A y B
+select pg_temp.expect_fail($q$select public.review_member('9a000000-0000-0000-0000-000000000003', 'confirmar', null, 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 'un jugador revisa registros');
+select pg_temp.expect_fail($q$select public.set_staff_roles('9a000000-0000-0000-0000-000000000004', '{entrenador}', 'aaaaaaaa-0000-0000-0000-000000000001')$q$, 'un jugador cambia roles');
+select pg_temp.expect_fail($q$select public.set_kine_delegate(null, 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 'un jugador cambia la delegación de kinesiología');
+select pg_temp.expect_fail($q$select public.set_nomina_delegate(null, 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 'un jugador cambia la delegación de nóminas');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  cross join lateral aclexplode(p.proacl) a
+  where n.nspname = 'public' and p.proname in ('review_member', 'set_staff_roles', 'set_kine_delegate', 'set_nomina_delegate',
+    'set_my_avatar', 'update_my_profile', 'register_member')
+    and (a.grantee = 0 or a.grantee = 'anon'::regrole)$q$, 0, 'ninguna de las 7 funciones da permisos a PUBLIC ni a anon');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname in ('review_member', 'set_staff_roles', 'set_kine_delegate', 'set_nomina_delegate',
+    'set_my_avatar', 'update_my_profile', 'register_member')
+    and has_function_privilege('authenticated', p.oid, 'EXECUTE') and has_function_privilege('service_role', p.oid, 'EXECUTE')
+    and p.prosecdef and p.proconfig = array['search_path=""']$q$, 7, 'las 7 funciones: una sola firma cada una, authenticated y service_role, SECURITY DEFINER');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.resolve_club(uuid)', 'EXECUTE')
+  or has_function_privilege('anon', 'private.resolve_club(uuid)', 'EXECUTE')
+  or has_function_privilege('authenticated', 'private.mirror_member_to_profile()', 'EXECUTE')$q$, 0, 'la app no ejecuta resolve_club ni la función del espejo');
 
 rollback;

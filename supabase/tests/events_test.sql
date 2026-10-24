@@ -94,6 +94,9 @@ insert into public.profiles (id, club_id, roles, full_name, status) values
   ('80000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{entrenador}',        'Entrenador Pend', 'pendiente'),
   ('10000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{head_coach}',        'Head Coach B',    'confirmado'),
   ('30000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{kinesiologo}',       'Kine B',          'confirmado');
+-- Desde 0039 insertar en profiles ya no crea la membresía: se crea aquí (preparación).
+insert into public.club_members (user_id, club_id, roles, status, requested_role)
+select id, club_id, roles, status, requested_role from public.profiles on conflict do nothing;
 
 -- Día de hoy en Chile: base de las fechas relativas.
 create temp table d as select (now() at time zone 'America/Santiago')::date as today;

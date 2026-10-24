@@ -103,6 +103,9 @@ insert into public.profiles (id, club_id, roles, full_name, status) values
   ('60000000-0000-0000-0000-0000000000a2', 'aaaaaaaa-0000-0000-0000-0000000000a1', '{jugador}',           'P2',            'confirmado'),
   ('10000000-0000-0000-0000-0000000000b1', 'bbbbbbbb-0000-0000-0000-0000000000b1', '{head_coach}',        'HC Hockey',     'confirmado'),
   ('60000000-0000-0000-0000-0000000000b1', 'bbbbbbbb-0000-0000-0000-0000000000b1', '{jugador}',           'H1',            'confirmado');
+-- Desde 0039 insertar en profiles ya no crea la membresía: se crea aquí (preparación).
+insert into public.club_members (user_id, club_id, roles, status, requested_role)
+select id, club_id, roles, status, requested_role from public.profiles on conflict do nothing;
 insert into public.players (id, club_id, full_name, position, status, user_id) values
   ('a1000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-0000000000a1', 'P1', 'Pilar',    'confirmado', '60000000-0000-0000-0000-0000000000a1'),
   ('a1000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-0000000000a1', 'P2', 'Hooker',   'confirmado', '60000000-0000-0000-0000-0000000000a2'),
