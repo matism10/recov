@@ -1,9 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Accesibles sin sesión. "/c/" es el link de registro de cada club.
+// Accesibles sin sesión. "/c/" es el link de registro de cada club; /recuperar y
+// /restablecer, recuperar contraseña; /verificar, el link "Verifica tu correo".
 // /pendiente no va aquí: requiere sesión, pero no un perfil confirmado.
-const PUBLIC_PATHS = ["/login", "/c/"];
+const PUBLIC_PATHS = ["/login", "/c/", "/recuperar", "/restablecer", "/verificar"];
 
 // Refresca la sesión de Supabase en cada request y protege las rutas privadas.
 export async function updateSession(request: NextRequest) {

@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { signIn } from "./actions";
 import { InstallGuide } from "@/app/install-guide";
-import { ErrorMessage, buttonPrimary, cardClass, inputClass, labelClass } from "@/app/ui";
+import { ErrorMessage, buttonPrimary, cardClass, inputClass, labelClass, textButton } from "@/app/ui";
 
 export default async function LoginPage({
   searchParams,
@@ -49,6 +50,10 @@ export default async function LoginPage({
           <button type="submit" className={`w-full ${buttonPrimary}`}>
             Entra
           </button>
+
+          <Link href="/recuperar" className={`block text-center ${textButton}`}>
+            ¿Olvidaste tu contraseña?
+          </Link>
         </form>
         <InstallGuide />
       </div>

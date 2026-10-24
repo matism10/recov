@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0034.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0035.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -97,6 +97,9 @@ insert into public.profiles (id, club_id, roles, full_name, status, requested_ro
   ('80000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{}',              'Staff Pend A',   'pendiente',  'nutricionista'),
   ('30000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{kinesiologo}',   'Kine B',         'confirmado', null),
   ('60000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}',       'Jugador B1',     'confirmado', null);
+
+-- Como en 0035: las cuentas creadas antes de la verificación cuentan como verificadas.
+update public.profiles set email_verified_at = now() where club_id in ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002');
 
 insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
   ('a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A1',    'Jugador', 'A1',   'Pilar',   'confirmado', '60000000-0000-0000-0000-00000000000a'),
@@ -1087,9 +1090,60 @@ select pg_temp.expect_count($q$select 1 from pg_class where oid = 'private.membe
 select pg_temp.expect_count($q$select 1 where has_table_privilege('authenticated', 'private.member_emails', 'SELECT')
   or has_table_privilege('anon', 'private.member_emails', 'SELECT')$q$, 0, 'anon y authenticated no leen private.member_emails');
 
+-- =======================================================================
+-- Correo verificado antes de aprobar (0035)
+-- =======================================================================
+select pg_temp.expect_count($q$select 1 from public.profiles where id = 'c0000000-0000-0000-0000-00000000000a' and email_verified_at is null$q$, 1, 'una cuenta nueva parte sin verificar');
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
+select pg_temp.expect_fail($q$select public.review_member('c0000000-0000-0000-0000-00000000000a', 'confirmar')$q$, 'confirmar a alguien sin correo verificado');
+select pg_temp.back();
+
+-- Solo el servidor (service_role) crea tokens y usa el límite de correos.
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'public.create_email_verification(uuid)', 'EXECUTE')
+  or has_function_privilege('anon', 'public.create_email_verification(uuid)', 'EXECUTE')
+  or has_function_privilege('authenticated', 'public.allow_auth_email(text, text)', 'EXECUTE')
+  or has_function_privilege('anon', 'public.allow_auth_email(text, text)', 'EXECUTE')$q$, 0, 'anon y authenticated no crean tokens ni usan el límite de correos');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('service_role', 'public.create_email_verification(uuid)', 'EXECUTE')
+  and has_function_privilege('service_role', 'public.allow_auth_email(text, text)', 'EXECUTE')
+  and has_function_privilege('anon', 'public.verify_email(text)', 'EXECUTE')
+  and has_function_privilege('authenticated', 'public.verify_email(text)', 'EXECUTE')$q$, 1, 'service_role crea tokens; verify_email la usa cualquiera con el link');
+select pg_temp.expect_count($q$select 1 where has_table_privilege('authenticated', 'private.email_verification_tokens', 'SELECT')
+  or has_table_privilege('anon', 'private.email_verification_tokens', 'SELECT')
+  or has_table_privilege('authenticated', 'private.auth_email_log', 'SELECT')
+  or has_table_privilege('anon', 'private.auth_email_log', 'SELECT')$q$, 0, 'nadie de la app lee tokens ni el registro de correos');
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname in ('create_email_verification', 'verify_email', 'allow_auth_email', 'review_member')
+  and p.prosecdef and p.proconfig = array['search_path=""']$q$, 4, 'las funciones de verificación son SECURITY DEFINER con search_path vacío');
+
+set local role service_role;
+select set_config('test.token', public.create_email_verification('c0000000-0000-0000-0000-00000000000a'), true);
+select set_config('test.token_old', current_setting('test.token'), true);
+select set_config('test.token', public.create_email_verification('c0000000-0000-0000-0000-00000000000a'), true);
+select pg_temp.expect_count($q$select 1 where public.create_email_verification('10000000-0000-0000-0000-00000000000a') is null$q$, 1, 'una cuenta ya verificada no recibe token');
+select pg_temp.expect_count($q$select 1 where public.allow_auth_email('Prueba@Test.cl', 'recuperacion')$q$, 1, 'primer correo de recuperación: permitido');
+select pg_temp.expect_count($q$select 1 where public.allow_auth_email(' prueba@test.cl ', 'recuperacion')$q$, 0, 'otro en el mismo minuto (mismo correo, otra escritura): bloqueado');
+select pg_temp.expect_count($q$select 1 where public.allow_auth_email('prueba@test.cl', 'verificacion')$q$, 1, 'el límite es por tipo de correo');
+reset role;
+update private.auth_email_log set sent_at = sent_at - interval '2 minutes'
+  where email_hash = encode(extensions.digest('prueba@test.cl', 'sha256'), 'hex');
+insert into private.auth_email_log (email_hash, kind, sent_at)
+  select encode(extensions.digest('prueba@test.cl', 'sha256'), 'hex'), 'recuperacion', now() - interval '10 minutes' from generate_series(1, 4);
+set local role service_role;
+select pg_temp.expect_count($q$select 1 where public.allow_auth_email('prueba@test.cl', 'recuperacion')$q$, 0, 'más de 5 en una hora: bloqueado');
+reset role;
+select pg_temp.expect_count($q$select 1 from private.auth_email_log where email_hash = encode(extensions.digest('prueba@test.cl', 'sha256'), 'hex') and kind = 'recuperacion'$q$, 5, 'se guarda el hash del correo, no el correo');
+
+select pg_temp.as_anon();
+select pg_temp.expect_count($q$select 1 where public.verify_email('no-es-un-token')$q$, 0, 'un token mal formado no verifica');
+select pg_temp.expect_count($q$select 1 where public.verify_email(current_setting('test.token_old'))$q$, 0, 'el token anterior ya no sirve');
+select pg_temp.expect_count($q$select 1 where public.verify_email(current_setting('test.token'))$q$, 1, 'el link verifica el correo (sin sesión)');
+select pg_temp.expect_count($q$select 1 where public.verify_email(current_setting('test.token'))$q$, 0, 'el mismo link no sirve dos veces');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.profiles where id = 'c0000000-0000-0000-0000-00000000000a' and email_verified_at is not null$q$, 1, 'c0 quedó verificado');
+
 -- Confirmar un registro no encola nada en la base.
 select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');   -- head coach A
-select pg_temp.expect_ok($q$select public.review_member('c0000000-0000-0000-0000-00000000000a', 'confirmar')$q$, 'la dirección confirma al jugador pendiente c0');
+select pg_temp.expect_ok($q$select public.review_member('c0000000-0000-0000-0000-00000000000a', 'confirmar')$q$, 'la dirección confirma al jugador pendiente c0 ya verificado');
 select pg_temp.back();
 select pg_temp.expect_count($q$select 1 from private.member_emails where profile_id = 'c0000000-0000-0000-0000-00000000000a'$q$, 0, 'confirmar no deja filas en member_emails');
 select pg_temp.expect_count($q$select 1 from net.http_request_queue

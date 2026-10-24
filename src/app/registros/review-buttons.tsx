@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { reviewMember, type ReviewState } from "./actions";
 import { ErrorMessage, buttonDanger, buttonPrimary, textButton } from "@/app/ui";
 
-export function ReviewButtons({ profileId }: { profileId: string }) {
+export function ReviewButtons({ profileId, verified }: { profileId: string; verified: boolean }) {
   const [confirmingReject, setConfirmingReject] = useState(false);
   const [state, formAction, pending] = useActionState<ReviewState, FormData>(
     reviewMember,
@@ -42,7 +42,8 @@ export function ReviewButtons({ profileId }: { profileId: string }) {
             type="submit"
             name="decision"
             value="confirmar"
-            disabled={pending}
+            disabled={pending || !verified}
+            aria-describedby={verified ? undefined : `${profileId}-sin-verificar`}
             className={`text-sm ${buttonPrimary}`}
           >
             {pending ? "Guardando…" : "Confirma"}
@@ -58,6 +59,11 @@ export function ReviewButtons({ profileId }: { profileId: string }) {
         </div>
       )}
 
+      {!verified && !confirmingReject && (
+        <p id={`${profileId}-sin-verificar`} className="text-right text-xs text-muted">
+          Podrás confirmar cuando verifique su correo.
+        </p>
+      )}
       {state.error && <ErrorMessage>{state.error}</ErrorMessage>}
     </form>
   );

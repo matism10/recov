@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { getUserEmail } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { approvedEmail } from "./approved-email";
+import { appOrigin } from "@/lib/email-layout";
 
 export type ReviewState = { error?: string };
 
@@ -57,19 +57,17 @@ export async function reviewMember(
 async function notifyApproved(profileId: string): Promise<boolean> {
   try {
     const supabase = await getSupabase();
-    const [user, email, { data: member }, requestHeaders] = await Promise.all([
+    const [user, email, { data: member }, origin] = await Promise.all([
       getSessionUser(),
       getUserEmail(profileId),
       // RLS: la dirección lee los perfiles de su club.
       supabase.from("profiles").select("full_name").eq("id", profileId).maybeSingle(),
-      headers(),
+      appOrigin(),
     ]);
     if (!email || !user) return false;
 
     const me = await getProfile(user.id);
-    const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-    const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
-    const loginUrl = `${proto}://${host}/login`;
+    const loginUrl = `${origin}/login`;
 
     const result = await sendEmail(
       approvedEmail({
