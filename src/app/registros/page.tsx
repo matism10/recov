@@ -9,17 +9,7 @@ type PendingProfile = {
   full_name: string | null;
   requested_role: UserRole | null;
   created_at: string;
-  email_verified_at: string | null;
 };
-
-// Sin correo verificado no se puede confirmar (review_member lo exige).
-function UnverifiedTag() {
-  return (
-    <span className="ml-2 inline-flex items-center rounded-full bg-[#FEF3C7] px-2 py-0.5 align-middle text-xs font-medium text-[#92400E]">
-      Correo sin verificar
-    </span>
-  );
-}
 
 type PendingPlayer = {
   user_id: string;
@@ -62,7 +52,7 @@ export default async function RegistrosPage({
     getProfile(user.id),
     supabase
       .from("profiles")
-      .select("id, full_name, requested_role, created_at, email_verified_at")
+      .select("id, full_name, requested_role, created_at")
       .eq("status", "pendiente")
       .order("created_at"),
     supabase
@@ -144,14 +134,13 @@ export default async function RegistrosPage({
                       <div>
                         <p className="font-medium text-ink">
                           {p.full_name}
-                          {!p.email_verified_at && <UnverifiedTag />}
                         </p>
                         <p className="text-sm text-muted">{s.details(p)}</p>
                         <p className="text-xs text-muted">
                           Registrado el {dateFormat.format(new Date(p.created_at))}
                         </p>
                       </div>
-                      <ReviewButtons profileId={p.id} verified={!!p.email_verified_at} />
+                      <ReviewButtons profileId={p.id} />
                     </li>
                   ))}
                 </ul>
@@ -179,14 +168,13 @@ export default async function RegistrosPage({
                         <tr key={p.id}>
                           <td className="py-4 pr-3 pl-5 font-medium text-ink">
                             {p.full_name}
-                            {!p.email_verified_at && <UnverifiedTag />}
                           </td>
                           <td className="px-3 py-4 text-sm text-muted">{s.tableDetails(p)}</td>
                           <td className="px-3 py-4 text-sm whitespace-nowrap text-muted">
                             {dateFormat.format(new Date(p.created_at))}
                           </td>
                           <td className="py-4 pr-5 pl-3">
-                            <ReviewButtons profileId={p.id} verified={!!p.email_verified_at} />
+                            <ReviewButtons profileId={p.id} />
                           </td>
                         </tr>
                       ))}

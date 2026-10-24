@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 import { STAFF_SIGNUP_ROLES, type StaffSignupRole } from "@/lib/roles";
 import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 import { emailDomainReceivesMail } from "@/lib/email-domain";
-import { sendVerificationEmail } from "@/lib/verification";
 
 const MAX_NAME = 100;
 const MIN_PASSWORD = 6;
@@ -181,19 +180,6 @@ export async function registerMember(
         ? rpcError.message
         : "No se pudo completar el registro. Intenta de nuevo.",
     );
-  }
-
-  // Correo "Verifica tu correo": la dirección no puede aprobar hasta que se abra el
-  // link. Si no sale, /pendiente permite reenviarlo.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) {
-    await sendVerificationEmail({
-      profileId: user.id,
-      email: fields.email,
-      fullName: `${fields.firstName} ${fields.lastName}`,
-    });
   }
 
   // Foto de perfil opcional: si falla, el registro ya quedó hecho y se sigue.

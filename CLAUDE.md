@@ -50,11 +50,10 @@ Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` 
 
 **Correo al confirmar un registro:** lo envía la acción de `/registros` (`src/app/registros/actions.ts`) después de un `review_member` exitoso. El correo de la persona se lee con `getUserEmail` (`src/lib/supabase/admin.ts`, `server-only`, clave `SUPABASE_SERVICE_ROLE_KEY` solo en el servidor) y se envía con `sendEmail` (`src/lib/email.ts`, nodemailer por SMTP; variables `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`). Para pasar a Resend se cambia solo `email.ts`. Si el correo falla o falta configuración, la confirmación se mantiene y `/registros?correo=no-enviado` muestra un aviso. La pantalla `/pendiente` revisa el propio perfil cada 10 s (pausa con la pestaña oculta) y lleva al Resumen al confirmarse. La vía anterior por base de datos (0031–0033) se quitó en 0034; quedan sin uso `private.member_emails` y la extensión `pg_net`.
 
-**Correo verificado y recuperar contraseña (0035):**
-- Al registrarse se revisa que el dominio del correo reciba mensajes (`src/lib/email-domain.ts`, MX o A; si el DNS falla no bloquea) y se envía "Verifica tu correo" (`src/lib/verification.ts`). `profiles.email_verified_at` lo marca `verify_email(token)` desde `/verificar` (con o sin sesión). El token (solo su hash, vence en 7 días) vive en `private.email_verification_tokens` y lo crea `create_email_verification` (solo `service_role`). Las cuentas anteriores a 0035 quedaron verificadas.
-- `review_member` no confirma sin correo verificado. `/registros` muestra "Correo sin verificar" y deshabilita Confirma; `/pendiente` permite reenviar el correo.
+**Correo al registrarse y recuperar contraseña (0035, 0036):**
+- Al registrarse se revisa que el dominio del correo reciba mensajes (`src/lib/email-domain.ts`, MX o A; si el DNS falla no bloquea). No se pide verificar el correo: 0035 lo exigía para aprobar y 0036 lo quitó (`review_member` volvió a lo de antes). Quedan sin uso `profiles.email_verified_at`, `private.email_verification_tokens`, `create_email_verification` y `verify_email` (sin permisos para la app).
 - Recuperar contraseña: `/recuperar` (respuesta igual exista o no la cuenta) envía un link a `/restablecer?token=…` con el hash de `auth.admin.generateLink({ type: "recovery" })`; el link se usa al enviar la contraseña nueva (`verifyOtp` + `updateUser`), no al abrir la página.
-- Límite de ambos correos: `allow_auth_email` (solo `service_role`; 1 por minuto y 5 por hora por correo; guarda el hash del correo en `private.auth_email_log`).
+- Límite: `allow_auth_email` (solo `service_role`; 1 por minuto y 5 por hora por correo; guarda el hash del correo en `private.auth_email_log`).
 - Todo sale por `sendEmail`; las funciones con clave de servicio están en `src/lib/supabase/admin.ts`.
 
 **Ajustes del club (Configuración, solo dirección):**

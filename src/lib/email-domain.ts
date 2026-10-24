@@ -3,7 +3,7 @@ import { resolve4, resolve6, resolveMx } from "node:dns/promises";
 
 // ¿El dominio del correo puede recibir correos? Atrapa errores de tipeo (gmial.com)
 // y dominios inventados antes de crear la cuenta. Si el DNS no responde a tiempo o
-// falla por otra razón, no se bloquea a nadie: la verificación por link lo cubre.
+// falla por otra razón, no se bloquea a nadie.
 
 const TIMEOUT_MS = 3000;
 const NOT_FOUND = new Set(["ENOTFOUND", "ENODATA", "NXDOMAIN"]);

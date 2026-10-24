@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { reviewMember, type ReviewState } from "./actions";
 import { ErrorMessage, buttonDanger, buttonPrimary, textButton } from "@/app/ui";
 
-export function ReviewButtons({ profileId, verified }: { profileId: string; verified: boolean }) {
+export function ReviewButtons({ profileId }: { profileId: string }) {
   const [confirmingReject, setConfirmingReject] = useState(false);
   const [state, formAction, pending] = useActionState<ReviewState, FormData>(
     reviewMember,
@@ -15,8 +15,11 @@ export function ReviewButtons({ profileId, verified }: { profileId: string; veri
     <form action={formAction} className="flex flex-col items-end gap-2">
       <input type="hidden" name="profile_id" value={profileId} />
 
+      {/* Las key separan los dos grupos: sin ellas React reutiliza el botón "Rechaza"
+          como "Sí, rechaza" (tipo submit) durante el mismo clic y el formulario se
+          envía sin pedir confirmación. */}
       {confirmingReject ? (
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div key="confirmar-rechazo" className="flex flex-wrap items-center justify-end gap-3">
           <span className="text-sm text-muted">¿Rechazar este registro?</span>
           <button
             type="submit"
@@ -37,13 +40,12 @@ export function ReviewButtons({ profileId, verified }: { profileId: string; veri
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
+        <div key="acciones" className="flex items-center gap-3">
           <button
             type="submit"
             name="decision"
             value="confirmar"
-            disabled={pending || !verified}
-            aria-describedby={verified ? undefined : `${profileId}-sin-verificar`}
+            disabled={pending}
             className={`text-sm ${buttonPrimary}`}
           >
             {pending ? "Guardando…" : "Confirma"}
@@ -59,11 +61,6 @@ export function ReviewButtons({ profileId, verified }: { profileId: string; veri
         </div>
       )}
 
-      {!verified && !confirmingReject && (
-        <p id={`${profileId}-sin-verificar`} className="text-right text-xs text-muted">
-          Podrás confirmar cuando verifique su correo.
-        </p>
-      )}
       {state.error && <ErrorMessage>{state.error}</ErrorMessage>}
     </form>
   );
