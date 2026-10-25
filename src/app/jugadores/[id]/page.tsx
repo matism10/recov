@@ -21,6 +21,7 @@ import {
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
 import { getMyLoad, getTeamLoad, type LoadResult, type MyLoad, type TeamLoad } from "@/lib/match-load";
 import { LoadBlock } from "@/app/load-block";
+import { PlayerEvaluations } from "@/app/evaluaciones/player-evaluations";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import { WhatsAppButton } from "@/app/whatsapp-button";
@@ -59,7 +60,7 @@ export default async function PlayerPage({
   const playerPromise = getActiveClubId(user.id).then((clubId) =>
     supabase
       .from("players")
-      .select("id, full_name, position, availability, user_id")
+      .select("id, club_id, full_name, position, availability, user_id")
       .eq("id", id)
       .eq("club_id", clubId)
       .eq("status", "confirmado")
@@ -295,6 +296,7 @@ export default async function PlayerPage({
           }
         />
       </div>
+      <PlayerEvaluations playerId={id} clubId={player.club_id} />
     </main>
   );
 }

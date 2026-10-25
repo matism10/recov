@@ -22,18 +22,20 @@ export function SidebarNav({
   avatarUrl,
   direction,
   staff,
+  evaluations,
   pendingCount,
 }: {
   fullName: string;
   avatarUrl: string | null;
   direction: boolean;
   staff: boolean;
+  evaluations: boolean;
   pendingCount: number;
 }) {
   const pathname = usePathname();
   if (isNavHidden(pathname)) return null;
 
-  const items = sidebarItems({ direction, staff });
+  const items = sidebarItems({ direction, staff, evaluations });
   const profileActive = startsWith(pathname, "/perfil");
 
   const renderItem = (item: NavItem) => {

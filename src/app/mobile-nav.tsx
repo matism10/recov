@@ -36,18 +36,20 @@ export function MobileNavBar({
   direction,
   staff,
   player,
+  evaluations,
   pendingCount,
 }: {
   direction: boolean;
   staff: boolean;
   player: boolean;
+  evaluations: boolean;
   pendingCount: number;
 }) {
   const pathname = usePathname();
   if (isNavHidden(pathname)) return null;
 
   // El jugador no tiene "Más"; el staff sí (con más ítems si es de la dirección).
-  const more = moreItems({ direction, staff });
+  const more = moreItems({ direction, staff, evaluations });
 
   return (
     <>

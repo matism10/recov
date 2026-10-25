@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Dumbbell } from "lucide-react";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { signOut } from "@/app/login/actions";
 import {
@@ -485,6 +485,20 @@ export default async function DashboardPage() {
             </p>
           )}
         </section>
+      )}
+
+      {isPlayer && (
+        <Link
+          href="/evaluaciones/mias"
+          className="mb-8 flex min-h-14 items-center gap-3 rounded-xl border border-line bg-mist px-4 py-3 transition hover:bg-white"
+        >
+          <Dumbbell aria-hidden="true" className="size-5 shrink-0 text-brand-strong" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium text-ink">Mis evaluaciones</span>
+            <span className="block text-sm text-muted">Tus tests físicos, tu progreso y tu puesto en el plantel.</span>
+          </span>
+          <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
+        </Link>
       )}
 
       {isPlayer && (

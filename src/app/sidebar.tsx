@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { getProfile, getSupabase } from "@/lib/session";
 import { isDirection, isStaff, type UserRole } from "@/lib/roles";
+import { canReadEvaluations } from "@/lib/evaluations";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { SidebarNav } from "./sidebar-nav";
 import { MobileNavBar } from "./mobile-nav";
@@ -61,6 +62,7 @@ const getNavData = cache(async () => {
     clubs: clubOptions(supabase, profile),
     direction,
     staff: isStaff(roles),
+    evaluations: canReadEvaluations(roles),
     player: roles.includes("jugador"),
     pendingCount,
   };
@@ -77,6 +79,7 @@ export async function Sidebar() {
       avatarUrl={nav.avatarUrl}
       direction={nav.direction}
       staff={nav.staff}
+      evaluations={nav.evaluations}
       pendingCount={nav.pendingCount}
     />
   );
@@ -104,6 +107,7 @@ export async function MobileNav() {
     <MobileNavBar
       direction={nav.direction}
       staff={nav.staff}
+      evaluations={nav.evaluations}
       player={nav.player}
       pendingCount={nav.pendingCount}
     />

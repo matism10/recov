@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ChartColumn,
   ClipboardList,
+  Dumbbell,
   LayoutDashboard,
   Settings,
   UserCheck,
@@ -84,6 +85,13 @@ export const METRICAS: NavItem = {
   isActive: (p) => startsWith(p, "/metricas"),
 };
 
+export const EVALUACIONES: NavItem = {
+  href: "/evaluaciones",
+  label: "Evaluaciones",
+  Icon: Dumbbell,
+  isActive: (p) => startsWith(p, "/evaluaciones"),
+};
+
 export const NOMINAS: NavItem = {
   href: "/nominas",
   label: "Nóminas",
@@ -94,12 +102,22 @@ export const NOMINAS: NavItem = {
 // Sidebar de escritorio, en dos áreas: el día a día (Métricas y Nóminas solo para
 // el staff) y la administración del club (Registros, Staff y Configuración, solo
 // la dirección: head coach y manager).
-export function sidebarItems({ direction, staff }: { direction: boolean; staff: boolean }): {
+// Evaluaciones: el staff que ve resultados (todos menos el manager).
+export function sidebarItems({
+  direction,
+  staff,
+  evaluations = false,
+}: {
+  direction: boolean;
+  staff: boolean;
+  evaluations?: boolean;
+}): {
   main: NavItem[];
   admin: NavItem[];
 } {
   const main = [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
   if (staff) main.push(METRICAS, NOMINAS);
+  if (evaluations) main.push(EVALUACIONES);
   return { main, admin: direction ? [REGISTROS, STAFF, CONFIGURACION] : [] };
 }
 
@@ -113,8 +131,16 @@ export const REGISTRAR_LESION_HREF = "/registrar-lesion";
 // Hoja "Más" de la barra móvil: solo el staff la tiene (el jugador no): Métricas
 // y Nóminas, y la dirección suma Registros, Staff y Configuración. "Cerrar sesión"
 // va aparte.
-export function moreItems({ direction, staff }: { direction: boolean; staff: boolean }): NavItem[] {
-  if (direction) return [METRICAS, NOMINAS, REGISTROS, STAFF, CONFIGURACION];
-  if (staff) return [METRICAS, NOMINAS];
-  return [];
+export function moreItems({
+  direction,
+  staff,
+  evaluations = false,
+}: {
+  direction: boolean;
+  staff: boolean;
+  evaluations?: boolean;
+}): NavItem[] {
+  const daily = staff ? [METRICAS, NOMINAS, ...(evaluations ? [EVALUACIONES] : [])] : [];
+  if (direction) return [...daily, REGISTROS, STAFF, CONFIGURACION];
+  return daily;
 }
