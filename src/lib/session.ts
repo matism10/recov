@@ -25,8 +25,9 @@ const CLUB_COLUMNS =
   "name, sport, category, logo_path, cover_path, cover_position_x, cover_position_y, kine_delegate_id, nomina_delegate_id, nomina_mode, dashboard_metrics, dashboard_metrics_mobile";
 
 // Perfil (nombre y foto, de la cuenta) con todas sus membresías y su plantel.
+// Desde 0043 profiles es solo identidad: plantel, roles y estado salen de club_members.
 const PROFILE_COLUMNS =
-  "full_name, club_id, avatar_path, " +
+  "full_name, avatar_path, " +
   `club_members!club_members_user_id_fkey(club_id, roles, status, created_at, clubs!club_members_club_id_fkey(${CLUB_COLUMNS}))`;
 
 export type MyClub = {
@@ -68,7 +69,6 @@ export type MyProfile = {
 
 type ProfileRow = {
   full_name: string | null;
-  club_id: string | null;
   avatar_path: string | null;
   club_members: (Omit<MyMembership, "club"> & { clubs: MyClub | MyClub[] | null })[] | null;
 };
@@ -83,8 +83,8 @@ export const getActiveClubCookie = cache(async () => {
 // Perfil propio con el plantel activo. RLS: cada usuario lee su propio perfil y sus
 // membresías, aunque esté pendiente. Por id, para que el layout (id del JWT) y la
 // página (id de getUser) compartan la consulta.
-// Plantel activo: el de la cookie; sin cookie (ninguno confirmado), uno pendiente o el
-// principal (profiles.club_id): con un solo plantel, lo mismo que antes.
+// Plantel activo: el de la cookie; sin cookie (ninguno confirmado), uno pendiente o la
+// membresía más antigua: con un solo plantel, lo mismo que antes.
 export const getProfile = cache(async (userId: string): Promise<MyProfile | null> => {
   const supabase = await getSupabase();
   const [{ data }, cookieClub] = await Promise.all([
@@ -98,19 +98,19 @@ export const getProfile = cache(async (userId: string): Promise<MyProfile | null
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
   // Sin cookie válida: el confirmado más antiguo (lo mismo que elige el proxy).
   // Sin plantel confirmado: uno pendiente (para mostrar la pantalla de pendiente) o,
-  // si no hay, el principal.
+  // si no hay, la membresía más antigua.
   const active =
     memberships.find((m) => m.club_id === cookieClub && m.status === "confirmado") ??
     memberships.find((m) => m.status === "confirmado") ??
     memberships.find((m) => m.status === "pendiente") ??
-    memberships.find((m) => m.club_id === row.club_id) ??
+    memberships[0] ??
     null;
   return {
     full_name: row.full_name,
     avatar_path: row.avatar_path,
     roles: active?.roles ?? [],
     status: active?.status ?? "pendiente",
-    club_id: active?.club_id ?? row.club_id,
+    club_id: active?.club_id ?? null,
     club: active?.club ?? null,
     memberships,
   };
@@ -118,7 +118,7 @@ export const getProfile = cache(async (userId: string): Promise<MyProfile | null
 
 // Id del plantel activo para filtrar consultas (.eq("club_id", …)): RLS devuelve
 // filas de todos los planteles de la cuenta, así que cada lista filtra por el activo.
-// Usa la cookie si existe (sin esperar el perfil); si no, el plantel principal.
+// Usa la cookie si existe (sin esperar el perfil); si no, el que elige getProfile.
 export const getActiveClubId = cache(async (userId: string): Promise<string> => {
   const cookieClub = await getActiveClubCookie();
   if (cookieClub) return cookieClub;

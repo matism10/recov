@@ -21,11 +21,10 @@ begin
 
   insert into public.clubs (name, sport, slug) values ('Club Demo', 'rugby', mi_slug) returning id into cid;
 
-  insert into public.profiles (id, club_id, roles, full_name, status)
-  values (uid, cid, '{head_coach,kinesiologo}', 'Usuario Demo', 'confirmado');
+  -- Desde 0043 el perfil es solo identidad: el plantel, los roles y el estado viven en
+  -- club_members; sin esa fila la cuenta no tendría acceso al club.
+  insert into public.profiles (id, full_name) values (uid, 'Usuario Demo');
 
-  -- Desde 0039 los roles y el estado viven en club_members (el perfil solo los refleja):
-  -- sin esta fila la cuenta no tendría acceso al club.
   insert into public.club_members (user_id, club_id, roles, status)
   values (uid, cid, '{head_coach,kinesiologo}', 'confirmado');
 
