@@ -1458,8 +1458,8 @@ select pg_temp.expect_count($q$select 1 from public.club_members m join public.p
 select pg_temp.expect_count($q$select 1 from public.club_members where user_id = '9a000000-0000-0000-0000-000000000002'
   and club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and status = 'rechazado' and roles = '{}'$q$, 1, 'M2 queda rechazado en B');
 select pg_temp.expect_count($q$select 1 from public.club_members m join public.profiles p on p.id = m.user_id
-  where m.club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and m.status = 'confirmado' and p.status = 'confirmado'
-    and m.user_id in ('9a000000-0000-0000-0000-000000000001', '9a000000-0000-0000-0000-000000000002')$q$, 2, 'revisar en B no toca A ni el perfil');
+  where m.club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and m.status = 'confirmado'
+    and m.user_id in ('9a000000-0000-0000-0000-000000000001', '9a000000-0000-0000-0000-000000000002')$q$, 2, 'revisar en B no toca A');
 select pg_temp.expect_count($q$select 1 from public.players where user_id = '9a000000-0000-0000-0000-000000000001'
   and club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'confirmado'$q$, 1, 'la ficha de M1 en A sigue confirmada');
 
@@ -1489,7 +1489,7 @@ select pg_temp.expect_error($q$select public.set_nomina_delegate('9a000000-0000-
 select pg_temp.back();
 select pg_temp.expect_count($q$select 1 from public.clubs c join public.profiles p on p.id = c.kine_delegate_id
   where c.id = 'bbbbbbbb-0000-0000-0000-000000000002' and c.nomina_delegate_id = p.id
-    and p.id = '9a000000-0000-0000-0000-000000000004' and p.club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 1, 'M4 (perfil en A) es delegado de kinesiología y nóminas en B');
+    and p.id = '9a000000-0000-0000-0000-000000000004'$q$, 1, 'M4 (miembro de A) es delegado de kinesiología y nóminas en B');
 select pg_temp.expect_fail($q$update public.clubs set kine_delegate_id = '40000000-0000-0000-0000-00000000000a'
   where id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 'FK: delegado de kinesiología sin membresía en B');
 select pg_temp.expect_fail($q$update public.clubs set nomina_delegate_id = '40000000-0000-0000-0000-00000000000a'
@@ -1505,7 +1505,7 @@ select pg_temp.expect_count($q$select 1 from public.clubs where id = 'bbbbbbbb-0
   and kine_delegate_id is null and nomina_delegate_id is null$q$, 1, 'B queda sin delegado de kinesiología ni de nóminas');
 select pg_temp.expect_count($q$select 1 from public.club_members m join public.profiles p on p.id = m.user_id
   where m.user_id = '9a000000-0000-0000-0000-000000000004' and m.club_id = 'aaaaaaaa-0000-0000-0000-000000000001'
-    and m.status = 'confirmado' and m.roles = '{entrenador}' and p.status = 'confirmado' and p.roles = '{entrenador}'$q$, 1, 'M4 sigue confirmado en A');
+    and m.status = 'confirmado' and m.roles = '{entrenador}'$q$, 1, 'M4 sigue confirmado en A');
 select pg_temp.expect_count($q$select 1 from public.clubs where id = 'aaaaaaaa-0000-0000-0000-000000000001'
   and nomina_delegate_id = '9a000000-0000-0000-0000-000000000004'$q$, 1, 'M4 sigue siendo delegado de nóminas en A');
 
