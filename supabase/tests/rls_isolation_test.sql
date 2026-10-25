@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0039.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0040.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -1175,8 +1175,11 @@ select pg_temp.back();
 select pg_temp.as_anon();
 select pg_temp.expect_count($q$select 1 from public.club_members$q$, 0, 'anónimo no lee club_members');
 select pg_temp.back();
-select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.sync_profile_to_member()', 'EXECUTE')
-  or has_function_privilege('anon', 'private.sync_profile_to_member()', 'EXECUTE')$q$, 0, 'nadie de la app ejecuta la función del trigger');
+-- (cambió con 0039: la función del trigger ahora es mirror_member_to_profile)
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private' and p.proname = 'sync_profile_to_member'$q$, 0, 'ya no existe la sincronización de profiles a club_members');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.mirror_member_to_profile()', 'EXECUTE')
+  or has_function_privilege('anon', 'private.mirror_member_to_profile()', 'EXECUTE')$q$, 0, 'nadie de la app ejecuta la función del trigger');
 
 -- =======================================================================
 -- Multi-plantel (0038): helpers con club_id y políticas que los usan
@@ -1546,6 +1549,10 @@ select pg_temp.expect_error($q$select public.set_my_avatar('cccccccc-0000-0000-0
 select pg_temp.back();
 select pg_temp.expect_count($q$select 1 from public.profiles where id = '9a000000-0000-0000-0000-000000000003'
   and avatar_path = 'bbbbbbbb-0000-0000-0000-000000000002/9a000000-0000-0000-0000-000000000003/m3.jpg'$q$, 1, 'la foto de M3 quedó guardada');
+select pg_temp.expect_fail($q$update public.profiles set avatar_path = 'bbbbbbbb-0000-0000-0000-000000000002/9a000000-0000-0000-0000-000000000001/m3.jpg'
+  where id = '9a000000-0000-0000-0000-000000000003'$q$, 'la foto en la carpeta de otra persona no pasa el CHECK (0040)');
+select pg_temp.expect_fail($q$update public.profiles set avatar_path = 'no-es-uuid/9a000000-0000-0000-0000-000000000003/m3.jpg'
+  where id = '9a000000-0000-0000-0000-000000000003'$q$, 'la foto con una carpeta de plantel inválida no pasa el CHECK (0040)');
 
 -- k. Espejo: el plantel principal se refleja en profiles; uno secundario no.
 update public.club_members set roles = '{entrenador,nutricionista}'
