@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import type { UserRole } from "@/lib/roles";
 import { formatDate } from "@/lib/injuries";
 import { InjuryForm } from "@/app/registrar-lesion/injury-form";
@@ -18,9 +18,11 @@ export default async function CompleteInjuryPage({
 
   // En paralelo: perfil, ficha propia y la lesión (RLS: el jugador ve solo las suyas).
   // Los controles van después, en el mismo orden.
+  const clubId = await getActiveClubId(user.id);
   const [me, { data: player }, { data: injury }] = await Promise.all([
     getProfile(user.id),
-    supabase.from("players").select("id, club_id").eq("user_id", user.id).maybeSingle(),
+    // Ficha del plantel activo (con varios planteles hay una por plantel).
+    supabase.from("players").select("id, club_id").eq("user_id", user.id).eq("club_id", clubId).maybeSingle(),
     supabase
       .from("injuries")
       .select("id, type, status, started_on, player_id")

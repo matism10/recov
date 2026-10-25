@@ -66,7 +66,7 @@ export function SidebarNav({
         {items.admin.length > 0 && (
           <div>
             <p className="mb-1 px-4 text-xs font-semibold tracking-wide text-muted uppercase">
-              Club
+              Gestión
             </p>
             <ul className="space-y-1 border-t border-brand/40 pt-2">{items.admin.map(renderItem)}</ul>
           </div>

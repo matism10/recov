@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import {
   isStaff,
   type Availability,
@@ -55,14 +55,17 @@ export default async function PlayerPage({
   const staffPromise = profilePromise.then(
     (me) => me?.status === "confirmado" && isStaff((me.roles ?? []) as UserRole[]),
   );
-  // RLS: solo jugadores del club.
-  const playerPromise = supabase
-    .from("players")
-    .select("id, full_name, position, availability, user_id")
-    .eq("id", id)
-    .eq("status", "confirmado")
-    .maybeSingle()
-    .then(({ data }) => data);
+  // RLS: solo jugadores de los planteles de la cuenta; aquí, solo del plantel activo.
+  const playerPromise = getActiveClubId(user.id).then((clubId) =>
+    supabase
+      .from("players")
+      .select("id, full_name, position, availability, user_id")
+      .eq("id", id)
+      .eq("club_id", clubId)
+      .eq("status", "confirmado")
+      .maybeSingle()
+      .then(({ data }) => data),
+  );
   // RLS: el staff ve las lesiones del club.
   const injuriesPromise = supabase
     .from("injuries")

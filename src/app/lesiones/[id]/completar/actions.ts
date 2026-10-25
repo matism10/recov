@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveClubId } from "@/lib/session";
 import {
   filesInPlayerFolder,
   readReportFields,
@@ -29,12 +30,14 @@ export async function completeInjuryReport(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Tu sesión expiró. Vuelve a ingresar." };
 
+  // Ficha del plantel activo (con varios planteles hay una por plantel).
   const { data: player } = await supabase
     .from("players")
     .select("id, club_id")
     .eq("user_id", user.id)
+    .eq("club_id", await getActiveClubId(user.id))
     .maybeSingle();
-  if (!player) return { error: "Tu cuenta no está asociada a un jugador del club." };
+  if (!player) return { error: "Tu cuenta no está asociada a un jugador de este plantel." };
 
   if (!filesInPlayerFolder(files, player.club_id, player.id)) {
     return { error: "Uno de los documentos no es válido. Vuelve a adjuntarlo." };

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import type { UserRole } from "@/lib/roles";
 import { InjuryForm } from "./injury-form";
 import { textButton } from "@/app/ui";
@@ -11,9 +11,11 @@ export default async function ReportInjuryPage() {
   if (!user) redirect("/login");
 
   // En paralelo: perfil y ficha propia (RLS: el jugador confirmado ve la suya).
+  // La ficha es la del plantel activo (con varios planteles hay una por plantel).
+  const clubId = await getActiveClubId(user.id);
   const [me, { data: player }] = await Promise.all([
     getProfile(user.id),
-    supabase.from("players").select("id, club_id").eq("user_id", user.id).maybeSingle(),
+    supabase.from("players").select("id, club_id").eq("user_id", user.id).eq("club_id", clubId).maybeSingle(),
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
@@ -32,7 +34,7 @@ export default async function ReportInjuryPage() {
           Registrar lesión
         </h1>
         <p className="mt-1 text-sm text-muted">
-          El kinesiólogo del club revisará tu reporte y tus documentos.
+          El kinesiólogo del plantel revisará tu reporte y tus documentos.
         </p>
       </header>
       <div className="rounded-xl bg-mist p-6 border border-line">

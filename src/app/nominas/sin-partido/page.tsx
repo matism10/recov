@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarX } from "lucide-react";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canManageEvents, isStaff, type UserRole } from "@/lib/roles";
 import { buttonPrimary, cardClass, textButton } from "@/app/ui";
 
@@ -11,12 +11,14 @@ export default async function NoMatchPage() {
   const supabase = await getSupabase();
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  // En paralelo: perfil y el próximo partido (RLS: eventos del club).
+  // En paralelo: perfil y el próximo partido del plantel activo.
+  const clubId = await getActiveClubId(user.id);
   const [me, { data: next }] = await Promise.all([
     getProfile(user.id),
     supabase
       .from("events")
       .select("id")
+      .eq("club_id", clubId)
       .eq("type", "competencia")
       .is("cancelled_at", null)
       .gt("starts_at", new Date().toISOString())

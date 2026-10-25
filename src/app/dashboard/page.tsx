@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { signOut } from "@/app/login/actions";
 import {
   INJURED_AVAILABILITY,
@@ -36,6 +36,7 @@ import { MetricsStrip, loadMetricsStrip } from "./metrics-strip";
 import { MyMatches } from "./my-matches";
 import { canManageNominas, getMyLoad } from "@/lib/match-load";
 import { ResumenCover } from "./resumen-cover";
+import { clubOptions } from "@/lib/club-options";
 import { LoadBlock } from "@/app/load-block";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
 
@@ -70,6 +71,8 @@ export default async function DashboardPage() {
   // propio) decide el rol; apenas llega, salen las consultas que dependen del rol,
   // la franja de métricas y la portada, sin esperar al plantel.
   const profilePromise = getProfile(user.id);
+  // Plantel activo: filtra las listas (RLS devuelve las de todos los planteles de la cuenta).
+  const clubIdPromise = getActiveClubId(user.id);
   const confirmed = profilePromise.then((p) => (p?.status === "confirmado" ? p : null));
 
   const byRolePromise = confirmed.then(async (profile) => {
@@ -89,6 +92,7 @@ export default async function DashboardPage() {
         ? supabase
             .from("injuries")
             .select("id, player_id, type, started_on, expected_return_on")
+            .eq("club_id", profile.club_id!)
             .in("status", ["en_evaluacion", "activa"])
             .then(({ data }) => (data ?? []) as OpenInjury[])
         : [],
@@ -100,6 +104,7 @@ export default async function DashboardPage() {
             .select(
               "id, type, status, started_on, expected_return_on, closed_on, players!inner(user_id)",
             )
+            .eq("club_id", profile.club_id!)
             .eq("players.user_id", user.id)
             .order("started_on", { ascending: false })
             .then(({ data }) => data as MyInjury[] | null)
@@ -110,6 +115,7 @@ export default async function DashboardPage() {
         ? supabase
             .from("injuries")
             .select("id, type, status, started_on, players(full_name)")
+            .eq("club_id", profile.club_id!)
             .or("status.eq.en_evaluacion,and(status.eq.activa,reviewed_at.is.null)")
             .order("started_on")
             .then(({ data }) => (data ?? []) as ReviewRow[])
@@ -119,6 +125,7 @@ export default async function DashboardPage() {
         ? supabase
             .from("injuries")
             .select("id, players!inner(user_id)")
+            .eq("club_id", profile.club_id!)
             .eq("status", "en_evaluacion")
             .eq("players.user_id", user.id)
             .limit(1)
@@ -142,17 +149,20 @@ export default async function DashboardPage() {
   const [profile, squad, { data: nextMatch }, byRole, metricsData] = await Promise.all([
     profilePromise,
     // Plantel confirmado y activo, con fotos y la fase en curso de cada jugador.
-    getSquad(supabase),
-    // Próximo partido: la competencia no cancelada más cercana. RLS: eventos del club.
-    supabase
-      .from("events")
-      .select("id, starts_at, opponent")
-      .eq("type", "competencia")
-      .is("cancelled_at", null)
-      .gte("starts_at", new Date().toISOString())
-      .order("starts_at")
-      .limit(1)
-      .maybeSingle(),
+    clubIdPromise.then((clubId) => getSquad(supabase, clubId)),
+    // Próximo partido: la competencia no cancelada más cercana del plantel activo.
+    clubIdPromise.then((clubId) =>
+      supabase
+        .from("events")
+        .select("id, starts_at, opponent")
+        .eq("club_id", clubId)
+        .eq("type", "competencia")
+        .is("cancelled_at", null)
+        .gte("starts_at", new Date().toISOString())
+        .order("starts_at")
+        .limit(1)
+        .maybeSingle(),
+    ),
     byRolePromise,
     metricsPromise,
   ]);
@@ -164,10 +174,10 @@ export default async function DashboardPage() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
         <h1 className="text-xl font-semibold text-ink">
-          Tu cuenta aún no está asociada a un club
+          Tu cuenta aún no está asociada a un plantel
         </h1>
         <p className="max-w-md text-muted">
-          Pide a la dirección de tu club que te agregue a Recov.
+          Pide a la dirección de tu plantel que te envíe su link.
         </p>
         <form action={signOut}>
           <button className={textButton}>
@@ -244,6 +254,7 @@ export default async function DashboardPage() {
         club={{ ...club, cover_path: club.cover_path }}
         fullName={profile.full_name ?? ""}
         avatarPath={profile.avatar_path ?? null}
+        clubs={clubOptions(supabase, profile)}
       />
     )}
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
@@ -554,7 +565,7 @@ export default async function DashboardPage() {
         <SectionTitle className="mb-3">Plantel</SectionTitle>
         {players.length === 0 ? (
           <p className={`p-8 text-center text-muted ${cardClass}`}>
-            Aún no hay jugadores registrados en tu club.
+            Aún no hay jugadores registrados en tu plantel.
           </p>
         ) : (
           // Sin búsqueda: los primeros disponibles. Al escribir: todo el plantel.

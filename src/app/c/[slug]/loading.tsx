@@ -5,7 +5,7 @@ export default function Loading() {
   return (
     <main aria-busy="true" className="flex flex-1 items-center justify-center bg-white px-4 py-10">
       <p role="status" className="sr-only">
-        Cargando el registro del club…
+        Cargando el plantel…
       </p>
       <Block className="w-full max-w-md space-y-4 p-8">
         <Line className="h-4 w-16" />

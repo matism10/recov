@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isStaff, type UserRole } from "@/lib/roles";
 import { formatDate, type InjuryStatus } from "@/lib/injuries";
 import { getAvatarUrls } from "@/lib/avatars";
@@ -48,16 +48,20 @@ export default async function InjuriesPage({
   // completas; del historial, las más recientes (con el total para el título).
   const columns =
     "id, type, status, started_on, expected_return_on, closed_on, players(full_name, user_id)";
+  // Solo las del plantel activo (RLS trae las de todos los planteles de la cuenta).
+  const clubId = await getActiveClubId(user.id);
   const [me, { data: openRows }, { data: pastRows, count: pastTotal }] = await Promise.all([
     getProfile(user.id),
     supabase
       .from("injuries")
       .select(columns)
+      .eq("club_id", clubId)
       .in("status", OPEN_STATUSES)
       .order("started_on", { ascending: false }),
     supabase
       .from("injuries")
       .select(columns, { count: "exact" })
+      .eq("club_id", clubId)
       .in("status", PAST_STATUSES)
       .order("started_on", { ascending: false })
       .range(0, historyLimit - 1),

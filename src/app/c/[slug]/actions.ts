@@ -1,7 +1,12 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ACTIVE_CLUB_COOKIE } from "@/lib/active-club";
+import { PREVIOUS_CLUB_COOKIE } from "./previous-club";
+import { accountName } from "./account-name";
 import { STAFF_SIGNUP_ROLES, type StaffSignupRole } from "@/lib/roles";
 import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 import { emailDomainReceivesMail } from "@/lib/email-domain";
@@ -24,6 +29,8 @@ export type RegisterFields = {
 
 export type RegisterState = {
   error?: string;
+  // El correo ya tiene cuenta: el formulario ofrece pasar a "Iniciar sesión".
+  existingAccount?: boolean;
   fields?: RegisterFields;
 };
 
@@ -121,34 +128,23 @@ export async function registerMember(
     return fail("Ese correo no puede recibir mensajes. Revisa que esté bien escrito.");
   }
 
-  // Crear la cuenta. Si el correo ya existe (por ejemplo, un intento anterior
-  // en que la cuenta se creó pero el registro falló), se inicia sesión con esa
-  // contraseña para completar el registro.
+  // Crear la cuenta. Si el correo ya tiene una (de otro plantel, o un intento
+  // anterior que no terminó), se ofrece iniciar sesión: con la sesión abierta, el
+  // link muestra "Únete a este plantel" y la cuenta se suma sin crear otra.
   const { data: signUp, error: signUpError } = await supabase.auth.signUp({
     email: fields.email,
     password,
   });
 
   if (signUpError) {
-    if (
-      signUpError.code !== "user_already_exists" &&
-      signUpError.code !== "email_exists"
-    ) {
-      return fail(
-        signUpError.code === "weak_password"
-          ? "La contraseña es muy débil. Prueba con una más larga."
-          : "No se pudo crear la cuenta. Intenta de nuevo.",
-      );
+    if (signUpError.code === "user_already_exists" || signUpError.code === "email_exists") {
+      return { error: "Ese correo ya tiene una cuenta.", existingAccount: true, fields };
     }
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: fields.email,
-      password,
-    });
-    if (signInError) {
-      return fail(
-        "Ese correo ya tiene una cuenta. Usa su contraseña o ingresa desde el login.",
-      );
-    }
+    return fail(
+      signUpError.code === "weak_password"
+        ? "La contraseña es muy débil. Prueba con una más larga."
+        : "No se pudo crear la cuenta. Intenta de nuevo.",
+    );
   } else if (!signUp.session) {
     return fail(
       "La cuenta se creó, pero hay que confirmar el correo antes de continuar. Revisa tu bandeja y vuelve a este link.",
@@ -185,7 +181,7 @@ export async function registerMember(
   // Foto de perfil opcional: si falla, el registro ya quedó hecho y se sigue.
   const avatar = formData.get("avatar");
   if (avatar instanceof File && avatar.size > 0) {
-    await saveAvatar(supabase, avatar);
+    await saveAvatar(supabase, slug, avatar);
   }
 
   // Teléfono opcional (solo jugadores): si no se guarda, el registro ya quedó
@@ -201,8 +197,11 @@ export async function registerMember(
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+// La foto va en la carpeta del plantel del link (la cuenta ya es miembro: RLS deja
+// leer el plantel por su slug).
 async function saveAvatar(
   supabase: Awaited<ReturnType<typeof createClient>>,
+  slug: string,
   avatar: File,
 ) {
   if (avatar.size > AVATAR_MAX_BYTES || !AVATAR_TYPES.includes(avatar.type)) return;
@@ -211,19 +210,110 @@ async function saveAvatar(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return;
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("club_id")
-    .eq("id", user.id)
-    .maybeSingle<{ club_id: string }>();
-  if (!profile) return;
+  const { data: club } = await supabase
+    .from("clubs")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle<{ id: string }>();
+  if (!club) return;
 
   const ext = avatar.type.split("/")[1].replace("jpeg", "jpg");
-  const path = `${profile.club_id}/${user.id}/${crypto.randomUUID()}.${ext}`;
+  const path = `${club.id}/${user.id}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage
     .from("avatars")
     .upload(path, avatar, { contentType: avatar.type, upsert: false });
   if (error) return;
 
-  await supabase.rpc("set_my_avatar", { p_path: path });
+  await supabase.rpc("set_my_avatar", { p_path: path, p_club_id: club.id });
+}
+
+export type JoinState = { error?: string };
+
+// "Únete a este plantel": una cuenta que ya existe pide entrar a otro plantel.
+// Nombre y apellido: los de su ficha de jugador si tiene una; si no (cuenta solo de
+// staff), los que confirma en el formulario. register_member valida todo y avisa si
+// ya tiene una solicitud o una cuenta en este plantel.
+export async function joinClub(_prev: JoinState, formData: FormData): Promise<JoinState> {
+  const slug = text(formData, "slug");
+  const kind = text(formData, "kind");
+  const position = text(formData, "position");
+  const secondary = text(formData, "secondary_position");
+  const role = text(formData, "role");
+
+  if (kind !== "jugador" && kind !== "staff") return { error: "Elige si te unes como jugador o staff." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Tu sesión expiró. Inicia sesión de nuevo." };
+
+  const { data: club } = await supabase
+    .rpc("club_public_info", { p_slug: slug })
+    .maybeSingle<{ name: string; sport: string }>();
+  if (!club) return { error: "Este link no es válido." };
+
+  const name = await accountName(supabase, user.id);
+  const firstName = name?.first ?? text(formData, "first_name");
+  const lastName = name?.last ?? text(formData, "last_name");
+  if (!firstName || !lastName) return { error: "Escribe tu nombre y apellido." };
+  if (firstName.length > MAX_NAME || lastName.length > MAX_NAME) {
+    return { error: `Nombre y apellido no pueden superar los ${MAX_NAME} caracteres.` };
+  }
+
+  if (kind === "jugador") {
+    const { data: positions } = await supabase.from("positions").select("name").eq("sport", club.sport);
+    const valid = new Set((positions ?? []).map((p) => p.name as string));
+    if (!valid.has(position)) return { error: "Elige tu posición principal." };
+    if (secondary && (!valid.has(secondary) || secondary === position)) {
+      return { error: "La posición secundaria debe ser distinta de la principal." };
+    }
+  } else if (!STAFF_SIGNUP_ROLES.includes(role as StaffSignupRole)) {
+    return { error: "Elige tu puesto." };
+  }
+
+  const { error } = await supabase.rpc("register_member", {
+    p_club_slug: slug,
+    p_kind: kind,
+    p_first_name: firstName,
+    p_last_name: lastName,
+    ...(kind === "jugador"
+      ? { p_position: position, p_secondary_position: secondary || null }
+      : { p_requested_role: role }),
+  });
+  if (error) {
+    // P0001: mensaje propio de register_member ("Ya tienes una solicitud o una
+    // cuenta en este plantel", posición inválida…).
+    return {
+      error: error.code === "P0001" ? error.message : "No pudimos enviar tu solicitud. Intenta de nuevo.",
+    };
+  }
+
+  // El link, ya con la membresía pendiente, muestra "Solicitud enviada".
+  redirect(`/c/${slug}`);
+}
+
+// "Unirme con otro correo": cierra la sesión y abre el registro de este plantel para
+// crear una cuenta aparte. Guarda unos minutos el nombre del plantel actual para el
+// aviso "No quedará unida a tu cuenta de …" (cookie solo del servidor).
+export async function joinWithAnotherEmail(formData: FormData) {
+  const slug = text(formData, "slug");
+  const previous = text(formData, "previous").slice(0, 80);
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  const store = await cookies();
+  store.delete(ACTIVE_CLUB_COOKIE);
+  if (previous) {
+    store.set(PREVIOUS_CLUB_COOKIE, previous, {
+      path: "/c",
+      maxAge: 60 * 10,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  } else {
+    store.delete(PREVIOUS_CLUB_COOKIE);
+  }
+  revalidatePath("/", "layout");
+  redirect(`/c/${slug}?tab=registro&cuenta=nueva`);
 }

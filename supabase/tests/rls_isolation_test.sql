@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0041.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0042.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -1858,5 +1858,23 @@ select pg_temp.back_h();
 select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000003', 'cccccccc-0000-0000-0000-000000000003');
 select pg_temp.expect_count($q$select distinct club_id from public.players where club_id in ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 2, 'Z con un header inválido sigue viendo sus filas por RLS');
 select pg_temp.back_h();
+
+-- =======================================================================
+-- Ficha pública del plantel (0042): club_public_card
+-- =======================================================================
+select pg_temp.as_anon();
+select pg_temp.expect_count($q$select 1 from public.club_public_card('club-a') where name = 'Club A' and sport = 'rugby' and category = 'Adulta'$q$, 1, 'anónimo lee nombre, deporte y categoría del link');
+select pg_temp.expect_count($q$select 1 from public.club_public_card(' CLUB-A ')$q$, 1, 'el slug se normaliza como en club_public_info');
+select pg_temp.expect_count($q$select 1 from public.club_public_card('no-existe')$q$, 0, 'un link inexistente no devuelve nada');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from pg_proc p cross join lateral aclexplode(p.proacl) a
+  where p.oid = 'public.club_public_card(text)'::regprocedure and a.grantee = 0$q$, 0, 'club_public_card no da permisos a PUBLIC');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'public.club_public_card(text)', 'EXECUTE')
+  = has_function_privilege('anon', 'public.club_public_info(text)', 'EXECUTE')
+  and has_function_privilege('authenticated', 'public.club_public_card(text)', 'EXECUTE')
+  = has_function_privilege('authenticated', 'public.club_public_info(text)', 'EXECUTE')$q$, 1, 'club_public_card tiene los mismos permisos que club_public_info');
+select pg_temp.expect_count($q$select 1 from pg_proc where oid = 'public.club_public_card(text)'::regprocedure
+  and prosecdef and proconfig = array['search_path=""']
+  and pg_get_function_result(oid) = 'TABLE(name text, sport text, category text)'$q$, 1, 'club_public_card solo devuelve nombre, deporte y categoría');
 
 rollback;

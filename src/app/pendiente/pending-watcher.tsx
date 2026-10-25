@@ -1,7 +1,8 @@
 "use client";
 
-// Mientras la cuenta espera confirmación, revisa su propio perfil cada 10 s (RLS:
-// cada usuario lee su perfil) y, apenas la dirección la confirma, lleva al Resumen.
+// Mientras la cuenta espera confirmación, revisa sus membresías cada 10 s (RLS:
+// cada usuario lee las suyas) y, apenas la dirección de algún plantel la confirma,
+// lleva al Resumen (el proxy activa ese plantel).
 // Si la pestaña no está visible, no consulta; al volver, revisa de inmediato.
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -16,12 +17,13 @@ export function PendingWatcher({ userId }: { userId: string }) {
 
     async function check() {
       const { data } = await supabase
-        .from("profiles")
-        .select("status")
-        .eq("id", userId)
-        .maybeSingle();
+        .from("club_members")
+        .select("club_id")
+        .eq("user_id", userId)
+        .eq("status", "confirmado")
+        .limit(1);
       if (stopped) return;
-      if (data?.status === "confirmado") {
+      if (data && data.length > 0) {
         stopped = true;
         // Navegación completa: el menú y la barra dependen del estado del perfil.
         window.location.replace("/dashboard");

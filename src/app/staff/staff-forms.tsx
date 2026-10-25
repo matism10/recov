@@ -112,7 +112,7 @@ export function RolesForm({
       {confirmingRemove ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm text-muted">
-            ¿Quitar a {name} del staff? Perderá el acceso a los datos del club.
+            ¿Quitar a {name} del staff? Perderá el acceso a los datos del plantel.
           </span>
           <button
             type="submit"

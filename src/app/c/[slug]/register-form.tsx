@@ -6,7 +6,17 @@ import { resizeAvatar } from "@/app/avatar-resize";
 import { PhoneField } from "@/app/phone-field";
 import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 import { registerMember, type RegisterState } from "./actions";
-import { ErrorMessage, buttonPrimary, inputClass, labelClass, optionalClass, textButton } from "@/app/ui";
+import Link from "next/link";
+import { LogIn } from "lucide-react";
+import {
+  ErrorMessage,
+  buttonPrimary,
+  buttonSecondary,
+  inputClass,
+  labelClass,
+  optionalClass,
+  textButton,
+} from "@/app/ui";
 
 type Kind = "jugador" | "staff";
 
@@ -15,9 +25,12 @@ const optional = <span className={optionalClass}>(opcional)</span>;
 export function RegisterForm({
   slug,
   positions,
+  loginHref,
 }: {
   slug: string;
   positions: string[];
+  // Pestaña "Iniciar sesión" del mismo link, para cuando el correo ya tiene cuenta.
+  loginHref: string;
 }) {
   const [kind, setKind] = useState<Kind | null>(null);
   const [state, formAction, pending] = useActionState<RegisterState, FormData>(
@@ -291,6 +304,12 @@ export function RegisterForm({
       )}
 
       {state.error && <ErrorMessage>{state.error}</ErrorMessage>}
+      {state.existingAccount && (
+        <Link href={loginHref} replace className={`w-full ${buttonSecondary}`}>
+          <LogIn aria-hidden="true" className="size-4" />
+          Inicia sesión con ese correo
+        </Link>
+      )}
 
       <button
         type="submit"

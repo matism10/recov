@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canManageInjuries, isStaff, type UserRole } from "@/lib/roles";
 import { getSquad } from "@/lib/squad";
 import { SquadViews } from "./squad-views";
@@ -26,7 +26,7 @@ export default async function SquadPage() {
         .order("sort");
       return { profile, positions };
     }),
-    getSquad(supabase),
+    getActiveClubId(user.id).then((clubId) => getSquad(supabase, clubId)),
   ]);
 
   if (profile?.status === "pendiente") redirect("/pendiente");
@@ -60,7 +60,7 @@ export default async function SquadPage() {
         />
       ) : (
         <p className={`p-8 text-center text-muted ${cardClass}`}>
-          Aún no hay jugadores registrados en tu club.
+          Aún no hay jugadores registrados en tu plantel.
         </p>
       )}
     </main>
