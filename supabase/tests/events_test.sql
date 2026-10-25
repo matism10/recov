@@ -83,7 +83,8 @@ insert into auth.users (id, email) values
   ('10000000-0000-0000-0000-00000000000b', 'hc-b@test.cl'),
   ('30000000-0000-0000-0000-00000000000b', 'kine-b@test.cl');
 
-insert into public.profiles (id, club_id, roles, full_name, status) values
+-- Desde 0043 profiles es solo identidad: el plantel, los roles y el estado van a club_members (preparación).
+with v(id, club_id, roles, full_name, status) as (values
   ('10000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{head_coach}',        'Head Coach A',    'confirmado'),
   ('20000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{manager}',           'Manager A',       'confirmado'),
   ('30000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{kinesiologo}',       'Kine A',          'confirmado'),
@@ -93,10 +94,10 @@ insert into public.profiles (id, club_id, roles, full_name, status) values
   ('60000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',           'Jugador A1',      'confirmado'),
   ('80000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{entrenador}',        'Entrenador Pend', 'pendiente'),
   ('10000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{head_coach}',        'Head Coach B',    'confirmado'),
-  ('30000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{kinesiologo}',       'Kine B',          'confirmado');
--- Desde 0039 insertar en profiles ya no crea la membresía: se crea aquí (preparación).
-insert into public.club_members (user_id, club_id, roles, status, requested_role)
-select id, club_id, roles, status, requested_role from public.profiles on conflict do nothing;
+  ('30000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{kinesiologo}',       'Kine B',          'confirmado')),
+     p as (insert into public.profiles (id, full_name) select id::uuid, full_name from v)
+insert into public.club_members (user_id, club_id, roles, status)
+select id::uuid, club_id::uuid, roles::public.user_role[], status::public.member_status from v;
 
 -- Día de hoy en Chile: base de las fechas relativas.
 create temp table d as select (now() at time zone 'America/Santiago')::date as today;

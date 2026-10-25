@@ -73,7 +73,8 @@ insert into auth.users (id, email) values
   ('10000000-0000-0000-0000-00000000000a', 'hc@test.cl'), ('20000000-0000-0000-0000-00000000000a', 'manager@test.cl'), ('30000000-0000-0000-0000-00000000000a', 'kine@test.cl'), ('40000000-0000-0000-0000-00000000000a', 'coach@test.cl'),
   ('60000000-0000-0000-0000-00000000000a', 'j1@test.cl'), ('70000000-0000-0000-0000-00000000000a', 'jpend@test.cl'), ('30000000-0000-0000-0000-00000000000b', 'kine-b@test.cl'), ('60000000-0000-0000-0000-00000000000b', 'jb@test.cl');
 
-insert into public.profiles (id, club_id, roles, full_name, status) values
+-- Desde 0043 profiles es solo identidad: el plantel, los roles y el estado van a club_members (preparación).
+with v(id, club_id, roles, full_name, status) as (values
   ('10000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{head_coach}',  'Head Coach A', 'confirmado'),
   ('20000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{manager}',     'Manager A',    'confirmado'),
   ('30000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{kinesiologo}', 'Kine A',       'confirmado'),
@@ -81,10 +82,10 @@ insert into public.profiles (id, club_id, roles, full_name, status) values
   ('60000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',     'Jugador A1',   'confirmado'),
   ('70000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',     'Jugador Pend', 'pendiente'),
   ('30000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{kinesiologo}', 'Kine B',       'confirmado'),
-  ('60000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}',     'Jugador B1',   'confirmado');
--- Desde 0039 insertar en profiles ya no crea la membresía: se crea aquí (preparación).
-insert into public.club_members (user_id, club_id, roles, status, requested_role)
-select id, club_id, roles, status, requested_role from public.profiles on conflict do nothing;
+  ('60000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}',     'Jugador B1',   'confirmado')),
+     p as (insert into public.profiles (id, full_name) select id::uuid, full_name from v)
+insert into public.club_members (user_id, club_id, roles, status)
+select id::uuid, club_id::uuid, roles::public.user_role[], status::public.member_status from v;
 
 insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
   ('a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A1',   'Jugador', 'A1',   'Pilar',   'confirmado', '60000000-0000-0000-0000-00000000000a'),
@@ -303,11 +304,12 @@ select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000
 -- =======================================================================
 -- Compañero de A1 con cuenta, para probar qué ve de las fases de otros.
 insert into auth.users (id, email) values ('90000000-0000-0000-0000-00000000000a', 'j3@test.cl');
-insert into public.profiles (id, club_id, roles, full_name, status) values
-  ('90000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}', 'Jugador A3', 'confirmado');
--- Desde 0039 insertar en profiles ya no crea la membresía: se crea aquí (preparación).
-insert into public.club_members (user_id, club_id, roles, status, requested_role)
-select id, club_id, roles, status, requested_role from public.profiles on conflict do nothing;
+-- Desde 0043 profiles es solo identidad: el plantel, los roles y el estado van a club_members (preparación).
+with v(id, club_id, roles, full_name, status) as (values
+  ('90000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}', 'Jugador A3', 'confirmado')),
+     p as (insert into public.profiles (id, full_name) select id::uuid, full_name from v)
+insert into public.club_members (user_id, club_id, roles, status)
+select id::uuid, club_id::uuid, roles::public.user_role[], status::public.member_status from v;
 insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
   ('a1000000-1111-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A3', 'Jugador', 'A3', 'Wing', 'confirmado', '90000000-0000-0000-0000-00000000000a');
 
