@@ -46,7 +46,7 @@ export function EventForm({
     const data = new FormData(e.currentTarget);
     const start = String(data.get("start") ?? "");
     const end = String(data.get("end") ?? "");
-    if (start && end && timeToMinutes(end) <= timeToMinutes(start)) {
+    if (type === "entrenamiento" && start && end && timeToMinutes(end) <= timeToMinutes(start)) {
       e.preventDefault();
       setClientError("La hora de término debe ser posterior a la de inicio.");
       return;
@@ -93,16 +93,18 @@ export function EventForm({
         <input type="date" name="date" required defaultValue={v.date} className={inputClass} />
       </label>
 
-      {/* min-w-0: cada celda puede encogerse a la mitad del ancho. */}
+      {/* Competencias: solo hora de inicio. min-w-0: cada celda puede encogerse a la mitad del ancho. */}
       <div className="grid grid-cols-2 gap-3">
         <label className={`min-w-0 ${labelClass}`}>
           Hora de inicio
           <input type="time" name="start" required defaultValue={v.start} className={inputClass} />
         </label>
-        <label className={`min-w-0 ${labelClass}`}>
-          Hora de término
-          <input type="time" name="end" required defaultValue={v.end} className={inputClass} />
-        </label>
+        {type === "entrenamiento" && (
+          <label className={`min-w-0 ${labelClass}`}>
+            Hora de término
+            <input type="time" name="end" required defaultValue={v.end} className={inputClass} />
+          </label>
+        )}
       </div>
 
       <label className={labelClass}>

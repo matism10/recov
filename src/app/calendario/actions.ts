@@ -10,6 +10,7 @@ import {
   NOTES_MAX,
   OPPONENT_MAX,
   chileToIso,
+  competitionEndIso,
   eventErrorMessage,
   timeToMinutes,
   type EventType,
@@ -33,7 +34,8 @@ const UUID_RE =
 
 // Campos comunes de crear y editar. Mismas reglas que public.events y
 // create_event/update_event, para responder con mensajes claros; la base decide.
-function readFields(formData: FormData) {
+// Competencias: solo hora de inicio; el término se calcula (competitionEndIso).
+function readFields(formData: FormData, type: EventType) {
   const date = String(formData.get("date") ?? "");
   const start = String(formData.get("start") ?? "");
   const end = String(formData.get("end") ?? "");
@@ -42,11 +44,16 @@ function readFields(formData: FormData) {
   const notes = String(formData.get("notes") ?? "").trim();
 
   const startsAt = chileToIso(date, start);
-  const endsAt = chileToIso(date, end);
-  if (!startsAt || !endsAt) return { error: "Indica la fecha y las horas de inicio y término." };
-  if (timeToMinutes(end) <= timeToMinutes(start)) {
-    return { error: "La hora de término debe ser posterior a la de inicio." };
+  if (type === "competencia") {
+    if (!startsAt) return { error: "Indica la fecha y la hora de inicio." };
+  } else {
+    const endsAtCheck = chileToIso(date, end);
+    if (!startsAt || !endsAtCheck) return { error: "Indica la fecha y las horas de inicio y término." };
+    if (timeToMinutes(end) <= timeToMinutes(start)) {
+      return { error: "La hora de término debe ser posterior a la de inicio." };
+    }
   }
+  const endsAt = type === "competencia" ? competitionEndIso(startsAt) : chileToIso(date, end)!;
   if (location.length > LOCATION_MAX) {
     return { error: `El lugar puede tener hasta ${LOCATION_MAX} caracteres.` };
   }
@@ -67,7 +74,7 @@ export async function createEvent(
   const type = String(formData.get("type") ?? "") as EventType;
   if (!EVENT_TYPES.includes(type)) return { error: "Elige si es entrenamiento o competencia.", values };
 
-  const fields = readFields(formData);
+  const fields = readFields(formData, type);
   if ("error" in fields) return { error: fields.error, values };
 
   // La repetición semanal es solo para entrenamientos.
@@ -104,11 +111,15 @@ export async function updateEvent(
   const values = submitted(formData);
   const eventId = String(formData.get("event_id") ?? "");
   if (!UUID_RE.test(eventId)) return { error: "Evento no válido.", values };
-  const fields = readFields(formData);
+
+  // El tipo no se edita: se lee del evento (RLS: solo eventos de los planteles de la cuenta).
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("events").select("type").eq("id", eventId).maybeSingle();
+  if (!current) return { error: "El evento no existe o ya fue cancelado.", values };
+  const fields = readFields(formData, current.type as EventType);
   if ("error" in fields) return { error: fields.error, values };
 
   // update_event verifica el rol y que el evento sea del club y no esté cancelado.
-  const supabase = await createClient();
   const { error } = await supabase.rpc("update_event", {
     p_event_id: eventId,
     p_starts_at: fields.startsAt,

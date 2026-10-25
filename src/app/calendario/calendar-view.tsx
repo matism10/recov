@@ -18,6 +18,7 @@ import {
   type CalendarEvent,
   type EventAvailabilitySummary,
   type SummaryPlayer,
+  eventTimeLabel,
 } from "@/lib/events";
 import {
   ErrorMessage,
@@ -448,7 +449,7 @@ function EventChip({
     >
       <span className="flex items-center justify-between gap-1">
         <span className={wide ? "text-sm text-muted" : "font-medium"}>
-          {wide ? `${event.start} – ${event.end}` : event.start}
+          {wide ? eventTimeLabel(event) : event.start}
         </span>
         {staff && !event.cancelled && summary && (
           <AvailabilityCount summary={summary} past={event.past} />
@@ -599,7 +600,7 @@ function EventPanel({
                 <dd className="text-ink">
                   {longDayLabel(event.day)}
                   <br />
-                  {event.start} – {event.end}
+                  {eventTimeLabel(event)}
                 </dd>
               </div>
               {event.location && (
