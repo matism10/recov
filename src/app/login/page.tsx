@@ -17,7 +17,7 @@ export default async function LoginPage({
           <div>
             <h1 className="text-2xl font-extrabold text-ink">Recov</h1>
             <p className="mt-1 text-sm text-muted">
-              Ingresa con tu cuenta del club.
+              Ingresa con tu cuenta de Recov.
             </p>
           </div>
 

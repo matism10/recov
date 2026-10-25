@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { signOut } from "@/app/login/actions";
 import { ROLE_LABEL, type UserRole } from "@/lib/roles";
 import { photoUrl } from "@/lib/photos";
@@ -26,12 +26,15 @@ export default async function ProfilePage() {
 
   // En paralelo: perfil (con el club y la ruta de la foto) y la ficha propia del
   // plantel (RLS: el jugador ve la suya).
+  // La ficha es la del plantel activo: con varios planteles, la cuenta tiene una por plantel.
+  const clubId = await getActiveClubId(user.id);
   const [profile, { data: playerRow }] = await Promise.all([
     getProfile(user.id),
     supabase
       .from("players")
       .select("id, first_name, last_name, position, secondary_position, height_cm, weight_kg")
       .eq("user_id", user.id)
+      .eq("club_id", clubId)
       .maybeSingle(),
   ]);
 

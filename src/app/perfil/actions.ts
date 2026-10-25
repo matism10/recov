@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveClubId, getSessionUser } from "@/lib/session";
 import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 
 export type ProfileState = { ok?: boolean; error?: string };
@@ -11,6 +12,13 @@ const MIN_PASSWORD = 6;
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
+}
+
+// Plantel activo, explícito para las funciones que lo reciben (p_club_id). La base
+// igual exige que la cuenta sea miembro de ese plantel.
+async function activeClub() {
+  const user = await getSessionUser();
+  return user ? getActiveClubId(user.id) : null;
 }
 
 function done() {
@@ -66,16 +74,19 @@ export async function updateProfile(
   }
 
   const supabase = await createClient();
+  // Nombre y apellido son de la cuenta (todos sus planteles); posición y medidas,
+  // de la ficha del plantel activo.
   const { error } = await supabase.rpc("update_my_profile", {
     p_first_name: firstName,
     p_last_name: lastName,
     ...player,
+    p_club_id: await activeClub(),
   });
   if (error) {
     // P0001: mensaje propio de la función. 23514: el trigger rechazó la posición.
     if (error.code === "P0001") return { error: error.message };
     if (error.code === "23514") {
-      return { error: "La posición no es válida para el deporte de tu club." };
+      return { error: "La posición no es válida para el deporte de tu plantel." };
     }
     return { error: "No se pudieron guardar los cambios. Intenta de nuevo." };
   }
@@ -113,7 +124,8 @@ export async function changePassword(
 // set_my_avatar verifica que la ruta sea del propio usuario y que el archivo exista.
 export async function setAvatar(path: string | null): Promise<ProfileState> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("set_my_avatar", { p_path: path });
+  // La foto es de la cuenta; la ruta va en la carpeta del plantel activo.
+  const { error } = await supabase.rpc("set_my_avatar", { p_path: path, p_club_id: await activeClub() });
   if (error) {
     return {
       error: error.code === "P0001" ? error.message : "No se pudo guardar la foto.",
@@ -131,6 +143,7 @@ export async function updatePhone(
   formData: FormData,
 ): Promise<PhoneState> {
   // Con error se conserva el número guardado, para no vaciar el campo.
+  // set_my_phone toma el plantel activo del header x-club-id.
   const fail = (error: string): PhoneState => ({ error, phone: prevState.phone });
   const phone = normalizePhone(text(formData, "phone"));
   if (phone === null) return fail(PHONE_ERROR);

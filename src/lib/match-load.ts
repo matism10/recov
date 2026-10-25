@@ -18,7 +18,7 @@ export const NOMINA_MODE_LABEL: Record<NominaMode, string> = {
 
 export const NOMINA_MODE_HINT: Record<NominaMode, string> = {
   exacto: "Se anotan los minutos que jugó cada convocado.",
-  rango: "Se elige un rango de minutos según el deporte del club.",
+  rango: "Se elige un rango de minutos según el deporte del plantel.",
   jugo: "Solo se marca si cada convocado jugó o no.",
 };
 

@@ -252,7 +252,7 @@ export function CoverForm({
       </div>
       <p className="text-xs text-muted">
         JPG, PNG o WebP, idealmente horizontal. Se ajusta a 1600 px. La ven solo los
-        miembros confirmados del club.
+        miembros confirmados del plantel.
       </p>
       {pending && <p className="text-sm text-muted">Guardando…</p>}
       {state.error && <ErrorMessage>{state.error}</ErrorMessage>}

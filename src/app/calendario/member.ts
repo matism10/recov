@@ -19,6 +19,8 @@ export async function requireMember() {
   return {
     supabase,
     userId: user.id,
+    // Plantel activo: las listas filtran por él (RLS trae todos los de la cuenta).
+    clubId: profile.club_id!,
     roles: (profile.roles ?? []) as UserRole[],
     club: club as {
       name: string;

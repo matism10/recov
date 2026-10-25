@@ -36,13 +36,13 @@ export default async function CalendarPage({
   const anchor = typeof fecha === "string" && parseIsoDate(fecha) !== null ? fecha : today;
   const selectedId = typeof evento === "string" && UUID_RE.test(evento) ? evento : null;
 
-  const { supabase, roles, userId, club } = await requireMember();
+  const { supabase, roles, userId, club, clubId } = await requireMember();
   // Solo deciden qué se muestra; las funciones de la base validan el permiso real.
   const staff = isStaff(roles);
   const canManage = canManageEvents(roles);
   const canNomina = canManageNominas(roles, userId, club?.nomina_delegate_id);
 
-  // RLS: solo eventos del club. Se pide un día de margen a cada lado (en UTC) y
+  // Eventos del plantel activo. Se pide un día de margen a cada lado (en UTC) y
   // luego se filtra por el día en hora de Chile.
   const days = monthGridDays(anchor);
   const first = days[0];
@@ -50,6 +50,7 @@ export default async function CalendarPage({
   const { data: rows } = await supabase
     .from("events")
     .select(EVENT_COLUMNS)
+    .eq("club_id", clubId)
     .gte("starts_at", `${addDays(first, -1)}T00:00:00Z`)
     .lt("starts_at", `${addDays(last, 2)}T00:00:00Z`)
     .order("starts_at");

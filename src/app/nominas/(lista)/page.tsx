@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ClipboardList } from "lucide-react";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isStaff, type UserRole } from "@/lib/roles";
 import { canManageNominas } from "@/lib/match-load";
 import { chileDateTime, eventTitle, longDayLabel } from "@/lib/events";
@@ -26,18 +26,21 @@ export default async function NominasPage() {
   // En paralelo: perfil (y con su deporte, titulares y banca), próximo partido, y la
   // convocatoria con sus partidos y participación. RLS: datos del club; sin acceso
   // se redirige antes de mostrar nada.
+  // Solo datos del plantel activo (RLS trae los de todos los planteles de la cuenta).
+  const clubId = await getActiveClubId(user.id);
   const [me, { data: next }, { data: callups }] = await Promise.all([
     getProfile(user.id),
     supabase
       .from("events")
       .select("id, starts_at, opponent, location")
+      .eq("club_id", clubId)
       .eq("type", "competencia")
       .is("cancelled_at", null)
       .gt("starts_at", nowIso)
       .order("starts_at")
       .limit(1)
       .maybeSingle(),
-    supabase.from("event_callups").select("event_id, slot").is("removed_at", null),
+    supabase.from("event_callups").select("event_id, slot").eq("club_id", clubId).is("removed_at", null),
   ]);
   if (me?.status === "pendiente") redirect("/pendiente");
   const roles = (me?.roles ?? []) as UserRole[];
@@ -52,12 +55,13 @@ export default async function NominasPage() {
       ? supabase
           .from("events")
           .select("id, starts_at, opponent, location")
+          .eq("club_id", clubId)
           .in("id", ids)
           .is("cancelled_at", null)
           .order("starts_at", { ascending: false })
       : Promise.resolve({ data: [] }),
     ids.length
-      ? supabase.from("event_participations").select("event_id").in("event_id", ids)
+      ? supabase.from("event_participations").select("event_id").eq("club_id", clubId).in("event_id", ids)
       : Promise.resolve({ data: [] }),
   ]);
 

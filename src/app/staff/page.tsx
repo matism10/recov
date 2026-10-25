@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { ROLE_LABEL, isDirection, isStaff, type UserRole } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
@@ -7,6 +7,11 @@ import { DelegateForm, RolesForm } from "./staff-forms";
 import { PageTitle, SectionTitle, cardClass, chipClass } from "@/app/ui";
 
 type StaffProfile = { id: string; full_name: string | null; roles: UserRole[] };
+type StaffMember = {
+  user_id: string;
+  roles: UserRole[] | null;
+  profiles: { full_name: string | null } | { full_name: string | null }[] | null;
+};
 
 // Gestión del staff para la dirección (head coach y manager): roles, quitar del
 // staff y delegación de las funciones de kinesiólogo.
@@ -17,15 +22,24 @@ export default async function StaffPage() {
 
   // En paralelo: perfil (con los delegados del club) y el staff con sus fotos. RLS: la
   // dirección ve los perfiles de su club; sin acceso se redirige antes de mostrar.
+  // Roles del plantel activo: salen de club_members (en profiles queda solo el
+  // plantel principal).
+  const clubId = await getActiveClubId(user.id);
   const [me, { staff, avatarUrls }] = await Promise.all([
     getProfile(user.id),
     supabase
-      .from("profiles")
-      .select("id, full_name, roles")
+      .from("club_members")
+      .select("user_id, roles, profiles!club_members_user_id_fkey(full_name)")
+      .eq("club_id", clubId)
       .eq("status", "confirmado")
-      .order("full_name")
-      .then(async ({ data: profiles }) => {
-        const staff = ((profiles ?? []) as StaffProfile[]).filter((p) => isStaff(p.roles ?? []));
+      .then(async ({ data: members }) => {
+        const staff = ((members ?? []) as unknown as StaffMember[])
+          .map((m): StaffProfile => {
+            const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+            return { id: m.user_id, full_name: profile?.full_name ?? null, roles: m.roles ?? [] };
+          })
+          .filter((p) => isStaff(p.roles))
+          .sort((a, b) => (a.full_name ?? "").localeCompare(b.full_name ?? "", "es"));
         const avatarUrls = await getAvatarUrls(
           supabase,
           staff.map((p) => p.id),
@@ -45,7 +59,7 @@ export default async function StaffPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-8">
-        <PageTitle>Staff del club</PageTitle>
+        <PageTitle>Staff del plantel</PageTitle>
         <p className="mt-1 text-sm text-muted">
           Cambia los roles del staff y decide quién tiene las funciones de kinesiólogo y
           quién arma las nóminas.
@@ -56,7 +70,7 @@ export default async function StaffPage() {
         <section className={`p-5 ${cardClass}`}>
           <SectionTitle>Funciones de kinesiólogo</SectionTitle>
           <p className="mt-1 mb-4 text-sm text-muted">
-            Si el club no tiene kinesiólogo, delega sus funciones en alguien del staff:
+            Si el plantel no tiene kinesiólogo, delega sus funciones en alguien del staff:
             podrá revisar lesiones, ver documentos médicos y cambiar la disponibilidad.
           </p>
           <DelegateForm

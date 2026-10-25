@@ -6,6 +6,7 @@ import { SidebarNav } from "./sidebar-nav";
 import { MobileNavBar } from "./mobile-nav";
 import { ClubHeader as ClubHeaderBar } from "./club-header";
 import { clubIdentity } from "@/lib/club-identity";
+import { clubOptions } from "@/lib/club-options";
 
 import { photoUrl } from "@/lib/photos";
 
@@ -13,8 +14,8 @@ import { photoUrl } from "@/lib/photos";
 // Solo para usuarios confirmados: sin sesión, pendientes o rechazados no ven
 // navegación. Las páginas siguen validando su propio acceso. `cache` evita repetir
 // las consultas cuando varias piezas de la navegación las piden en el mismo request.
-// Viajes a Supabase: el perfil (con el club y la ruta de la foto) y, solo para la
-// dirección, el conteo de pendientes. La foto propia va por /foto, sin firmar.
+// Viajes a Supabase: el perfil (con sus planteles, el activo y la ruta de la foto)
+// y, solo para la dirección, el conteo de pendientes del plantel activo. La foto propia va por /foto, sin firmar.
 const getNavData = cache(async () => {
   const supabase = await getSupabase();
   // getClaims verifica el JWT de la sesión (firmado con ES256) contra las claves
@@ -33,11 +34,13 @@ const getNavData = cache(async () => {
   const direction = isDirection(roles);
 
   const [pendingCount, avatarUrl] = await Promise.all([
-    // RLS: solo la dirección ve perfiles pendientes.
-    direction
+    // RLS: solo la dirección ve las membresías pendientes de su plantel. Se cuentan
+    // las del plantel activo, no las de otros planteles de la cuenta.
+    direction && profile.club_id
       ? supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
+          .from("club_members")
+          .select("user_id", { count: "exact", head: true })
+          .eq("club_id", profile.club_id)
           .eq("status", "pendiente")
           .then(({ count }) => count ?? 0)
       : 0,
@@ -55,6 +58,7 @@ const getNavData = cache(async () => {
     }),
     fullName: profile.full_name ?? "",
     avatarUrl,
+    clubs: clubOptions(supabase, profile),
     direction,
     staff: isStaff(roles),
     player: roles.includes("jugador"),
@@ -82,7 +86,14 @@ export async function Sidebar() {
 export async function ClubHeaderNav() {
   const nav = await getNavData();
   if (!nav) return null;
-  return <ClubHeaderBar identity={nav.identity} fullName={nav.fullName} avatarUrl={nav.avatarUrl} />;
+  return (
+    <ClubHeaderBar
+      identity={nav.identity}
+      fullName={nav.fullName}
+      avatarUrl={nav.avatarUrl}
+      clubs={nav.clubs}
+    />
+  );
 }
 
 // Barra inferior móvil (hasta lg).

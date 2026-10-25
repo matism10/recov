@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canManageInjuries, type UserRole } from "@/lib/roles";
 import { MarkForm } from "../mark-form";
 import { textButton } from "@/app/ui";
@@ -17,12 +17,14 @@ export default async function MarkInjuredPage({
 
   // En paralelo: perfil (con el delegado del club) y el jugador. RLS: solo jugadores
   // del club; la dirección también ve pendientes, se filtran.
+  const clubId = await getActiveClubId(user.id);
   const [me, { data: player }] = await Promise.all([
     getProfile(user.id),
     supabase
       .from("players")
       .select("id, full_name, position")
       .eq("id", playerId)
+      .eq("club_id", clubId)
       .eq("status", "confirmado")
       .maybeSingle(),
   ]);

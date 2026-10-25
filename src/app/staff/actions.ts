@@ -2,12 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveClubId, getSessionUser } from "@/lib/session";
 import { STAFF_ROLES, type UserRole } from "@/lib/roles";
 
 export type StaffState = { ok?: boolean; error?: string };
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Plantel activo de quien hace el cambio, explícito para las funciones (p_club_id).
+async function activeClub() {
+  const user = await getSessionUser();
+  return user ? getActiveClubId(user.id) : null;
+}
 
 function errorMessage(error: { code?: string; message: string }, fallback: string) {
   // P0001: excepción propia de la función, con mensaje en español.
@@ -37,6 +44,7 @@ export async function setStaffRoles(
   const { error } = await supabase.rpc("set_staff_roles", {
     p_profile_id: profileId,
     p_roles: remove ? [] : (roles as UserRole[]),
+    p_club_id: await activeClub(),
   });
   if (error) return { error: errorMessage(error, "No se pudieron guardar los cambios.") };
 
@@ -57,6 +65,7 @@ export async function setKineDelegate(
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_kine_delegate", {
     p_profile_id: profileId || null,
+    p_club_id: await activeClub(),
   });
   if (error) return { error: errorMessage(error, "No se pudo guardar la delegación.") };
 
@@ -78,6 +87,7 @@ export async function setNominaDelegate(
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_nomina_delegate", {
     p_profile_id: profileId || null,
+    p_club_id: await activeClub(),
   });
   if (error) return { error: errorMessage(error, "No se pudo guardar la delegación.") };
 

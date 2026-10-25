@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isDirection, type UserRole } from "@/lib/roles";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { cardClass, textButton } from "@/app/ui";
@@ -20,9 +20,13 @@ export default async function SettingsPage() {
 
   // En paralelo: perfil (con el club) y si ya hay partidos con participación cargada.
   // RLS: la dirección (staff) ve las participaciones de su club.
+  const clubId = await getActiveClubId(user.id);
   const [me, { count: loadedCount }] = await Promise.all([
     getProfile(user.id),
-    supabase.from("event_participations").select("callup_id", { count: "exact", head: true }),
+    supabase
+      .from("event_participations")
+      .select("callup_id", { count: "exact", head: true })
+      .eq("club_id", clubId),
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
@@ -46,9 +50,9 @@ export default async function SettingsPage() {
       </header>
 
       <section className={`p-5 ${cardClass}`}>
-        <h2 className="font-medium text-ink">Logo del club</h2>
+        <h2 className="font-medium text-ink">Logo del plantel</h2>
         <p className="mt-1 mb-4 text-sm text-muted">
-          Se muestra en el encabezado y en el link de registro del club.
+          Se muestra en el encabezado y en el link de registro del plantel.
         </p>
         <LogoForm
           clubName={club?.name ?? ""}
@@ -86,7 +90,7 @@ export default async function SettingsPage() {
         <section className={`mt-6 p-5 ${cardClass}`}>
           <h2 className="font-medium text-ink">Métricas del Resumen</h2>
           <p className="mt-1 mb-4 text-sm text-muted">
-            Elige qué métricas ve el staff del club en el Resumen, en computador y en celular.
+            Elige qué métricas ve el staff del plantel en el Resumen, en computador y en celular.
           </p>
           <MetricsForm
             desktop={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}

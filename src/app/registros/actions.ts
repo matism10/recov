@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { getUserEmail } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { approvedEmail } from "./approved-email";
@@ -27,10 +27,14 @@ export async function reviewMember(
 
   // review_member verifica que quien llama sea de la dirección y del mismo club.
   // En el staff asigna el puesto solicitado.
+  // El plantel va explícito: es el activo de quien revisa.
   const supabase = await getSupabase();
+  const user = await getSessionUser();
+  if (!user) return { error: "Tu sesión expiró. Inicia sesión de nuevo." };
   const { error } = await supabase.rpc("review_member", {
     p_profile_id: profileId,
     p_decision: decision,
+    p_club_id: await getActiveClubId(user.id),
   });
 
   if (error) {
@@ -68,12 +72,13 @@ async function notifyApproved(profileId: string): Promise<boolean> {
 
     const me = await getProfile(user.id);
     const loginUrl = `${origin}/login`;
+    // me.club es el plantel activo de quien revisa: el mismo de la solicitud.
 
     const result = await sendEmail(
       approvedEmail({
         to: email,
         fullName: (member?.full_name as string | null) ?? null,
-        clubName: me?.club?.name ?? "Tu club",
+        clubName: me?.club?.name ?? "Tu plantel",
         loginUrl,
       }),
     );

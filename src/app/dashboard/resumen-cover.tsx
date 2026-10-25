@@ -6,11 +6,13 @@ import { clubCoverUrl, clubIdentity } from "@/lib/club-identity";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { photoUrl } from "@/lib/photos";
 import { ClubHero } from "@/app/club-header";
+import type { ClubOption } from "@/lib/club-options";
 
 export async function ResumenCover({
   club,
   fullName,
   avatarPath,
+  clubs,
 }: {
   club: {
     name: string;
@@ -23,6 +25,7 @@ export async function ResumenCover({
   };
   fullName: string;
   avatarPath: string | null;
+  clubs: ClubOption[];
 }) {
   const supabase = await getSupabase();
   const identity = clubIdentity({
@@ -39,6 +42,7 @@ export async function ResumenCover({
       coverUrl={clubCoverUrl(club.cover_path)}
       fullName={fullName}
       avatarUrl={avatarPath ? photoUrl("avatars", avatarPath) : null}
+      clubs={clubs}
     />
   );
 }

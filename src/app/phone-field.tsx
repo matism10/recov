@@ -6,7 +6,7 @@ import { InfoPopover } from "@/app/info-popover";
 import { ErrorMessage, inputClass, labelClass, optionalClass } from "@/app/ui";
 
 const PHONE_HELP =
-  "Facilita la comunicación directa entre el staff y tú ante dudas puntuales: cómo vas con tu lesión, si estás disponible para entrenar o jugar. Solo lo ve el staff de tu club. Es opcional.";
+  "Facilita la comunicación directa entre el staff y tú ante dudas puntuales: cómo vas con tu lesión, si estás disponible para entrenar o jugar. Solo lo ve el staff de tu plantel. Es opcional.";
 
 export function PhoneField({
   id,

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
+import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { ROLE_LABEL, isDirection, type UserRole } from "@/lib/roles";
 import { ReviewButtons } from "./review-buttons";
 import { PageTitle, SectionTitle } from "@/app/ui";
@@ -9,6 +9,13 @@ type PendingProfile = {
   full_name: string | null;
   requested_role: UserRole | null;
   created_at: string;
+};
+
+type PendingMember = {
+  user_id: string;
+  requested_role: UserRole | null;
+  created_at: string;
+  profiles: { full_name: string | null } | { full_name: string | null }[] | null;
 };
 
 type PendingPlayer = {
@@ -46,18 +53,22 @@ export default async function RegistrosPage({
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // En paralelo: perfil y los registros pendientes. RLS: solo la dirección ve los
-  // perfiles y jugadores pendientes de su club; sin acceso se redirige antes de mostrar.
-  const [me, { data: profiles }, { data: players }] = await Promise.all([
+  // En paralelo: perfil y los registros pendientes del plantel activo (membresías de
+  // club_members, con el nombre de la cuenta). RLS: solo la dirección ve las
+  // membresías y jugadores pendientes de su plantel; sin acceso se redirige antes.
+  const clubId = await getActiveClubId(user.id);
+  const [me, { data: members }, { data: players }] = await Promise.all([
     getProfile(user.id),
     supabase
-      .from("profiles")
-      .select("id, full_name, requested_role, created_at")
+      .from("club_members")
+      .select("user_id, requested_role, created_at, profiles!club_members_user_id_fkey(full_name)")
+      .eq("club_id", clubId)
       .eq("status", "pendiente")
       .order("created_at"),
     supabase
       .from("players")
       .select("user_id, position, secondary_position, height_cm, weight_kg")
+      .eq("club_id", clubId)
       .eq("status", "pendiente")
       .not("user_id", "is", null),
   ]);
@@ -70,7 +81,15 @@ export default async function RegistrosPage({
   const playerByUser = new Map(
     ((players ?? []) as PendingPlayer[]).map((p) => [p.user_id, p]),
   );
-  const pending = (profiles ?? []) as PendingProfile[];
+  const pending: PendingProfile[] = ((members ?? []) as unknown as PendingMember[]).map((m) => {
+    const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+    return {
+      id: m.user_id,
+      full_name: profile?.full_name ?? null,
+      requested_role: m.requested_role,
+      created_at: m.created_at,
+    };
+  });
   const pendingPlayers = pending.filter((p) => playerByUser.has(p.id));
   const pendingStaff = pending.filter((p) => !playerByUser.has(p.id));
 
@@ -101,7 +120,7 @@ export default async function RegistrosPage({
       <header className="mb-8">
         <PageTitle>Registros pendientes</PageTitle>
         <p className="mt-1 text-sm text-muted">
-          Confirma a quienes se registraron con el link del club.
+          Confirma a quienes se registraron con el link del plantel.
         </p>
       </header>
 

@@ -33,7 +33,7 @@ export default async function EventAvailablePage({
   // del club; un id inválido o ajeno no devuelve filas.
   const supabase = await getSupabase();
   const eventPromise = supabase.from("events").select(EVENT_COLUMNS).eq("id", eventId).maybeSingle();
-  const { roles, club, userId } = await requireMember();
+  const { roles, club, userId, clubId } = await requireMember();
   if (!isStaff(roles)) redirect("/calendario");
   // Arma nóminas: head coach, manager y el delegado (solo decide qué se muestra y se pide).
   const canNomina = canManageNominas(roles, userId, club?.nomina_delegate_id);
@@ -53,8 +53,8 @@ export default async function EventAvailablePage({
     supabase.rpc("event_availability", { p_event_id: eventId }),
     // Orden de las posiciones según el deporte del club.
     supabase.from("positions").select("name").eq("sport", club?.sport ?? "").order("sort"),
-    // Posición secundaria, para la vista cancha (RLS: jugadores del club).
-    supabase.from("players").select("id, secondary_position").not("secondary_position", "is", null),
+    // Posición secundaria, para la vista cancha (jugadores del plantel activo).
+    supabase.from("players").select("id, secondary_position").eq("club_id", clubId).not("secondary_position", "is", null),
     // Convocatoria vigente (RLS: el staff ve las del club).
     canNomina
       ? supabase.from("event_callups").select("player_id, slot").eq("event_id", eventId).is("removed_at", null)

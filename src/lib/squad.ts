@@ -14,12 +14,15 @@ export type SquadPlayer = {
   user_id: string | null;
 };
 
-export async function getSquad(supabase: Client, extraAvatarIds: string[] = []) {
+// clubId: plantel activo. RLS devuelve los jugadores de todos los planteles de la
+// cuenta; aquí se filtra por el activo.
+export async function getSquad(supabase: Client, clubId: string, extraAvatarIds: string[] = []) {
   // Las fases en curso no dependen de los jugadores: van en paralelo con la cadena
   // jugadores → fotos (que sí necesita los user_id de los jugadores).
   const playersWithAvatars = supabase
     .from("players")
     .select("id, full_name, position, secondary_position, availability, user_id")
+    .eq("club_id", clubId)
     .eq("active", true)
     .eq("status", "confirmado")
     .order("full_name")
