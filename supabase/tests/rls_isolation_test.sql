@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0040.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0041.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -1598,5 +1598,265 @@ select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.
 select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.resolve_club(uuid)', 'EXECUTE')
   or has_function_privilege('anon', 'private.resolve_club(uuid)', 'EXECUTE')
   or has_function_privilege('authenticated', 'private.mirror_member_to_profile()', 'EXECUTE')$q$, 0, 'la app no ejecuta resolve_club ni la función del espejo');
+
+-- =======================================================================
+-- Multi-plantel (0041): plantel activo por el header x-club-id
+-- =======================================================================
+-- Simula el header de PostgREST junto a las claims de la cuenta. club = null: sin header.
+create function pg_temp.as_user_h(uid uuid, club text) returns void language plpgsql as $$
+begin
+  perform set_config('request.headers', case when club is null then '' else json_build_object('x-club-id', club)::text end, true);
+  perform pg_temp.as_user(uid);
+end $$;
+create function pg_temp.back_h() returns void language plpgsql as $$
+begin
+  execute 'reset role';
+  perform set_config('request.headers', '', true);
+end $$;
+-- La sentencia debe fallar, pero nunca por un cast inválido del header.
+create function pg_temp.expect_fail_no_cast(q text, label text) returns void language plpgsql as $$
+declare got text;
+begin
+  begin
+    execute q;
+  exception when others then
+    got := sqlerrm;
+  end;
+  if got is null then raise exception 'FAIL: % (debía fallar y no falló)', label; end if;
+  if got ~* 'invalid input syntax|cast|json' then raise exception 'FAIL: % (error de cast: %)', label, got; end if;
+end $$;
+
+-- b. Sin header, para toda cuenta con una sola membresía, los helpers sin argumento dan
+--    lo mismo que su definición anterior (leída de profiles).
+create temp table helper_diff_0041 (user_id uuid, helper text);
+do $$
+declare u record; r public.user_role;
+begin
+  perform set_config('request.headers', '', true);
+  for u in select p.* from public.profiles p
+            where (select count(*) from public.club_members m where m.user_id = p.id) = 1 loop
+    perform set_config('request.jwt.claims', json_build_object('sub', u.id, 'role', 'authenticated')::text, true);
+    foreach r in array enum_range(null::public.user_role) loop
+      if private.has_role(r) is distinct from (u.status = 'confirmado' and r = any (u.roles)) then
+        insert into helper_diff_0041 values (u.id, 'has_role ' || r); end if;
+    end loop;
+    if private.is_staff() is distinct from (u.status = 'confirmado' and u.roles && private.staff_roles()) then
+      insert into helper_diff_0041 values (u.id, 'is_staff'); end if;
+    if private.current_club_id() is distinct from (case when u.status = 'confirmado' then u.club_id end) then
+      insert into helper_diff_0041 values (u.id, 'current_club_id'); end if;
+    if private.member_club_id() is distinct from u.club_id then
+      insert into helper_diff_0041 values (u.id, 'member_club_id'); end if;
+    if private.current_player_id() is distinct from (select id from public.players where user_id = u.id) then
+      insert into helper_diff_0041 values (u.id, 'current_player_id'); end if;
+    if private.has_kine_powers() is distinct from (u.status = 'confirmado' and ('kinesiologo' = any (u.roles)
+         or exists (select 1 from public.clubs c where c.id = u.club_id and c.kine_delegate_id = u.id))) then
+      insert into helper_diff_0041 values (u.id, 'has_kine_powers'); end if;
+    if private.can_manage_nominas() is distinct from (u.status = 'confirmado' and (u.roles && array['head_coach', 'manager']::public.user_role[]
+         or (u.roles && private.staff_roles() and exists (select 1 from public.clubs c where c.id = u.club_id and c.nomina_delegate_id = u.id)))) then
+      insert into helper_diff_0041 values (u.id, 'can_manage_nominas'); end if;
+  end loop;
+end $$;
+select pg_temp.expect_count($q$select 1 from helper_diff_0041$q$, 0, 'sin header, los helpers dan lo mismo que su definición anterior');
+
+-- Datos ficticios: X (entrenador en A, jugador en B), Y (jugador en A y en B),
+-- Z (head coach en A, manager en B), W (jugador en A, pendiente en B).
+insert into auth.users (id, email) values
+  ('9c000000-0000-0000-0000-000000000001', 'activo-x@test.cl'),
+  ('9c000000-0000-0000-0000-000000000002', 'activo-y@test.cl'),
+  ('9c000000-0000-0000-0000-000000000003', 'activo-z@test.cl'),
+  ('9c000000-0000-0000-0000-000000000004', 'activo-w@test.cl');
+insert into public.profiles (id, club_id, roles, full_name, status) values
+  ('9c000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', '{entrenador}', 'Activo X', 'confirmado'),
+  ('9c000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',    'Activo Y', 'confirmado'),
+  ('9c000000-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', '{head_coach}', 'Activo Z', 'confirmado'),
+  ('9c000000-0000-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',    'Activo W', 'confirmado');
+insert into public.club_members (user_id, club_id, roles, status) values
+  ('9c000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', '{entrenador}', 'confirmado'),
+  ('9c000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}',    'confirmado'),
+  ('9c000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',    'confirmado'),
+  ('9c000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}',    'confirmado'),
+  ('9c000000-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', '{head_coach}', 'confirmado'),
+  ('9c000000-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002', '{manager}',    'confirmado'),
+  ('9c000000-0000-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',    'confirmado'),
+  ('9c000000-0000-0000-0000-000000000004', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}',    'pendiente');
+insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
+  ('fc000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'Activo X', 'Activo', 'X', 'Portero', 'confirmado', '9c000000-0000-0000-0000-000000000001'),
+  ('fc000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'Activo Y', 'Activo', 'Y', 'Wing',    'confirmado', '9c000000-0000-0000-0000-000000000002'),
+  ('fc000000-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002', 'Activo Y', 'Activo', 'Y', 'Portero', 'confirmado', '9c000000-0000-0000-0000-000000000002'),
+  ('fc000000-0000-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', 'Activo W', 'Activo', 'W', 'Centro',  'confirmado', '9c000000-0000-0000-0000-000000000004'),
+  ('fc000000-0000-0000-0000-000000000005', 'bbbbbbbb-0000-0000-0000-000000000002', 'Activo W', 'Activo', 'W', 'Portero', 'pendiente',  '9c000000-0000-0000-0000-000000000004');
+
+-- c. X con header A es entrenador; con header B es jugador.
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001');
+select pg_temp.expect_count($q$select 1 where private.current_club_id() = 'aaaaaaaa-0000-0000-0000-000000000001'
+  and private.is_staff() and not private.has_role('jugador') and private.current_player_id() is null$q$, 1, 'X con header A: plantel A, staff, no jugador, sin ficha');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.expect_count($q$select 1 where private.current_club_id() = 'bbbbbbbb-0000-0000-0000-000000000002'
+  and not private.is_staff() and private.has_role('jugador')
+  and private.current_player_id() = 'fc000000-0000-0000-0000-000000000001'$q$, 1, 'X con header B: plantel B, no staff, jugador con su ficha de B');
+select pg_temp.expect_count($q$select 1 where public.my_match_load() -> 'player' ->> 'player_id' = 'fc000000-0000-0000-0000-000000000001'$q$, 1, 'X con header B: my_match_load trae su ficha de B');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000001', null);
+select pg_temp.expect_count($q$select 1 where private.current_club_id() = 'aaaaaaaa-0000-0000-0000-000000000001' and private.is_staff()$q$, 1, 'X sin header: su plantel principal (A)');
+select pg_temp.back_h();
+
+-- d. Y reporta y completa lesiones en el plantel del header; el teléfono va a la ficha de ese plantel.
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001');
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
+  values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf')$q$, 'Y sube su archivo en A');
+select pg_temp.expect_ok($q$select public.report_injury('Lesión de Y en A', current_date - 1, 2, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header A reporta una lesión');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
+  values ('medical-docs', 'bbbbbbbb-0000-0000-0000-000000000002/fc000000-0000-0000-0000-000000000003/yb.pdf')$q$, 'Y sube su archivo en B');
+select pg_temp.expect_ok($q$select public.report_injury('Lesión de Y en B', current_date - 1, 2, 'semanas', null,
+  '[{"path":"bbbbbbbb-0000-0000-0000-000000000002/fc000000-0000-0000-0000-000000000003/yb.pdf","name":"yb.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header B reporta una lesión');
+select pg_temp.expect_fail($q$select public.report_injury('Lesión cruzada', current_date - 1, 2, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header B no usa un archivo de su ficha de A');
+select pg_temp.back_h();
+select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Lesión de Y en A'
+  and player_id = 'fc000000-0000-0000-0000-000000000002' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 1, 'la lesión con header A queda en la ficha de A');
+select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Lesión de Y en B'
+  and player_id = 'fc000000-0000-0000-0000-000000000003' and club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 1, 'la lesión con header B queda en la ficha de B');
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A marca a Y en A
+select pg_temp.expect_ok($q$select public.mark_player_injured('fc000000-0000-0000-0000-000000000002', 'entrenamiento', 'Golpe de Y en A')$q$, 'kine A marca a Y');
+select pg_temp.back();
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');   -- kine B marca a Y en B
+select pg_temp.expect_ok($q$select public.mark_player_injured('fc000000-0000-0000-0000-000000000003', 'entrenamiento', 'Golpe de Y en B')$q$, 'kine B marca a Y');
+select pg_temp.back();
+create temp table ids_0041 as select
+  (select id from public.injuries where player_id = 'fc000000-0000-0000-0000-000000000002' and status = 'en_evaluacion') ia,
+  (select id from public.injuries where player_id = 'fc000000-0000-0000-0000-000000000003' and status = 'en_evaluacion') ib;
+grant select on ids_0041 to authenticated;
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001');
+select pg_temp.expect_fail($q$select public.complete_injury_report((select ib from ids_0041), 'Esguince', 2, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb)$q$, 'Y con header A no completa la lesión de B');
+select pg_temp.expect_ok($q$select public.complete_injury_report((select ia from ids_0041), 'Esguince en A', 2, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb)$q$, 'Y con header A completa la lesión de A');
+select pg_temp.expect_ok($q$select public.set_my_phone('+56911110000')$q$, 'Y con header A guarda su teléfono');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.expect_ok($q$select public.complete_injury_report((select ib from ids_0041), 'Esguince en B', 2, 'semanas', null,
+  '[{"path":"bbbbbbbb-0000-0000-0000-000000000002/fc000000-0000-0000-0000-000000000003/yb.pdf","name":"yb.pdf"}]'::jsonb)$q$, 'Y con header B completa la lesión de B');
+select pg_temp.expect_ok($q$select public.set_my_phone('+56922220000')$q$, 'Y con header B guarda su teléfono');
+select pg_temp.back_h();
+select pg_temp.expect_count($q$select 1 from public.injuries where (id, type, status) in
+  (((select ia from ids_0041), 'Esguince en A', 'activa'), ((select ib from ids_0041), 'Esguince en B', 'activa'))$q$, 2, 'cada lesión quedó completada en su plantel');
+select pg_temp.expect_count($q$select 1 from public.player_contacts where (player_id, club_id, phone) in
+  (('fc000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', '+56911110000'),
+   ('fc000000-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002', '+56922220000'))$q$, 2, 'cada teléfono quedó en la ficha de su plantel, sin pisar la otra');
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', null);
+select pg_temp.expect_ok($q$select public.set_my_phone('+56933330000')$q$, 'Y sin header guarda su teléfono');
+select pg_temp.back_h();
+select pg_temp.expect_count($q$select 1 from public.player_contacts where (player_id, phone) in
+  (('fc000000-0000-0000-0000-000000000002', '+56933330000'), ('fc000000-0000-0000-0000-000000000003', '+56922220000'))$q$, 2, 'sin header el teléfono va a la ficha del plantel principal');
+
+-- e. Header de un plantel ajeno, que no es uuid, vacío o sin x-club-id.
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000003');
+select pg_temp.expect_count($q$select 1 where private.current_club_id() is null and private.member_club_id() is null
+  and not private.has_role('entrenador') and not private.is_staff()$q$, 1, 'header de un plantel donde no es miembro: sin plantel ni permisos');
+select pg_temp.expect_fail_no_cast($q$select * from public.dash_summary()$q$, 'header ajeno: dash_summary falla con su error de permiso');
+select pg_temp.expect_fail_no_cast($q$select public.set_my_phone('+56944440000')$q$, 'header ajeno: set_my_phone falla con su error de permiso');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000001', 'no-es-uuid');
+select pg_temp.expect_count($q$select 1 where private.current_club_id() is null and not private.has_role('entrenador') and not private.is_staff()$q$, 1, 'header que no es uuid: sin plantel ni permisos, sin error de cast');
+select pg_temp.expect_fail_no_cast($q$select * from public.dash_summary()$q$, 'header que no es uuid: dash_summary falla con su error de permiso');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000001', '');
+select pg_temp.expect_count($q$select 1 where private.current_club_id() = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 1, 'header vacío: se trata como sin header (plantel principal)');
+select pg_temp.back_h();
+select set_config('request.headers', '{"accept":"application/json"}', true);
+select pg_temp.as_user('9c000000-0000-0000-0000-000000000001');
+select pg_temp.expect_count($q$select 1 where private.current_club_id() = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 1, 'headers sin x-club-id: plantel principal');
+select pg_temp.back_h();
+
+-- f. Membresía pendiente en B con header B: sin plantel confirmado, pero miembro.
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000004', 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.expect_count($q$select 1 where private.current_club_id() is null and private.member_club_id() = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 1, 'W pendiente en B: current_club_id null, member_club_id B');
+select pg_temp.expect_ok($q$select public.set_my_phone('+56955550000')$q$, 'W pendiente en B guarda su teléfono');
+select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
+  values ('avatars', 'bbbbbbbb-0000-0000-0000-000000000002/9c000000-0000-0000-0000-000000000004/w.jpg')$q$, 'W sube su foto a la carpeta de B');
+select pg_temp.expect_ok($q$select public.set_my_avatar('bbbbbbbb-0000-0000-0000-000000000002/9c000000-0000-0000-0000-000000000004/w.jpg')$q$, 'W fija su foto sin p_club_id (plantel del header)');
+select pg_temp.back_h();
+select pg_temp.expect_count($q$select 1 from public.player_contacts where player_id = 'fc000000-0000-0000-0000-000000000005' and phone = '+56955550000'$q$, 1, 'el teléfono de W quedó en su ficha pendiente de B');
+select pg_temp.expect_count($q$select 1 from public.player_contacts where player_id = 'fc000000-0000-0000-0000-000000000004'$q$, 0, 'la ficha de W en A no se tocó');
+select pg_temp.expect_count($q$select 1 from public.profiles where id = '9c000000-0000-0000-0000-000000000004'
+  and avatar_path = 'bbbbbbbb-0000-0000-0000-000000000002/9c000000-0000-0000-0000-000000000004/w.jpg'$q$, 1, 'la foto de W quedó guardada');
+
+-- g. review_member sin p_club_id usa el plantel del header.
+select pg_temp.as_user_h('10000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002');   -- dirección solo de A
+select pg_temp.expect_error($q$select public.review_member('9c000000-0000-0000-0000-000000000004', 'confirmar')$q$,
+  'No tienes permiso para esta acción', 'la dirección solo de A con header B no revisa');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002');   -- Z, manager en B
+select pg_temp.expect_ok($q$select public.review_member('9c000000-0000-0000-0000-000000000004', 'confirmar')$q$, 'la dirección de B con header B confirma a W');
+select pg_temp.back_h();
+select pg_temp.expect_count($q$select 1 from public.club_members m join public.players pl on pl.user_id = m.user_id and pl.club_id = m.club_id
+  where m.user_id = '9c000000-0000-0000-0000-000000000004' and m.club_id = 'bbbbbbbb-0000-0000-0000-000000000002'
+    and m.status = 'confirmado' and pl.status = 'confirmado'$q$, 1, 'W queda confirmado en B');
+
+-- h. Funciones de cada tipo siguen al plantel del header (Z: head coach en A, manager en B).
+select set_config('test.total_a', (select count(*)::text from public.players where club_id = 'aaaaaaaa-0000-0000-0000-000000000001' and status = 'confirmado' and active), true);
+select set_config('test.total_b', (select count(*)::text from public.players where club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and status = 'confirmado' and active), true);
+select pg_temp.expect_count($q$select 1 where current_setting('test.total_a') <> current_setting('test.total_b')$q$, 1, 'A y B tienen planteles de distinto tamaño');
+insert into public.injuries (id, club_id, player_id, type, severity, status) values
+  ('ec100000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'fc000000-0000-0000-0000-000000000002', 'Fase en A', 'leve', 'activa'),
+  ('ec100000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002', 'fc000000-0000-0000-0000-000000000003', 'Fase en B', 'leve', 'activa');
+insert into public.injury_phases (club_id, injury_id, name, position, status) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'ec100000-0000-0000-0000-000000000001', 'Fase de A', 1, 'en_curso'),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'ec100000-0000-0000-0000-000000000002', 'Fase de B', 1, 'en_curso');
+insert into public.events (id, club_id, type, starts_at, ends_at, opponent, created_by) values
+  ('ec000000-0000-0000-0000-0000000000b1', 'bbbbbbbb-0000-0000-0000-000000000002', 'competencia',
+   now() + interval '3 days', now() + interval '3 days 2 hours', 'Rival', '9c000000-0000-0000-0000-000000000003');
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001');
+select pg_temp.expect_count($q$select 1 from public.dash_summary() where total = current_setting('test.total_a')::int$q$, 1, 'Z con header A: dash_summary del plantel A');
+select pg_temp.expect_count($q$select 1 from public.squad_current_phases() where phase_name = 'Fase de A'$q$, 1, 'Z con header A: squad_current_phases trae la fase de A');
+select pg_temp.expect_count($q$select 1 from public.squad_current_phases() where phase_name = 'Fase de B'$q$, 0, 'Z con header A: squad_current_phases no trae la fase de B');
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('fc000000-0000-0000-0000-000000000003') is null$q$, 1, 'Z con header A no ve el teléfono de un jugador de B');
+select pg_temp.expect_fail($q$select public.set_event_callups('ec000000-0000-0000-0000-0000000000b1', array['fc000000-0000-0000-0000-000000000003']::uuid[])$q$, 'Z con header A no convoca a un partido de B');
+select pg_temp.expect_fail($q$select public.set_club_category('Juvenil')$q$, 'set_club_category sigue sin permisos para nadie');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.expect_count($q$select 1 from public.dash_summary() where total = current_setting('test.total_b')::int$q$, 1, 'Z con header B: dash_summary del plantel B');
+select pg_temp.expect_count($q$select 1 from public.squad_current_phases() where phase_name = 'Fase de B'$q$, 1, 'Z con header B: squad_current_phases trae la fase de B');
+select pg_temp.expect_count($q$select 1 from public.squad_current_phases() where phase_name = 'Fase de A'$q$, 0, 'Z con header B: squad_current_phases no trae la fase de A');
+select pg_temp.expect_count($q$select 1 where public.get_player_phone('fc000000-0000-0000-0000-000000000003') = '+56922220000'$q$, 1, 'Z con header B ve el teléfono del jugador de B');
+select pg_temp.expect_ok($q$select public.set_event_callups('ec000000-0000-0000-0000-0000000000b1', array['fc000000-0000-0000-0000-000000000003']::uuid[])$q$, 'Z con header B convoca al partido de B');
+select pg_temp.expect_ok($q$select public.set_nomina_mode('exacto')$q$, 'Z con header B cambia el modo de nómina');
+select pg_temp.expect_fail($q$select public.set_club_category('Juvenil')$q$, 'set_club_category sigue sin permisos (header B)');
+select pg_temp.back_h();
+select pg_temp.expect_count($q$select 1 from public.clubs where (id, nomina_mode) in
+  (('bbbbbbbb-0000-0000-0000-000000000002', 'exacto'), ('aaaaaaaa-0000-0000-0000-000000000001', 'rango'))$q$, 2, 'el modo de nómina cambió solo en B');
+select pg_temp.expect_count($q$select 1 from public.event_callups where event_id = 'ec000000-0000-0000-0000-0000000000b1' and removed_at is null$q$, 1, 'la convocatoria quedó en el partido de B');
+
+-- i. anon: con o sin header no accede a nada nuevo ni ejecuta active_club_id.
+select pg_temp.expect_count($q$select 1 where has_function_privilege('anon', 'private.active_club_id()', 'EXECUTE')
+  or has_function_privilege('service_role', 'private.active_club_id()', 'EXECUTE')$q$, 0, 'anon y service_role no ejecutan active_club_id');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.active_club_id()', 'EXECUTE')
+  = has_function_privilege('authenticated', 'private.current_club_id()', 'EXECUTE')$q$, 1, 'active_club_id tiene los mismos permisos que current_club_id');
+select set_config('request.headers', '{"x-club-id":"aaaaaaaa-0000-0000-0000-000000000001"}', true);
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select private.active_club_id()$q$, 'anónimo con header ejecuta active_club_id');
+select pg_temp.expect_count($q$select 1 from public.club_members$q$, 0, 'anónimo con header no lee club_members');
+select pg_temp.expect_fail($q$select * from public.dash_summary()$q$, 'anónimo con header ejecuta dash_summary');
+select pg_temp.expect_fail($q$select 1 from public.players$q$, 'anónimo con header lee players');
+select pg_temp.back_h();
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select private.active_club_id()$q$, 'anónimo sin header ejecuta active_club_id');
+select pg_temp.back_h();
+
+-- j. Las lecturas directas (RLS) no dependen del header: Z ve filas de A y de B.
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001');
+select pg_temp.expect_count($q$select distinct club_id from public.players where club_id in ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 2, 'Z con header A ve jugadores de A y de B');
+select pg_temp.expect_count($q$select distinct club_id from public.injuries where club_id in ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 2, 'Z con header A ve lesiones de A y de B');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.expect_count($q$select distinct club_id from public.players where club_id in ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 2, 'Z con header B ve jugadores de A y de B');
+select pg_temp.back_h();
+select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000003', 'cccccccc-0000-0000-0000-000000000003');
+select pg_temp.expect_count($q$select distinct club_id from public.players where club_id in ('aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002')$q$, 2, 'Z con un header inválido sigue viendo sus filas por RLS');
+select pg_temp.back_h();
 
 rollback;
