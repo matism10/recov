@@ -82,6 +82,9 @@ insert into public.profiles (id, club_id, roles, full_name, status) values
   ('70000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}',     'Jugador Pend', 'pendiente'),
   ('30000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{kinesiologo}', 'Kine B',       'confirmado'),
   ('60000000-0000-0000-0000-00000000000b', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}',     'Jugador B1',   'confirmado');
+-- Desde 0039 insertar en profiles ya no crea la membresía: se crea aquí (preparación).
+insert into public.club_members (user_id, club_id, roles, status, requested_role)
+select id, club_id, roles, status, requested_role from public.profiles on conflict do nothing;
 
 insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
   ('a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A1',   'Jugador', 'A1',   'Pilar',   'confirmado', '60000000-0000-0000-0000-00000000000a'),
@@ -302,6 +305,9 @@ select pg_temp.expect_count($q$select 1 from public.players where id = 'a1000000
 insert into auth.users (id, email) values ('90000000-0000-0000-0000-00000000000a', 'j3@test.cl');
 insert into public.profiles (id, club_id, roles, full_name, status) values
   ('90000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}', 'Jugador A3', 'confirmado');
+-- Desde 0039 insertar en profiles ya no crea la membresía: se crea aquí (preparación).
+insert into public.club_members (user_id, club_id, roles, status, requested_role)
+select id, club_id, roles, status, requested_role from public.profiles on conflict do nothing;
 insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
   ('a1000000-1111-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador A3', 'Jugador', 'A3', 'Wing', 'confirmado', '90000000-0000-0000-0000-00000000000a');
 

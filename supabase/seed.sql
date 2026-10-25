@@ -24,6 +24,11 @@ begin
   insert into public.profiles (id, club_id, roles, full_name, status)
   values (uid, cid, '{head_coach,kinesiologo}', 'Usuario Demo', 'confirmado');
 
+  -- Desde 0039 los roles y el estado viven en club_members (el perfil solo los refleja):
+  -- sin esta fila la cuenta no tendría acceso al club.
+  insert into public.club_members (user_id, club_id, roles, status)
+  values (uid, cid, '{head_coach,kinesiologo}', 'confirmado');
+
   insert into public.players (club_id, full_name, first_name, last_name, position, availability, status) values
     (cid, 'Jugador Uno',    'Jugador', 'Uno',    'Pilar',         'disponible',      'confirmado'),
     (cid, 'Jugador Dos',    'Jugador', 'Dos',    'Hooker',        'disponible',      'confirmado'),
