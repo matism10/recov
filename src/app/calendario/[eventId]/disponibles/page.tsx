@@ -12,6 +12,7 @@ import {
   toCalendarEvent,
   type EventAvailabilityRow,
   type EventRow,
+  eventTimeLabel,
 } from "@/lib/events";
 import { ErrorMessage, cardClass, textButton } from "@/app/ui";
 import { getSupabase } from "@/lib/session";
@@ -87,7 +88,7 @@ export default async function EventAvailablePage({
           {eventTitle(event)}
         </h1>
         <p className="mt-1 text-sm text-muted">
-          {longDayLabel(event.day)} · {event.start} – {event.end}
+          {longDayLabel(event.day)} · {eventTimeLabel(event)}
           {event.location && ` · ${event.location}`}
         </p>
         {!error && (

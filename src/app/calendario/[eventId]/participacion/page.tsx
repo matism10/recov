@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { EVENT_COLUMNS, eventTitle, longDayLabel, toCalendarEvent, type EventRow } from "@/lib/events";
+import { EVENT_COLUMNS, eventTimeLabel, eventTitle, longDayLabel, toCalendarEvent, type EventRow } from "@/lib/events";
 import { NOMINA_MODE_LABEL, canManageNominas, getLoadScale } from "@/lib/match-load";
 import { buttonSecondary, cardClass, textButton } from "@/app/ui";
 import { getSupabase } from "@/lib/session";
@@ -53,7 +53,7 @@ export default async function ParticipationPage({
       <p className="mt-2 text-sm text-muted">Participación · {NOMINA_MODE_LABEL[club.nomina_mode]}</p>
       <h1 className="text-2xl font-semibold text-ink">{eventTitle(event)}</h1>
       <p className="mt-1 text-sm text-muted">
-        {longDayLabel(event.day)} · {event.start} – {event.end}
+        {longDayLabel(event.day)} · {eventTimeLabel(event)}
         {event.location && ` · ${event.location}`}
       </p>
     </header>

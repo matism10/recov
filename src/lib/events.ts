@@ -24,6 +24,20 @@ export const OPPONENT_MAX = 80;
 export const NOTES_MAX = 500;
 export const MAX_WEEKS = 12;
 
+// Las competencias se crean solo con hora de inicio. La base exige un término
+// (public.events.ends_at), así que se guarda inicio + este bloque; nunca se muestra.
+export const COMPETITION_BLOCK_MINUTES = 120;
+
+// Término que se guarda para una competencia: inicio + COMPETITION_BLOCK_MINUTES.
+export function competitionEndIso(startsAtIso: string) {
+  return new Date(new Date(startsAtIso).getTime() + COMPETITION_BLOCK_MINUTES * 60_000).toISOString();
+}
+
+// Hora que se muestra: en competencias solo el inicio; en entrenamientos, inicio – término.
+export function eventTimeLabel(e: { type: EventType; start: string; end: string }) {
+  return e.type === "competencia" ? e.start : `${e.start} – ${e.end}`;
+}
+
 // Verde desde este porcentaje de disponibles; ámbar bajo él.
 export const AVAILABLE_OK_RATIO = 0.8;
 
