@@ -75,3 +75,11 @@ Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` 
 - **Datos:** solo datos ficticios. Nunca commitear `.env.local` ni claves.
 - **Git:** trabajar en ramas y abrir pull request. `main` está protegida.
 - **Next.js 16:** `middleware` ahora se llama `proxy.ts`. Antes de usar una API, leer `node_modules/next/dist/docs/`.
+## Estado de la plataforma
+Antes de abrir cada PR, actualiza docs/estado-actual.md en el mismo commit:
+- Historial: fecha, nº de PR, qué cambió (1 línea).
+- Si hubo migración: número y qué hace.
+- Si cambió una pantalla, rol, permiso o regla: edita esa sección (no agregues duplicados).
+- Mueve a Pendientes lo que quedó sin hacer; borra lo resuelto.
+- Mantén el archivo bajo ~400 líneas; si crece, resume lo antiguo.
+No leas el archivo completo para esto: edita solo las secciones afectadas.
