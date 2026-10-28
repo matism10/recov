@@ -1,6 +1,6 @@
 -- Recov · Pruebas de nóminas y carga del plantel (0027, 0028, 0029)
 -- Correr en el SQL Editor de Supabase (o por execute_sql) DESPUÉS de las migraciones
--- 0001 a 0029. Todo va en una transacción que termina en ROLLBACK: no deja datos.
+-- 0001 a 0045. Todo va en una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, se detiene con "FAIL: ...".
 --
 -- Cubre: aislamiento entre clubes; quién escribe (head coach, manager, delegado) y
@@ -461,7 +461,8 @@ select pg_temp.back();
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname in
     ('set_event_callups', 'set_event_participation', 'set_nomina_mode', 'set_nomina_delegate', 'team_match_load', 'my_match_load')
-    and p.prosecdef and p.proconfig = array['search_path=""']$q$, 6, 'las 6 funciones son SECURITY DEFINER con search_path vacío');
+    and p.prosecdef and p.proconfig = array['search_path=""']$q$, 8,
+  'las 8 funciones (desde 0045 team_match_load y my_match_load tienen versión con formato) son SECURITY DEFINER con search_path vacío');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   cross join lateral aclexplode(p.proacl) a
   where n.nspname = 'public' and p.proname in

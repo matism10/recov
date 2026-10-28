@@ -89,7 +89,8 @@ export async function registerMember(
     const { data: positions } = await supabase
       .from("positions")
       .select("name")
-      .eq("sport", club.sport);
+      .eq("sport", club.sport)
+      .eq("format", "15");
     const valid = new Set((positions ?? []).map((p) => p.name as string));
 
     if (!valid.has(fields.position)) {
@@ -262,7 +263,7 @@ export async function joinClub(_prev: JoinState, formData: FormData): Promise<Jo
   }
 
   if (kind === "jugador") {
-    const { data: positions } = await supabase.from("positions").select("name").eq("sport", club.sport);
+    const { data: positions } = await supabase.from("positions").select("name").eq("sport", club.sport).eq("format", "15");
     const valid = new Set((positions ?? []).map((p) => p.name as string));
     if (!valid.has(position)) return { error: "Elige tu posición principal." };
     if (secondary && (!valid.has(secondary) || secondary === position)) {

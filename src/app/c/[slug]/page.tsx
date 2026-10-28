@@ -64,6 +64,7 @@ export default async function ClubLinkPage({
     .from("positions")
     .select("name")
     .eq("sport", card.sport)
+    .eq("format", "15")
     .order("sort")
     .then(({ data }) => (data ?? []).map((p) => p.name as string));
 
