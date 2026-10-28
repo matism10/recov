@@ -14,6 +14,7 @@ import {
 } from "@/lib/metrics";
 import { getAvatarUrls } from "@/lib/avatars";
 import { getTeamLoad } from "@/lib/match-load";
+import { getActiveFormat } from "@/lib/format";
 import { LoadSection } from "../load-section";
 import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
 import { PageTitle, SectionTitle, textButton } from "@/app/ui";
@@ -45,7 +46,8 @@ export default async function MetricsPage() {
     getInjuriesByPosition(supabase),
     getRecurringPlayers(supabase),
     getUpcomingReturns(supabase),
-    getTeamLoad(supabase, 4),
+    // Carga: solo partidos del formato activo.
+    getActiveFormat(user.id).then((f) => getTeamLoad(supabase, 4, f)),
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");

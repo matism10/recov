@@ -4,6 +4,7 @@ import { CalendarX } from "lucide-react";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canManageEvents, isStaff, type UserRole } from "@/lib/roles";
 import { buttonPrimary, cardClass, textButton } from "@/app/ui";
+import { getActiveFormat } from "@/lib/format";
 
 // "Armar nómina" sin un partido próximo: lo avisa y ofrece crearlo a quien puede
 // crear eventos (head coach, manager y entrenador).
@@ -12,7 +13,8 @@ export default async function NoMatchPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   // En paralelo: perfil y el próximo partido del plantel activo.
-  const clubId = await getActiveClubId(user.id);
+  // Del formato activo (Rugby 15 o Sevens).
+  const [clubId, format] = await Promise.all([getActiveClubId(user.id), getActiveFormat(user.id)]);
   const [me, { data: next }] = await Promise.all([
     getProfile(user.id),
     supabase
@@ -20,6 +22,7 @@ export default async function NoMatchPage() {
       .select("id")
       .eq("club_id", clubId)
       .eq("type", "competencia")
+      .eq("format", format)
       .is("cancelled_at", null)
       .gt("starts_at", new Date().toISOString())
       .order("starts_at")

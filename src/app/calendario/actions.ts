@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/session";
+import { getActiveFormat } from "@/lib/format";
 import {
   EVENT_TYPES,
   LOCATION_MAX,
@@ -83,8 +85,11 @@ export async function createEvent(
     return { error: `La repetición debe ser de 1 a ${MAX_WEEKS} semanas.`, values };
   }
 
-  // create_event verifica el rol (head coach, manager o entrenador) y el club.
+  // create_event verifica el rol (head coach, manager o entrenador) y el club. El
+  // evento nace con el formato activo (la base exige que el club tenga Sevens).
   const supabase = await createClient();
+  const user = await getSessionUser();
+  const format = user ? await getActiveFormat(user.id) : "15";
   const { data, error } = await supabase.rpc("create_event", {
     p_type: type,
     p_starts_at: fields.startsAt,
@@ -93,6 +98,7 @@ export async function createEvent(
     p_opponent: type === "competencia" ? fields.opponent || null : null,
     p_notes: fields.notes || null,
     p_weeks: weeks,
+    p_format: format,
   });
   if (error) {
     return { error: eventErrorMessage(error, "No se pudo crear el evento. Intenta de nuevo."), values };

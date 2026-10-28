@@ -20,6 +20,7 @@ import {
 } from "@/lib/injuries";
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
 import { getMyLoad, getTeamLoad, type LoadResult, type MyLoad, type TeamLoad } from "@/lib/match-load";
+import { getActiveFormat } from "@/lib/format";
 import { LoadBlock } from "@/app/load-block";
 import { PlayerEvaluations } from "@/app/evaluaciones/player-evaluations";
 import { Avatar } from "@/app/avatar";
@@ -84,9 +85,10 @@ export default async function PlayerPage({
     injuriesPromise,
     // Carga de los últimos 6 partidos: el staff la toma de la carga del plantel;
     // el jugador, de su propia función (sin datos de otros).
-    staffPromise.then(
-      (isStaffUser): Promise<LoadResult<TeamLoad> | LoadResult<MyLoad>> =>
-        isStaffUser ? getTeamLoad(supabase, 6) : getMyLoad(supabase),
+    // Del formato activo (Rugby 15 o Sevens).
+    Promise.all([staffPromise, getActiveFormat(user.id)]).then(
+      ([isStaffUser, format]): Promise<LoadResult<TeamLoad> | LoadResult<MyLoad>> =>
+        isStaffUser ? getTeamLoad(supabase, 6, format) : getMyLoad(supabase, format),
     ),
     // Fases de las lesiones abiertas.
     injuriesPromise.then(async (injuries) => {

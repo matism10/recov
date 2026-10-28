@@ -4,6 +4,9 @@ import { canManageInjuries, isStaff, type UserRole } from "@/lib/roles";
 import { getSquad } from "@/lib/squad";
 import { SquadViews } from "./squad-views";
 import { PageTitle, cardClass } from "@/app/ui";
+import { getFormatContext, inFormat } from "@/lib/format";
+import { SevensPositionBanner } from "@/app/sevens-ui";
+import { SevensSquad } from "./sevens-squad";
 
 // Plantel completo del club: los mismos datos, acciones y reglas por rol que la
 // lista del Resumen, pero con todos los jugadores confirmados, con búsqueda y
@@ -16,7 +19,7 @@ export default async function SquadPage() {
   // En paralelo: el perfil (y con su deporte, el orden de las posiciones para el
   // filtro) y el plantel. RLS: sin perfil confirmado, el plantel llega vacío, y la
   // página redirige antes de mostrar nada.
-  const [{ profile, positions }, { players, avatarUrls, phaseByPlayer }] = await Promise.all([
+  const [{ profile, positions }, squad, formatCtx] = await Promise.all([
     getProfile(user.id).then(async (profile) => {
       if (profile?.status !== "confirmado") return { profile, positions: null };
       const { data: positions } = await supabase
@@ -28,7 +31,13 @@ export default async function SquadPage() {
       return { profile, positions };
     }),
     getActiveClubId(user.id).then((clubId) => getSquad(supabase, clubId)),
+    getFormatContext(user.id),
   ]);
+  const { avatarUrls, phaseByPlayer } = squad;
+  // En Sevens: solo el grupo Sevens, con su posición de Sevens.
+  const sevens = formatCtx.format === "7";
+  const players = inFormat(squad.players, formatCtx);
+  const mySevens = formatCtx.group.get(user.id);
 
   if (profile?.status === "pendiente") redirect("/pendiente");
   if (!profile || profile.status !== "confirmado") redirect("/dashboard");
@@ -49,7 +58,18 @@ export default async function SquadPage() {
         </p>
       </header>
 
-      {players.length > 0 ? (
+      {sevens && mySevens && !mySevens.position && <SevensPositionBanner />}
+
+      {players.length > 0 && sevens ? (
+        <SevensSquad
+          sevensByUser={Object.fromEntries(formatCtx.group)}
+          players={players}
+          avatarUrls={avatarUrls}
+          phaseByPlayer={phaseByPlayer}
+          canManage={canManage}
+          linkToProfile={isStaff(roles)}
+        />
+      ) : players.length > 0 ? (
         <SquadViews
           sport={club?.sport ?? null}
           positions={(positions ?? []).map((p) => p.name as string)}
@@ -61,7 +81,9 @@ export default async function SquadPage() {
         />
       ) : (
         <p className={`p-8 text-center text-muted ${cardClass}`}>
-          Aún no hay jugadores registrados en tu plantel.
+          {sevens
+            ? "El grupo Sevens aún no tiene jugadores. La dirección lo arma en Configuración."
+            : "Aún no hay jugadores registrados en tu plantel."}
         </p>
       )}
     </main>

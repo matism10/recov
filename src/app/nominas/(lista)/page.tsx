@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isStaff, type UserRole } from "@/lib/roles";
-import { canManageNominas } from "@/lib/match-load";
+import { canManageNominas, getLineupSize } from "@/lib/match-load";
+import { getActiveFormat } from "@/lib/format";
 import { chileDateTime, eventTitle, longDayLabel } from "@/lib/events";
 import { PageTitle, SectionTitle, buttonPrimary, buttonSecondary, cardClass } from "@/app/ui";
 
@@ -27,7 +28,8 @@ export default async function NominasPage() {
   // convocatoria con sus partidos y participación. RLS: datos del club; sin acceso
   // se redirige antes de mostrar nada.
   // Solo datos del plantel activo (RLS trae los de todos los planteles de la cuenta).
-  const clubId = await getActiveClubId(user.id);
+  // Formato activo: solo los partidos de ese formato (Rugby 15 o Sevens).
+  const [clubId, format] = await Promise.all([getActiveClubId(user.id), getActiveFormat(user.id)]);
   const [me, { data: next }, { data: callups }] = await Promise.all([
     getProfile(user.id),
     supabase
@@ -35,6 +37,7 @@ export default async function NominasPage() {
       .select("id, starts_at, opponent, location")
       .eq("club_id", clubId)
       .eq("type", "competencia")
+      .eq("format", format)
       .is("cancelled_at", null)
       .gt("starts_at", nowIso)
       .order("starts_at")
@@ -49,14 +52,15 @@ export default async function NominasPage() {
   const canNomina = canManageNominas(roles, user.id, club?.nomina_delegate_id);
 
   const ids = [...new Set((callups ?? []).map((c) => c.event_id as string))];
-  const [{ data: sizes }, { data: matches }, { data: loaded }] = await Promise.all([
-    supabase.from("sports").select("starters, bench_size").eq("slug", club?.sport ?? "").maybeSingle(),
+  const [{ starters, bench }, { data: matches }, { data: loaded }] = await Promise.all([
+    getLineupSize(supabase, club?.sport ?? "", format),
     ids.length
       ? supabase
           .from("events")
           .select("id, starts_at, opponent, location")
           .eq("club_id", clubId)
           .in("id", ids)
+          .eq("format", format)
           .is("cancelled_at", null)
           .order("starts_at", { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -65,8 +69,6 @@ export default async function NominasPage() {
       : Promise.resolve({ data: [] }),
   ]);
 
-  const starters = (sizes?.starters as number | undefined) ?? 0;
-  const bench = (sizes?.bench_size as number | undefined) ?? 0;
   const byEvent = new Map<string, { total: number; titulares: number; banca: number }>();
   for (const c of callups ?? []) {
     const k = c.event_id as string;

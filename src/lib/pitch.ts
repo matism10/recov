@@ -5,14 +5,18 @@
 // de la camiseta (1 a 15); en los demás deportes, las iniciales de la posición.
 // Las cantidades de titulares y banca vienen de la base (public.sports).
 
-export type PitchKind = "rugby" | "futbol" | "hockey" | "futsal" | "handball" | "basquetbol" | "voleibol";
+// "sevens" no es un deporte: es la cancha de Rugby Sevens (formato '7' de un club de rugby).
+export type PitchKind = "rugby" | "sevens" | "futbol" | "hockey" | "futsal" | "handball" | "basquetbol" | "voleibol";
 
-export type PitchSlot = { slot: number; position: string; code: string; x: number; y: number };
+// Dónde va la etiqueta del puesto respecto del círculo (por defecto, debajo).
+export type LabelSide = "below" | "left" | "right";
+
+export type PitchSlot = { slot: number; position: string; code: string; x: number; y: number; labelSide?: LabelSide };
 
 type Spot = [position: string, x: number, y: number];
 
 // Iniciales por posición (deportes sin número fijo por puesto).
-const CODES: Record<Exclude<PitchKind, "rugby">, Record<string, string>> = {
+const CODES: Record<Exclude<PitchKind, "rugby" | "sevens">, Record<string, string>> = {
   futbol: {
     Portero: "PO",
     Lateral: "LA",
@@ -62,6 +66,18 @@ const SPOTS: Record<PitchKind, Spot[]> = {
     ["Centro", 68, 74],
     ["Wing", 86, 72],
     ["Fullback", 50, 88],
+  ],
+  // Sevens: 1 y 3 arriba, 2 debajo al medio, 4 más abajo a la derecha del 2 y 5, 6 y
+  // 7 en diagonal hacia la derecha. Desde la referencia (326 × 392 px, círculo de
+  // 52 px): centro del círculo en % del ancho y del alto.
+  sevens: [
+    ["Pilar", 12.3, 6.6],
+    ["Hooker", 29.1, 28.1],
+    ["Pilar", 46, 6.6],
+    ["Medio scrum", 59.5, 42.3],
+    ["Apertura", 68.1, 59.7],
+    ["Centro", 76.7, 77],
+    ["Wing", 90.8, 93.4],
   ],
   futbol: [
     ["Portero", 50, 90],
@@ -122,21 +138,29 @@ const SPOTS: Record<PitchKind, Spot[]> = {
   ],
 };
 
+// Sevens: etiqueta debajo en 1, 2 y 3; a la derecha en 4; a la izquierda en 5, 6 y 7.
+const SEVENS_LABEL_SIDE: LabelSide[] = ["below", "below", "below", "right", "left", "left", "left"];
+
 export const PITCH_LAYOUTS: Record<PitchKind, PitchSlot[]> = Object.fromEntries(
   (Object.keys(SPOTS) as PitchKind[]).map((kind) => [
     kind,
     SPOTS[kind].map(([position, x, y], i) => ({
       slot: i + 1,
       position,
-      code: kind === "rugby" ? String(i + 1) : (CODES[kind][position] ?? position.slice(0, 2).toUpperCase()),
+      code:
+        kind === "rugby" || kind === "sevens"
+          ? String(i + 1)
+          : (CODES[kind][position] ?? position.slice(0, 2).toUpperCase()),
       x,
       y,
+      ...(kind === "sevens" ? { labelSide: SEVENS_LABEL_SIDE[i] } : {}),
     })),
   ]),
 ) as Record<PitchKind, PitchSlot[]>;
 
-export function pitchKind(sport: string | null | undefined): PitchKind | null {
-  return sport && sport in PITCH_LAYOUTS ? (sport as PitchKind) : null;
+export function pitchKind(sport: string | null | undefined, format: "15" | "7" = "15"): PitchKind | null {
+  if (sport === "rugby" && format === "7") return "sevens";
+  return sport && sport !== "sevens" && sport in PITCH_LAYOUTS ? (sport as PitchKind) : null;
 }
 
 // Nombre corto para la etiqueta bajo el círculo (la cancha es angosta en celular).

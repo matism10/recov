@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isStaff } from "@/lib/roles";
-import { canManageNominas } from "@/lib/match-load";
+import { canManageNominas, getLineupSize } from "@/lib/match-load";
+import { getFormatContext } from "@/lib/format";
+import { SEVENS_POSITIONS } from "@/lib/sevens";
 import {
   EVENT_COLUMNS,
   EVENT_TYPE_LABEL,
@@ -48,31 +50,49 @@ export default async function EventAvailablePage({
     { data: positions },
     { data: secondary },
     { data: callupRows },
-    { data: sizeRow },
+    formatCtx,
   ] = await Promise.all([
     eventPromise,
     supabase.rpc("event_availability", { p_event_id: eventId }),
     // Orden de las posiciones según el deporte del club.
     supabase.from("positions").select("name").eq("sport", club?.sport ?? "").eq("format", "15").order("sort"),
     // Posición secundaria, para la vista cancha (jugadores del plantel activo).
-    supabase.from("players").select("id, secondary_position").eq("club_id", clubId).not("secondary_position", "is", null),
+    supabase.from("players").select("id, user_id, secondary_position").eq("club_id", clubId),
     // Convocatoria vigente (RLS: el staff ve las del club).
     canNomina
       ? supabase.from("event_callups").select("player_id, slot").eq("event_id", eventId).is("removed_at", null)
       : Promise.resolve({ data: [] }),
-    // Titulares y banca del deporte del club (0029).
-    canNomina
-      ? supabase.from("sports").select("starters, bench_size").eq("slug", club?.sport ?? "").maybeSingle()
-      : Promise.resolve({ data: null }),
+    // Grupo Sevens y su posición de Sevens (para los partidos de Sevens).
+    getFormatContext(userId),
   ]);
   if (!data) redirect("/calendario");
   const event = toCalendarEvent(data as EventRow);
-  const players = (rows ?? []) as EventAvailabilityRow[];
+  // La nómina sigue el formato del evento, no el activo.
+  const format = ((data as EventRow).format === "7" ? "7" : "15") as "15" | "7";
+  const sevens = format === "7";
+  const userOf = new Map((secondary ?? []).map((p) => [p.id as string, p.user_id as string | null]));
+  const sevensOf = (playerId: string) => {
+    const u = userOf.get(playerId);
+    return u ? formatCtx.group.get(u) : undefined;
+  };
+  // En Sevens: solo el grupo, con su posición de Sevens.
+  const allRows = (rows ?? []) as EventAvailabilityRow[];
+  const players = sevens
+    ? allRows
+        .filter((r) => sevensOf(r.player_id) !== undefined)
+        .map((r) => ({ ...r, player_position: sevensOf(r.player_id)?.position ?? null }))
+    : allRows;
   const summary = summarizeAvailability(players);
+  const secondaryByPlayer: Record<string, string> = {};
+  for (const p of secondary ?? []) {
+    const second = sevens ? sevensOf(p.id as string)?.secondary_position : (p.secondary_position as string | null);
+    if (second) secondaryByPlayer[p.id as string] = second;
+  }
 
   const nomina = event.type === "competencia" && !event.cancelled && canNomina;
   const callups = nomina ? callupRows : [];
-  const sizes = nomina ? sizeRow : null;
+  // Titulares y banca del formato del evento (Sevens: 7 + 5).
+  const sizes = nomina ? await getLineupSize(supabase, club?.sport ?? "", format) : null;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
@@ -82,6 +102,7 @@ export default async function EventAvailablePage({
         </Link>
         <p className="mt-2 text-sm text-muted">
           {nomina ? "Nómina" : EVENT_TYPE_LABEL[event.type]}
+          {sevens && " · Sevens"}
           {event.cancelled && " · Cancelado"}
         </p>
         <h1 className="text-2xl font-semibold text-ink">
@@ -122,11 +143,10 @@ export default async function EventAvailablePage({
       ) : (
         <AvailablePlayers
           players={players}
-          positions={(positions ?? []).map((p) => p.name as string)}
+          positions={sevens ? [...SEVENS_POSITIONS] : (positions ?? []).map((p) => p.name as string)}
           sport={club?.sport ?? null}
-          secondaryByPlayer={Object.fromEntries(
-            (secondary ?? []).map((p) => [p.id as string, p.secondary_position as string]),
-          )}
+          format={format}
+          secondaryByPlayer={secondaryByPlayer}
           nomina={
             nomina
               ? {
@@ -135,8 +155,8 @@ export default async function EventAvailablePage({
                     player_id: c.player_id as string,
                     slot: (c.slot as number | null) ?? null,
                   })),
-                  starters: (sizes?.starters as number | undefined) ?? 0,
-                  bench: (sizes?.bench_size as number | undefined) ?? 0,
+                  starters: sizes?.starters ?? 0,
+                  bench: sizes?.bench ?? 0,
                 }
               : null
           }

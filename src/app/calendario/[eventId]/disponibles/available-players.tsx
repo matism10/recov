@@ -83,16 +83,19 @@ export function AvailablePlayers({
   players,
   positions,
   sport = null,
+  format = "15",
   secondaryByPlayer = {},
   nomina = null,
 }: {
   players: Row[];
   positions: string[];
   sport?: string | null;
+  // Formato del evento: en Sevens, la cancha de 7 y las posiciones de Sevens.
+  format?: "15" | "7";
   secondaryByPlayer?: Record<string, string>;
   nomina?: NominaProps | null;
 }) {
-  const kind = pitchKind(sport);
+  const kind = pitchKind(sport, format);
   const [view, setView] = useState<"lista" | "cancha">("lista");
   const [filter, setFilter] = useState<Filter>(
     nomina && nomina.lineup.length > 0 ? "convocados" : "ok",
@@ -488,6 +491,7 @@ function LineupPitch({
       key: `${s.slot}`,
       x: s.x,
       y: s.y,
+      labelSide: s.labelSide,
       code: s.code,
       label: h ? shortPlayerName(h.full_name) : shortPositionLabel(s.position),
       active: selected === s.slot,
@@ -724,6 +728,7 @@ function PositionsPitch({
         key: `${s.slot}`,
         x: s.x,
         y: s.y,
+        labelSide: s.labelSide,
         code: s.code,
         label: shortPositionLabel(s.position),
         active: selected === s.position,

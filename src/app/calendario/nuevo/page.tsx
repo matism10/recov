@@ -5,6 +5,7 @@ import { parseIsoDate, todayInChile } from "@/lib/injuries";
 import { textButton } from "@/app/ui";
 import { EventForm } from "../event-form";
 import { requireMember } from "../member";
+import { getActiveFormat } from "@/lib/format";
 
 // Nuevo evento: solo head coach, manager y entrenador (create_event lo verifica).
 export default async function NewEventPage({
@@ -13,7 +14,8 @@ export default async function NewEventPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { fecha, tipo } = await searchParams;
-  const { roles } = await requireMember();
+  const { roles, userId } = await requireMember();
+  const format = await getActiveFormat(userId);
   if (!canManageEvents(roles)) redirect("/calendario");
 
   // Parte en el día que se estaba mirando, salvo que ya haya pasado.
@@ -28,6 +30,9 @@ export default async function NewEventPage({
           ← Volver al calendario
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-ink">Nuevo evento</h1>
+        {format === "7" && (
+          <p className="mt-1 text-sm text-muted">Se crea en Sevens, el formato activo.</p>
+        )}
       </header>
       <EventForm
         defaults={{

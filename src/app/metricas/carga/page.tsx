@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isStaff, type UserRole } from "@/lib/roles";
 import { getTeamLoad } from "@/lib/match-load";
+import { getActiveFormat } from "@/lib/format";
 import { MetricsError, metricCardClass } from "@/app/metrics";
 import { PageTitle, textButton } from "@/app/ui";
 import { LoadIntro, LoadRanking } from "../load-section";
@@ -14,7 +15,7 @@ export default async function LoadRankingPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   // En paralelo: perfil y la carga del plantel (team_match_load valida que sea staff).
-  const [me, result] = await Promise.all([getProfile(user.id), getTeamLoad(supabase, 4)]);
+  const [me, result] = await Promise.all([getProfile(user.id), getActiveFormat(user.id).then((f) => getTeamLoad(supabase, 4, f))]);
   if (me?.status === "pendiente") redirect("/pendiente");
   if (me?.status !== "confirmado" || !isStaff((me.roles ?? []) as UserRole[])) redirect("/dashboard");
 
