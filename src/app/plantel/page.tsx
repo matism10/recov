@@ -23,6 +23,7 @@ export default async function SquadPage() {
         .from("positions")
         .select("name")
         .eq("sport", profile.club?.sport ?? "")
+        .eq("format", "15")
         .order("sort");
       return { profile, positions };
     }),

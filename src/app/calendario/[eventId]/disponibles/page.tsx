@@ -53,7 +53,7 @@ export default async function EventAvailablePage({
     eventPromise,
     supabase.rpc("event_availability", { p_event_id: eventId }),
     // Orden de las posiciones según el deporte del club.
-    supabase.from("positions").select("name").eq("sport", club?.sport ?? "").order("sort"),
+    supabase.from("positions").select("name").eq("sport", club?.sport ?? "").eq("format", "15").order("sort"),
     // Posición secundaria, para la vista cancha (jugadores del plantel activo).
     supabase.from("players").select("id, secondary_position").eq("club_id", clubId).not("secondary_position", "is", null),
     // Convocatoria vigente (RLS: el staff ve las del club).

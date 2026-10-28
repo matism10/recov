@@ -60,6 +60,11 @@ Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` 
 - Métricas del Resumen (0023, 0024): `clubs.dashboard_metrics` (computador) y `dashboard_metrics_mobile` (celular), claves del catálogo `private.dashboard_metric_keys()`; NULL = las de siempre. Las elige solo el `head_coach` con `set_dashboard_metrics` y `set_dashboard_metrics_mobile`.
 - Identidad (0025, 0026): `clubs.category` (2–40 caracteres o NULL) es fija: la ponemos nosotros por SQL al crear el club (`set_club_category` quedó sin permisos para nadie). La portada (`clubs.cover_path`, con `set_club_cover`) va en el bucket privado `club-covers/{club_id}/…` (5 MB): la leen solo los confirmados del club (URL firmada) y la suben o borran solo la dirección. Su encuadre es `cover_position_x/y` (object-position en %, 0–100, por defecto 50) con `set_club_cover_position`; una portada nueva vuelve al centro. El encabezado del club (`ClubHeader`) la muestra en el Resumen.
 
+**Rugby Sevens (0045):** no es un deporte ni un club nuevo: es un grupo con formato dentro del mismo plantel de rugby (mismo `club_id`, fichas, lesiones, disponibilidad y evaluaciones).
+- Formatos `'15'` (escala y nómina en `sports`) y `'7'` (en `sport_format_config`; usar `private.sport_format(sport, format)`). `positions.format` separa los catálogos: la ficha (`players.position`) siempre es del 15 y la app filtra `positions` por `format`.
+- `clubs.has_sevens` (solo rugby; `set_club_sevens`, dirección). `sevens_group` (`member_id` = `club_members.user_id`, posición de Sevens propia; archivar no borra): lo arma la dirección con `set_sevens_group` (lista completa) y cada miembro elige su posición con `set_my_sevens_position`. Lectura: confirmados del club.
+- `events.format` (`'7'` solo con `has_sevens`; `create_event(..., p_format)`). Nómina, participación y carga siguen el formato del evento; `team_match_load(n, formato)` y `my_match_load(formato)` (sin formato = 15; en 7 el plantel es el grupo).
+
 **Convención:** las escrituras sensibles van por funciones `SECURITY DEFINER` con permisos explícitos (`mark_player_injured`, `review_injury`, `set_injury_phases`, `set_player_availability`, etc.), no por updates directos desde la app. En la app, `canManageInjuries` e `isDirection` (`src/lib/roles.ts`) solo deciden qué se muestra.
 
 ### Reglas que no se rompen
@@ -67,7 +72,7 @@ Todo usuario nuevo entra por el link del club (`/c/[slug]`) y queda `pendiente` 
 - **Aislamiento por club:** toda tabla lleva `club_id` y la seguridad la define RLS en la base de datos, no el frontend. Nunca usar la service role key en código de cliente.
 - **Datos de salud:** de sus compañeros, el jugador solo ve la disponibilidad y el nombre de la fase de recuperación en curso (`squad_current_phases`); nunca el tipo de lesión, fechas ni documentos de otros. De sus propias lesiones ve todo, incluidas las fases. Los documentos médicos los revisa solo el kinesiólogo. El entrenador ve disponibilidad, lesiones y fases.
 - **Cambios de base de datos:** el agente escribe y aplica las migraciones por el MCP de Supabase (proyecto "Recov"). Por cada cambio:
-  1. Migración nueva en `supabase/migrations/` (siguiente número de cuatro dígitos) y sus pruebas en `supabase/tests/`: `rls_isolation_test.sql` (aislamiento y permisos) , `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario de eventos) o `match_load_test.sql` (nóminas y carga).
+  1. Migración nueva en `supabase/migrations/` (siguiente número de cuatro dígitos) y sus pruebas en `supabase/tests/`: `rls_isolation_test.sql` (aislamiento y permisos) , `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario de eventos), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones) o `sevens_test.sql` (Rugby Sevens).
   2. Aplicarla con `apply_migration`, con el mismo contenido del archivo.
   3. Correr los tests con `execute_sql` (terminan en `ROLLBACK`). Si hay un "FAIL", corregir con una migración nueva y avisar a Mati.
   4. Revisar `get_advisors` (seguridad) y avisar si aparece algo nuevo.

@@ -5,11 +5,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #78, 25 oct).
-- Migraciones 0001 a 0044 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
+- Todo está mergeado en `main` (último: PR #79, 26 oct), salvo #80 (Sevens, base de datos).
+- Migraciones 0001 a 0045 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
 - 28 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
-- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario), `match_load_test.sql` (nóminas y carga) y `evaluaciones_test.sql` (evaluaciones).
+- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones) y `sevens_test.sql` (Rugby Sevens).
 - 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel. 0029: nómina por puestos (titulares y banca). 0030: teléfono opcional del jugador (solo base de datos, sin UI).
 - CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones.
 - Migraciones desde el 21 oct:
@@ -23,8 +23,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 0042: `club_public_card(slug)`: nombre, deporte y categoría del link sin sesión.
   - 0043: `profiles` queda solo como identidad (sin `club_id`, `roles`, `status`, `requested_role`); respaldo en `private.profiles_legacy_backup`.
   - 0044: evaluaciones físicas (`test_definitions`, `test_results` y sus funciones).
+  - 0045: Rugby Sevens: `clubs.has_sevens`, `positions.format`, `sevens_group`, `events.format`, `sport_format_config`, `create_event` con `p_format` y carga por formato.
 
 ## Historial
+- 28 oct · #80 · Rugby Sevens, base de datos (0045); la app filtra posiciones al formato 15.
+- 26 oct · #79 · `docs/estado-actual.md` al día y regla para mantenerlo en `CLAUDE.md`.
 - 25 oct · #78 · Evaluaciones físicas (0044): carga, comparación del plantel y "Mis evaluaciones".
 - 25 oct · #77 · `profiles` solo identidad (0043); `getProfile` sin `profiles.club_id`.
 - 25 oct · #76 · Competencias solo con hora de inicio (el término se guarda a las 2 h, oculto).
@@ -33,9 +36,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - 24 oct · #73 · Funciones públicas sobre `club_members` (0039) y foto en cualquier plantel (0040).
 - 24 oct · #72 · Helpers con `club_id` y políticas RLS (0038).
 - 24 oct · #71 · `club_members` (0037).
-- 24 oct · #70 · Plantel: vista cancha con rótulo "Vista".
-- 24 oct · #69 · Recuperar contraseña; verificación de correo agregada y retirada (0035, 0036).
-- Semana del 19 oct (antes de #69): #61–#64 rendimiento (esqueletos de carga, consultas en paralelo, imágenes con caché); #65 logo final; #66 Web App instalable; #67 guía "¿Cómo instalo Recov?"; #68 correo al aprobar un registro (0031–0034).
+- Semana del 19 oct (antes de #71): #69 recuperar contraseña y verificación de correo agregada y retirada (0035, 0036); #70 vista cancha del plantel; #61–#64 rendimiento (esqueletos de carga, consultas en paralelo, imágenes con caché); #65 logo final; #66 Web App instalable; #67 guía "¿Cómo instalo Recov?"; #68 correo al aprobar un registro (0031–0034).
 - Hasta el 20 oct: #1–#60, migraciones 0001–0030 (base, lesiones y fases, calendario, nóminas y carga, teléfono del jugador).
 
 ## Flujo de la plataforma
@@ -88,6 +89,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - **Evaluaciones** (staff menos el manager; sidebar y "Más"): "Cargar resultados" (test, fecha no futura, valor anterior por jugador, "Guardar N resultados"; un resultado del día se anula y se vuelve a cargar) y "Comparar plantel" (ranking por test con barra y cambio con flecha y texto "mejor" o "peor").
 - Catálogo por plantel: "Agregar tests sugeridos" (7 tests; Bronco en mm:ss guardado en segundos) y tests propios que se pueden archivar.
 - **Jugador:** "Mis evaluaciones" desde el Resumen: último resultado, puesto, gráfico de progreso y ranking del plantel con su fila resaltada. La ficha del jugador muestra el mismo gráfico al staff.
+
+**9. Rugby Sevens** (0045; por ahora solo base de datos, la app llega en el PR siguiente)
+- No es un deporte ni un club nuevo: un grupo con formato dentro del mismo plantel de rugby (mismas fichas, lesiones, disponibilidad y evaluaciones).
+- La dirección activa Sevens (`set_club_sevens`, solo rugby) y arma el grupo con jugadores y staff (`set_sevens_group`). Cada miembro elige su posición de Sevens (`set_my_sevens_position`): Pilar, Hooker, Medio scrum, Apertura, Centro o Wing (`positions.format = '7'`).
+- Los eventos tienen formato (`events.format`). En Sevens, la nómina admite los puestos 1 a 12 (7 titulares y 5 de banca) y la participación usa 14 minutos con tope 14 y rangos 0 / 1–4 / 5–9 / 10–13 / 14 (provisorio, en `sport_format_config`). La carga se calcula por formato (`team_match_load(n, formato)`, `my_match_load(formato)`).
 
 ## Funciones por rol
 
@@ -143,10 +149,14 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Avisos abiertos:** "Leaked password protection" desactivado; `pg_net` en el esquema `public` (sin uso).
 
 ## Pendiente
+- **Sevens:**
+  - PR 2 (app): formato activo, selector en el Resumen, filtros por formato, nómina Sevens y pantallas de la dirección;
+  - la escala de Sevens es provisoria (fila `rugby`/`7` de `sport_format_config`);
+  - solo cuentas pueden estar en el grupo (`sevens_group.member_id` = `club_members.user_id`): un jugador sin cuenta no entra.
 - **Seguridad:** activar "Leaked password protection" en Supabase Auth (desde el panel).
 - **Base de datos:**
   - anotar la 0043 en `supabase_migrations.schema_migrations`;
-  - 0045: borrar `private.profiles_legacy_backup` una semana después de aplicar la 0043 (desde ~1 nov);
+  - 0046: borrar `private.profiles_legacy_backup` una semana después de aplicar la 0043 (desde ~1 nov);
   - quedan sin uso `pg_net`, `private.member_emails`, `profiles.email_verified_at`, `private.email_verification_tokens`, `create_email_verification` y `verify_email`.
 - **Datos de demo:** hc.demo sigue como head coach confirmado en Demo - Fútbol; no hay cuentas demo de preparador físico ni de nutricionista.
 - **Limpieza:** borrar las ramas viejas ya mergeadas, en local y en GitHub.

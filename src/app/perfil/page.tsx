@@ -48,7 +48,7 @@ export default async function ProfilePage() {
   // (get_player_phone, 0030: al propio jugador siempre le devuelve su número).
   const [{ data: positions }, { data: phone }] = playerRow
     ? await Promise.all([
-        supabase.from("positions").select("name").eq("sport", club?.sport ?? "").order("sort"),
+        supabase.from("positions").select("name").eq("sport", club?.sport ?? "").eq("format", "15").order("sort"),
         supabase.rpc("get_player_phone", { p_player_id: playerRow.id }),
       ])
     : [{ data: null }, { data: null }];

@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0043.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0045.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -344,7 +344,7 @@ select pg_temp.back();
 select pg_temp.as_anon();
 select pg_temp.expect_count($q$select * from public.club_public_info('club-a')$q$, 1, 'el link del club muestra su nombre sin sesión');
 select pg_temp.expect_count($q$select * from public.club_public_info('no-existe')$q$, 0, 'un link inexistente no devuelve nada');
-select pg_temp.expect_count($q$select 1 from public.positions where sport = 'rugby'$q$, 10, 'las posiciones de rugby son públicas');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'rugby' and format = '15'$q$, 10, 'las posiciones de rugby son públicas (cambió con 0045: solo el 15)');
 select pg_temp.expect_fail($q$select public.register_member('club-a', 'jugador', 'A', 'B', 'Pilar')$q$, 'anónimo se registra sin cuenta');
 select pg_temp.expect_fail($q$select 1 from public.players$q$, 'anónimo lee players');
 select pg_temp.expect_fail($q$select 1 from public.profiles$q$, 'anónimo lee profiles');
@@ -512,10 +512,10 @@ select pg_temp.back();
 -- anon lee el catálogo y no puede modificarlo
 select pg_temp.as_anon();
 select pg_temp.expect_count($q$select 1 from public.sports$q$, 7, 'hay 7 deportes');
-select pg_temp.expect_count($q$select 1 from public.positions$q$, 44, 'hay 44 posiciones en total');
+select pg_temp.expect_count($q$select 1 from public.positions where format = '15'$q$, 44, 'hay 44 posiciones del formato 15 en total (cambió con 0045)');
 select pg_temp.expect_count($q$select 1 from public.positions where sport = 'futbol'$q$, 8, 'fútbol tiene 8 posiciones');
 select pg_temp.expect_count($q$select 1 from public.positions where sport = 'futsal'$q$, 4, 'futsal tiene 4 posiciones');
-select pg_temp.expect_count($q$select 1 from public.positions where sport = 'rugby'$q$, 10, 'rugby tiene 10 posiciones');
+select pg_temp.expect_count($q$select 1 from public.positions where sport = 'rugby' and format = '15'$q$, 10, 'rugby tiene 10 posiciones en el 15 (cambió con 0045)');
 select pg_temp.expect_count($q$select 1 from public.positions where sport = 'handball'$q$, 5, 'handball tiene 5 posiciones');
 select pg_temp.expect_count($q$select 1 from public.positions where sport = 'voleibol'$q$, 5, 'vóleibol tiene 5 posiciones');
 select pg_temp.expect_count($q$select 1 from public.positions where sport = 'basquetbol'$q$, 5, 'básquetbol tiene 5 posiciones');
