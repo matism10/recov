@@ -15,6 +15,7 @@ import {
 import { PageTitle, buttonPrimary } from "@/app/ui";
 import { CalendarView } from "../calendar-view";
 import { requireMember } from "../member";
+import { getActiveFormat, getSevensPlayerIds } from "@/lib/format";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -47,10 +48,13 @@ export default async function CalendarPage({
   const days = monthGridDays(anchor);
   const first = days[0];
   const last = days[days.length - 1];
+  // Solo los eventos del formato activo (Rugby 15 o Sevens).
+  const format = await getActiveFormat(userId);
   const { data: rows } = await supabase
     .from("events")
     .select(EVENT_COLUMNS)
     .eq("club_id", clubId)
+    .eq("format", format)
     .gte("starts_at", `${addDays(first, -1)}T00:00:00Z`)
     .lt("starts_at", `${addDays(last, 2)}T00:00:00Z`)
     .order("starts_at");
@@ -62,13 +66,17 @@ export default async function CalendarPage({
   // Staff: disponibilidad proyectada de cada evento visible no cancelado, una
   // llamada por evento. Solo viajan al cliente los conteos y los primeros nombres.
   const availability: Record<string, EventAvailabilitySummary> = {};
+  const sevensIds = format === "7" ? await getSevensPlayerIds(userId) : null;
   if (staff) {
     await Promise.all(
       events
         .filter((e) => !e.cancelled)
         .map(async (e) => {
           const { data } = await supabase.rpc("event_availability", { p_event_id: e.id });
-          if (data) availability[e.id] = summarizeAvailability(data as EventAvailabilityRow[]);
+          if (!data) return;
+          // En Sevens cuenta solo el grupo Sevens.
+          const rows = (data as EventAvailabilityRow[]).filter((r) => !sevensIds || sevensIds.has(r.player_id));
+          availability[e.id] = summarizeAvailability(rows);
         }),
     );
   }

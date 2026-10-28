@@ -6,11 +6,11 @@
 // si la hay, va en una columna al costado. Solo presentación: quien la usa
 // decide qué marcas hay y qué pasa al tocarlas.
 import { useEffect, useRef, type ReactNode } from "react";
-import type { PitchKind } from "@/lib/pitch";
+import type { LabelSide, PitchKind } from "@/lib/pitch";
 
 export const NO_POSITION = "Sin posición";
 
-const GRASS = new Set<PitchKind>(["rugby", "futbol", "hockey"]);
+const GRASS = new Set<PitchKind>(["rugby", "sevens", "futbol", "hockey"]);
 
 export type PitchMarker = {
   key: string;
@@ -29,7 +29,7 @@ export function Pitch({
   below,
 }: {
   kind: PitchKind;
-  markers: (PitchMarker & { x: number; y: number })[];
+  markers: (PitchMarker & { x: number; y: number; labelSide?: LabelSide })[];
   bench?: { title: string; markers: PitchMarker[] };
   below?: ReactNode;
 }) {
@@ -49,10 +49,21 @@ export function Pitch({
           {markers.map((m) => (
             <div
               key={m.key}
-              className="absolute -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${m.x}%`, top: `${m.y}%` }}
+              className="absolute"
+              // El centro del círculo (36 px) cae en (x, y); con la etiqueta al lado, se
+              // corre el botón para no mover el círculo.
+              style={{
+                left: `${m.x}%`,
+                top: `${m.y}%`,
+                transform:
+                  m.labelSide === "right"
+                    ? "translate(-22px, -50%)"
+                    : m.labelSide === "left"
+                      ? "translate(calc(-100% + 22px), -50%)"
+                      : "translate(-50%, -50%)",
+              }}
             >
-              <MarkerButton marker={m} onField />
+              <MarkerButton marker={m} onField side={m.labelSide ?? "below"} />
             </div>
           ))}
         </div>
@@ -80,9 +91,11 @@ function MarkerButton({
   marker: m,
   onField = false,
   compact = false,
+  side = "below",
 }: {
   marker: PitchMarker;
   onField?: boolean;
+  side?: LabelSide;
   compact?: boolean; // banca: círculo más chico para que entren todos los puestos
 }) {
   const hidden = !m.ariaLabel;
@@ -94,7 +107,9 @@ function MarkerButton({
       aria-hidden={hidden ? true : undefined}
       tabIndex={hidden ? -1 : 0}
       aria-label={m.ariaLabel}
-      className="flex min-h-11 min-w-11 flex-col items-center gap-0.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-white"
+      className={`flex min-h-11 min-w-11 items-center gap-0.5 rounded-xl px-1 outline-none focus-visible:ring-2 focus-visible:ring-white ${
+        side === "right" ? "flex-row" : side === "left" ? "flex-row-reverse" : "flex-col"
+      }`}
     >
       <span
         className={`flex items-center justify-center rounded-full border-2 text-xs font-bold tabular-nums shadow-sm transition ${
@@ -221,7 +236,7 @@ function FieldLines({ kind }: { kind: PitchKind }) {
           <rect key={i} x="0" y={i * 20} width="100" height="10" fill="white" fillOpacity="0.04" />
         ))}
       <rect x="4" y="4" width="92" height="132" {...line} />
-      {kind === "rugby" && (
+      {(kind === "rugby" || kind === "sevens") && (
         <>
           <line x1="4" y1="14" x2="96" y2="14" {...line} />
           <line x1="4" y1="126" x2="96" y2="126" {...line} />

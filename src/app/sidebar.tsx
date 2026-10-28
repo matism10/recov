@@ -10,6 +10,7 @@ import { clubIdentity } from "@/lib/club-identity";
 import { clubOptions } from "@/lib/club-options";
 
 import { photoUrl } from "@/lib/photos";
+import { getFormatContext } from "@/lib/format";
 
 // Datos de la navegación (sidebar de escritorio, barra móvil y encabezado del club).
 // Solo para usuarios confirmados: sin sesión, pendientes o rechazados no ven
@@ -34,7 +35,7 @@ const getNavData = cache(async () => {
   const roles = (profile.roles ?? []) as UserRole[];
   const direction = isDirection(roles);
 
-  const [pendingCount, avatarUrl] = await Promise.all([
+  const [pendingCount, avatarUrl, formatCtx] = await Promise.all([
     // RLS: solo la dirección ve las membresías pendientes de su plantel. Se cuentan
     // las del plantel activo, no las de otros planteles de la cuenta.
     direction && profile.club_id
@@ -46,6 +47,7 @@ const getNavData = cache(async () => {
           .then(({ count }) => count ?? 0)
       : 0,
     profile.avatar_path ? photoUrl("avatars", profile.avatar_path) : null,
+    getFormatContext(userId),
   ]);
 
   return {
@@ -65,6 +67,7 @@ const getNavData = cache(async () => {
     evaluations: canReadEvaluations(roles),
     player: roles.includes("jugador"),
     pendingCount,
+    sevens: formatCtx.format === "7",
   };
 });
 
@@ -95,6 +98,7 @@ export async function ClubHeaderNav() {
       fullName={nav.fullName}
       avatarUrl={nav.avatarUrl}
       clubs={nav.clubs}
+      sevens={nav.sevens}
     />
   );
 }

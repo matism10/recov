@@ -39,6 +39,8 @@ import { ResumenCover } from "./resumen-cover";
 import { clubOptions } from "@/lib/club-options";
 import { LoadBlock } from "@/app/load-block";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
+import { getFormatContext, inFormat } from "@/lib/format";
+import { FormatSwitch, SevensPositionBanner } from "@/app/sevens-ui";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
 const RESUMEN_AVAILABLE = 10;
@@ -74,6 +76,8 @@ export default async function DashboardPage() {
   // Plantel activo: filtra las listas (RLS devuelve las de todos los planteles de la cuenta).
   const clubIdPromise = getActiveClubId(user.id);
   const confirmed = profilePromise.then((p) => (p?.status === "confirmado" ? p : null));
+  // Formato activo (Rugby 15 o Sevens) y grupo Sevens del plantel.
+  const formatPromise = getFormatContext(user.id);
 
   const byRolePromise = confirmed.then(async (profile) => {
     if (!profile) return null;
@@ -83,9 +87,10 @@ export default async function DashboardPage() {
     // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
     // Solo decide qué se muestra; las funciones de la base validan el permiso real.
     const canManage = canManageInjuries(roles, user.id, profile.club?.kine_delegate_id);
+    const { format } = await formatPromise;
     const [myLoad, open, myInjuries, toReview, myPending] = await Promise.all([
-      // Jugador: su carga de partidos y sus convocatorias (solo datos propios).
-      isPlayer ? getMyLoad(supabase) : null,
+      // Jugador: su carga de partidos y sus convocatorias del formato activo (solo datos propios).
+      isPlayer ? getMyLoad(supabase, format) : null,
       // "Lesiones activas" (staff): lesiones abiertas del club (RLS); abajo se toman
       // solo las de los jugadores en Lesionado o Reintegro.
       staff
@@ -146,17 +151,19 @@ export default async function DashboardPage() {
         )
       : null,
   );
-  const [profile, squad, { data: nextMatch }, byRole, metricsData] = await Promise.all([
+  const [profile, squad, { data: nextMatch }, byRole, metricsData, formatCtx] = await Promise.all([
     profilePromise,
     // Plantel confirmado y activo, con fotos y la fase en curso de cada jugador.
     clubIdPromise.then((clubId) => getSquad(supabase, clubId)),
-    // Próximo partido: la competencia no cancelada más cercana del plantel activo.
-    clubIdPromise.then((clubId) =>
+    // Próximo partido: la competencia no cancelada más cercana del plantel activo,
+    // del formato activo.
+    Promise.all([clubIdPromise, formatPromise]).then(([clubId, { format }]) =>
       supabase
         .from("events")
         .select("id, starts_at, opponent")
         .eq("club_id", clubId)
         .eq("type", "competencia")
+        .eq("format", format)
         .is("cancelled_at", null)
         .gte("starts_at", new Date().toISOString())
         .order("starts_at")
@@ -165,6 +172,7 @@ export default async function DashboardPage() {
     ),
     byRolePromise,
     metricsPromise,
+    formatPromise,
   ]);
 
   if (profile?.status === "pendiente") redirect("/pendiente");
@@ -188,7 +196,12 @@ export default async function DashboardPage() {
     );
   }
 
-  const { players, avatarUrls, phaseByPlayer } = squad;
+  const { avatarUrls, phaseByPlayer } = squad;
+  // En Sevens, las listas muestran solo al grupo Sevens.
+  const players = inFormat(squad.players, formatCtx);
+  // Aviso para elegir posición: en Sevens, a quien está en el grupo y no tiene una.
+  const mySevens = formatCtx.group.get(user.id);
+  const askSevensPosition = formatCtx.format === "7" && mySevens !== undefined && !mySevens.position;
   // En el Resumen, solo los primeros disponibles; el plantel completo está en /plantel.
   const availablePlayers = players
     .filter((p) => p.availability === "disponible")
@@ -258,6 +271,9 @@ export default async function DashboardPage() {
       />
     )}
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
+      {/* Selector de formato: solo aquí, y solo si la cuenta puede trabajar en Sevens. */}
+      {formatCtx.canSevens && <FormatSwitch format={formatCtx.format} />}
+      {askSevensPosition && <SevensPositionBanner />}
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <PageTitle>Disponibilidad del plantel</PageTitle>

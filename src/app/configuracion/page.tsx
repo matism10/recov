@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isDirection, type UserRole } from "@/lib/roles";
 import { clubLogoUrl } from "@/lib/club-logo";
-import { cardClass, textButton } from "@/app/ui";
+import { buttonSecondary, cardClass, textButton } from "@/app/ui";
 import { LogoForm } from "./logo-form";
 import { CoverForm } from "./cover-form";
 import { clubCoverUrl } from "@/lib/club-identity";
@@ -11,6 +11,7 @@ import { MetricsForm } from "./metrics-form";
 import { NominaModeForm } from "./nomina-mode-form";
 import type { NominaMode } from "@/lib/match-load";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
+import { SevensToggle } from "./sevens-form";
 
 // Configuración del club: solo la dirección (head coach y manager).
 export default async function SettingsPage() {
@@ -85,6 +86,23 @@ export default async function SettingsPage() {
           loadedCount={loadedCount ?? 0}
         />
       </section>
+
+      {club?.sport === "rugby" && (
+        <section className={`mt-6 p-5 ${cardClass}`}>
+          <h2 className="font-medium text-ink">Rugby Sevens</h2>
+          <p className="mt-1 mb-4 text-sm text-muted">
+            Sevens usa el mismo plantel: fichas, lesiones y evaluaciones son las mismas. Con
+            Sevens activo, el Resumen muestra el selector Rugby 15 | Sevens a la dirección y al
+            grupo Sevens.
+          </p>
+          <SevensToggle enabled={club.has_sevens} />
+          {club.has_sevens && (
+            <Link href="/configuracion/sevens" className={`mt-4 text-sm ${buttonSecondary}`}>
+              Grupo Sevens
+            </Link>
+          )}
+        </section>
+      )}
 
       {isHeadCoach && (
         <section className={`mt-6 p-5 ${cardClass}`}>

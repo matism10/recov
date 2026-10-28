@@ -71,11 +71,20 @@ export default async function ParticipationPage({
   }
 
   // Convocados, participación ya cargada, escala y tope del deporte.
+  // Escala y tope del formato del evento (Sevens tiene los suyos).
+  const format = ((data as EventRow).format === "7" ? "7" : "15") as "15" | "7";
   const [players, { data: loaded }, scale, { data: sport }] = await Promise.all([
     callupPlayersPromise,
     loadedPromise,
-    getLoadScale(supabase, club.sport),
-    supabase.from("sports").select("max_minutes").eq("slug", club.sport).maybeSingle(),
+    getLoadScale(supabase, club.sport, format),
+    format === "7"
+      ? supabase
+          .from("sport_format_config")
+          .select("max_minutes")
+          .eq("sport", club.sport)
+          .eq("format", "7")
+          .maybeSingle()
+      : supabase.from("sports").select("max_minutes").eq("slug", club.sport).maybeSingle(),
   ]);
   const byPlayer = new Map((loaded ?? []).map((p) => [p.player_id as string, p]));
 

@@ -22,7 +22,7 @@ export const getSessionUser = cache(async () => {
 
 // Columnas del plantel que piden el layout y las páginas.
 const CLUB_COLUMNS =
-  "name, sport, category, logo_path, cover_path, cover_position_x, cover_position_y, kine_delegate_id, nomina_delegate_id, nomina_mode, dashboard_metrics, dashboard_metrics_mobile";
+  "name, sport, category, logo_path, cover_path, cover_position_x, cover_position_y, kine_delegate_id, nomina_delegate_id, nomina_mode, dashboard_metrics, dashboard_metrics_mobile, has_sevens";
 
 // Perfil (nombre y foto, de la cuenta) con todas sus membresías y su plantel.
 // Desde 0043 profiles es solo identidad: plantel, roles y estado salen de club_members.
@@ -43,6 +43,7 @@ export type MyClub = {
   nomina_mode: string;
   dashboard_metrics: string[] | null;
   dashboard_metrics_mobile: string[] | null;
+  has_sevens: boolean;
 };
 
 // Una membresía de la cuenta (para el selector de plantel).

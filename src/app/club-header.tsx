@@ -10,6 +10,7 @@ import type { ClubOption } from "@/lib/club-options";
 import { Avatar } from "@/app/avatar";
 import { isNavHidden } from "@/app/nav-items";
 import { setActiveClub } from "@/app/plantel-activo";
+import { SevensChip } from "./sevens-ui";
 
 function initials(name: string) {
   return name
@@ -163,11 +164,14 @@ export function ClubHeader({
   fullName,
   avatarUrl,
   clubs,
+  sevens = false,
 }: {
   identity: ClubIdentity;
   fullName: string;
   avatarUrl: string | null;
   clubs: ClubOption[];
+  // Formato activo Sevens: chip pasivo junto al nombre (el selector está en el Resumen).
+  sevens?: boolean;
 }) {
   const pathname = usePathname();
   if (isNavHidden(pathname)) return null;
@@ -193,6 +197,7 @@ export function ClubHeader({
             {subtitle && <p className="truncate text-sm leading-4 text-[#475569]">{subtitle}</p>}
           </div>
         </ClubSwitcher>
+        {sevens && <SevensChip />}
       </div>
       <span className="lg:hidden">
         <ProfileLink fullName={fullName} avatarUrl={avatarUrl} />

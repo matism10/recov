@@ -72,10 +72,12 @@ export type SummaryPlayer = { name: string; position: string | null };
 export const SUMMARY_NAMES = 5;
 
 // Columnas de public.events que usa la app.
-export const EVENT_COLUMNS = "id, type, starts_at, ends_at, location, opponent, notes, series_id, cancelled_at";
+export const EVENT_COLUMNS = "id, type, starts_at, ends_at, location, opponent, notes, series_id, cancelled_at, format";
 
 export type EventRow = {
   id: string;
+  // Formato del evento: '15' o '7' (Rugby Sevens, 0045).
+  format?: string;
   type: EventType;
   starts_at: string;
   ends_at: string;

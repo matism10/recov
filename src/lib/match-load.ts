@@ -111,8 +111,13 @@ export type MyLoad = LoadBase & {
 export type LoadResult<T> = { ok: true; data: T } | { ok: false };
 
 // Carga del plantel (staff). La función valida en la base que sea staff confirmado.
-export async function getTeamLoad(supabase: Client, matches = 4): Promise<LoadResult<TeamLoad>> {
-  const { data, error } = await supabase.rpc("team_match_load", { p_matches: matches });
+// format: el del evento o el activo ('15' por defecto); en '7' el plantel es el grupo Sevens.
+export async function getTeamLoad(
+  supabase: Client,
+  matches = 4,
+  format: "15" | "7" = "15",
+): Promise<LoadResult<TeamLoad>> {
+  const { data, error } = await supabase.rpc("team_match_load", { p_matches: matches, p_format: format });
   if (error || !data) {
     if (error) console.error("[match-load] team_match_load:", error.message);
     return { ok: false };
@@ -121,8 +126,8 @@ export async function getTeamLoad(supabase: Client, matches = 4): Promise<LoadRe
 }
 
 // Carga propia del jugador autenticado (sin datos de otros ni semáforo).
-export async function getMyLoad(supabase: Client): Promise<LoadResult<MyLoad>> {
-  const { data, error } = await supabase.rpc("my_match_load");
+export async function getMyLoad(supabase: Client, format: "15" | "7" = "15"): Promise<LoadResult<MyLoad>> {
+  const { data, error } = await supabase.rpc("my_match_load", { p_format: format });
   if (error || !data) {
     if (error) console.error("[match-load] my_match_load:", error.message);
     return { ok: false };
@@ -130,9 +135,13 @@ export async function getMyLoad(supabase: Client): Promise<LoadResult<MyLoad>> {
   return { ok: true, data: data as MyLoad };
 }
 
-// Escala de rangos del deporte del club.
-export async function getLoadScale(supabase: Client, sport: string): Promise<LoadScaleRow[]> {
-  const { data } = await supabase.rpc("sport_load_scale", { p_sport: sport });
+// Escala de rangos del deporte del club en un formato (Sevens tiene la suya).
+export async function getLoadScale(
+  supabase: Client,
+  sport: string,
+  format: "15" | "7" = "15",
+): Promise<LoadScaleRow[]> {
+  const { data } = await supabase.rpc("format_load_scale", { p_sport: sport, p_format: format });
   return ((data ?? []) as LoadScaleRow[]).sort((a, b) => a.bucket - b.bucket);
 }
 
@@ -170,4 +179,23 @@ export function playedStreak(values: LoadValue[]) {
   let n = 0;
   for (let i = values.length - 1; i >= 0 && values[i].played; i--) n++;
   return n;
+}
+
+// Titulares y banca de un deporte en un formato: el 15 sale de sports y los demás
+// formatos de sport_format_config (Sevens: 7 + 5).
+export async function getLineupSize(
+  supabase: Client,
+  sport: string,
+  format: "15" | "7" = "15",
+): Promise<{ starters: number; bench: number }> {
+  const { data } =
+    format === "15"
+      ? await supabase.from("sports").select("starters, bench_size").eq("slug", sport).maybeSingle()
+      : await supabase
+          .from("sport_format_config")
+          .select("starters, bench_size")
+          .eq("sport", sport)
+          .eq("format", format)
+          .maybeSingle();
+  return { starters: (data?.starters as number | undefined) ?? 0, bench: (data?.bench_size as number | undefined) ?? 0 };
 }
