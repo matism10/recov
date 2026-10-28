@@ -129,9 +129,9 @@ begin
   perform pg_temp.as_user(uid);
   perform pg_temp.expect_state($q$select public.create_test_definition('aaaaaaaa-0000-0000-0000-0000000000e1', 'Otro test', 'cm')$q$, '42501', who || ' crea un test');
   perform pg_temp.expect_state(format($q$select public.record_test_results(%L, (select today - 1 from d), '[{"player_id":"e3000000-0000-0000-0000-000000000001","value":100}]')$q$,
-    (select id from public.test_definitions where name = 'Sentadilla 1RM')), '42501', who || ' registra resultados');
+    (select id from public.test_definitions where club_id = 'aaaaaaaa-0000-0000-0000-0000000000e1' and name = 'Sentadilla 1RM')), '42501', who || ' registra resultados');
   perform pg_temp.expect_state(format($q$select public.archive_test_definition(%L)$q$,
-    (select id from public.test_definitions where name = 'Sentadilla 1RM')), '42501', who || ' archiva un test');
+    (select id from public.test_definitions where club_id = 'aaaaaaaa-0000-0000-0000-0000000000e1' and name = 'Sentadilla 1RM')), '42501', who || ' archiva un test');
   perform pg_temp.back();
 end $$;
 select pg_temp.expect_no_write('e1000000-0000-0000-0000-000000000002', 'manager');
@@ -146,9 +146,9 @@ select pg_temp.expect_fail($q$select 1 from public.test_definitions$q$, 'anónim
 select pg_temp.back();
 
 create temp table t as select
-  (select id from public.test_definitions where name = 'Sentadilla 1RM') squat,
-  (select id from public.test_definitions where name = 'Sprint 20 m') sprint,
-  (select id from public.test_definitions where name = 'Bronco test') bronco;
+  (select id from public.test_definitions where club_id = 'aaaaaaaa-0000-0000-0000-0000000000e1' and name = 'Sentadilla 1RM') squat,
+  (select id from public.test_definitions where club_id = 'aaaaaaaa-0000-0000-0000-0000000000e1' and name = 'Sprint 20 m') sprint,
+  (select id from public.test_definitions where club_id = 'aaaaaaaa-0000-0000-0000-0000000000e1' and name = 'Bronco test') bronco;
 grant select on t to authenticated;
 
 -- =======================================================================
@@ -173,7 +173,7 @@ select pg_temp.expect_fail($q$select public.record_test_results((select squat fr
 select pg_temp.expect_fail($q$select public.record_test_results((select squat from t), (select today - 14 from d),
   '[{"player_id":"e3000000-0000-0000-0000-000000000001","value":121}]')$q$, 'segundo resultado activo el mismo día');
 select pg_temp.back();
-select pg_temp.expect_count($q$select 1 from public.test_results where measured_on = (select today from d)$q$, 0, 'los lotes inválidos no guardan nada');
+select pg_temp.expect_count($q$select 1 from public.test_results where club_id = 'aaaaaaaa-0000-0000-0000-0000000000e1' and measured_on = (select today from d)$q$, 0, 'los lotes inválidos no guardan nada');
 
 select pg_temp.as_user('e1000000-0000-0000-0000-000000000006'); -- preparador físico: segunda evaluación
 select pg_temp.expect_ok($q$select public.record_test_results((select squat from t), (select today - 2 from d), '[
