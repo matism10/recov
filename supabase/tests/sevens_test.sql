@@ -224,23 +224,23 @@ select pg_temp.expect_count($q$select 1 from public.sevens_group where club_id =
 -- =======================================================================
 -- 5. Eventos Sevens: puestos 1–12; en el 15, 1–23. Escala y carga por formato.
 -- =======================================================================
--- create_event como el head coach A (identidad por el JWT; la tabla temporal la crea postgres).
+-- create_event como el head coach A (identidad por el JWT). Los ids quedan en test.e7 y test.e15.
 select set_config('request.jwt.claims', json_build_object('sub', 'f7000000-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
-create temp table ev as select
-  (select x from public.create_event('competencia', now() - interval '1 day', now() - interval '1 day' + interval '30 minutes', p_opponent => 'Rival 7', p_format => '7') x) e7,
-  (select x from public.create_event('competencia', now() - interval '2 days', now() - interval '2 days' + interval '2 hours', p_opponent => 'Rival 15') x) e15;
-grant select on ev to authenticated;
-select pg_temp.expect_count($q$select 1 from public.events e join ev on e.id = ev.e7 where e.format = '7'$q$, 1, 'create_event crea el evento Sevens');
-select pg_temp.expect_count($q$select 1 from public.events e join ev on e.id = ev.e15 where e.format = '15'$q$, 1, 'por defecto el evento es del 15');
+select set_config('test.e7', (select x::text from public.create_event('competencia', now() - interval '1 day',
+  now() - interval '1 day' + interval '30 minutes', p_opponent => 'Rival 7', p_format => '7') x), true);
+select set_config('test.e15', (select x::text from public.create_event('competencia', now() - interval '2 days',
+  now() - interval '2 days' + interval '2 hours', p_opponent => 'Rival 15') x), true);
+select pg_temp.expect_count($q$select 1 from public.events e where e.id = current_setting('test.e7')::uuid and e.format = '7'$q$, 1, 'create_event crea el evento Sevens');
+select pg_temp.expect_count($q$select 1 from public.events e where e.id = current_setting('test.e15')::uuid and e.format = '15'$q$, 1, 'por defecto el evento es del 15');
 select pg_temp.as_user('f7000000-0000-0000-0000-000000000001');
-select pg_temp.expect_ok($q$select public.set_event_lineup((select e7 from ev), '[
+select pg_temp.expect_ok($q$select public.set_event_lineup(current_setting('test.e7')::uuid, '[
   {"player_id":"f7100000-0000-0000-0000-000000000001","slot":1},
   {"player_id":"f7100000-0000-0000-0000-000000000002","slot":12}]')$q$, 'Sevens: puestos 1 y 12 válidos');
-select pg_temp.expect_fail($q$select public.set_event_lineup((select e7 from ev), '[{"player_id":"f7100000-0000-0000-0000-000000000001","slot":13}]')$q$, 'Sevens: puesto 13 rechazado');
-select pg_temp.expect_ok($q$select public.set_event_lineup((select e15 from ev), '[
+select pg_temp.expect_fail($q$select public.set_event_lineup(current_setting('test.e7')::uuid, '[{"player_id":"f7100000-0000-0000-0000-000000000001","slot":13}]')$q$, 'Sevens: puesto 13 rechazado');
+select pg_temp.expect_ok($q$select public.set_event_lineup(current_setting('test.e15')::uuid, '[
   {"player_id":"f7100000-0000-0000-0000-000000000001","slot":1},
   {"player_id":"f7100000-0000-0000-0000-000000000002","slot":23}]')$q$, '15: puestos 1 y 23 válidos');
-select pg_temp.expect_fail($q$select public.set_event_lineup((select e15 from ev), '[{"player_id":"f7100000-0000-0000-0000-000000000001","slot":24}]')$q$, '15: puesto 24 rechazado');
+select pg_temp.expect_fail($q$select public.set_event_lineup(current_setting('test.e15')::uuid, '[{"player_id":"f7100000-0000-0000-0000-000000000001","slot":24}]')$q$, '15: puesto 24 rechazado');
 select pg_temp.back();
 
 select pg_temp.expect_count($q$select 1 from (select string_agg(midpoint::text, ',' order by bucket) m, string_agg(label, ',' order by bucket) l,
@@ -251,16 +251,16 @@ select pg_temp.expect_count($q$select 1 from (select string_agg(midpoint::text, 
 
 update public.clubs set nomina_mode = 'exacto' where id = 'aaaaaaaa-0000-0000-0000-0000000000f7';
 select pg_temp.as_user('f7000000-0000-0000-0000-000000000001');
-select pg_temp.expect_fail($q$select public.set_event_participation((select e7 from ev), '[{"player_id":"f7100000-0000-0000-0000-000000000001","minutes":15}]')$q$, 'Sevens: más de 14 minutos rechazado');
-select pg_temp.expect_ok($q$select public.set_event_participation((select e7 from ev), '[
+select pg_temp.expect_fail($q$select public.set_event_participation(current_setting('test.e7')::uuid, '[{"player_id":"f7100000-0000-0000-0000-000000000001","minutes":15}]')$q$, 'Sevens: más de 14 minutos rechazado');
+select pg_temp.expect_ok($q$select public.set_event_participation(current_setting('test.e7')::uuid, '[
   {"player_id":"f7100000-0000-0000-0000-000000000001","minutes":14},
   {"player_id":"f7100000-0000-0000-0000-000000000002","minutes":7}]')$q$, 'Sevens: 14 y 7 minutos');
-select pg_temp.expect_ok($q$select public.set_event_participation((select e15 from ev), '[{"player_id":"f7100000-0000-0000-0000-000000000001","minutes":80}]')$q$, '15: 80 minutos');
+select pg_temp.expect_ok($q$select public.set_event_participation(current_setting('test.e15')::uuid, '[{"player_id":"f7100000-0000-0000-0000-000000000001","minutes":80}]')$q$, '15: 80 minutos');
 select pg_temp.back();
-select pg_temp.expect_count($q$select 1 from public.event_participations p join ev on p.event_id = ev.e7
-  where (p.minutes, p.range_bucket) in ((14, 4), (7, 2))$q$, 2, 'Sevens: 14 min = rango 4 y 7 min = rango 2');
-select pg_temp.expect_count($q$select 1 from public.event_participations p join ev on p.event_id = ev.e15
-  where p.minutes = 80 and p.range_bucket = 4$q$, 1, '15: 80 min = rango 4');
+select pg_temp.expect_count($q$select 1 from public.event_participations p where p.event_id = current_setting('test.e7')::uuid
+  and (p.minutes, p.range_bucket) in ((14, 4), (7, 2))$q$, 2, 'Sevens: 14 min = rango 4 y 7 min = rango 2');
+select pg_temp.expect_count($q$select 1 from public.event_participations p where p.event_id = current_setting('test.e15')::uuid
+  and p.minutes = 80 and p.range_bucket = 4$q$, 1, '15: 80 min = rango 4');
 
 select pg_temp.as_user('f7000000-0000-0000-0000-000000000004'); -- entrenador (staff)
 select pg_temp.expect_count($q$select 1 where (public.team_match_load(4, '7') ->> 'matches_count')::int = 1
