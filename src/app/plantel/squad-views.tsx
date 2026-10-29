@@ -36,7 +36,8 @@ export function SquadViews({
   );
 }
 
-function SquadPitch({
+// También la usa el Plantel en Sevens (kind "sevens", con la posición de Sevens).
+export function SquadPitch({
   kind,
   positions,
   ...props
@@ -61,6 +62,7 @@ function SquadPitch({
         key: `${s.slot}`,
         x: s.x,
         y: s.y,
+        labelSide: s.labelSide,
         code: s.code,
         label: shortPositionLabel(s.position),
         active: selected === s.position,

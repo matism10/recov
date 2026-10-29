@@ -39,7 +39,7 @@ import { ResumenCover } from "./resumen-cover";
 import { clubOptions } from "@/lib/club-options";
 import { LoadBlock } from "@/app/load-block";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
-import { getFormatContext, inFormat } from "@/lib/format";
+import { formatPlayerIds, getFormatContext, inFormat } from "@/lib/format";
 import { FormatSwitch, SevensPositionBanner } from "@/app/sevens-ui";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
@@ -88,6 +88,8 @@ export default async function DashboardPage() {
     // Solo decide qué se muestra; las funciones de la base validan el permiso real.
     const canManage = canManageInjuries(roles, user.id, profile.club?.kine_delegate_id);
     const { format } = await formatPromise;
+    // En Sevens, "Por revisar" muestra solo las lesiones de los jugadores del grupo.
+    const sevensIds = await formatPlayerIds(user.id);
     const [myLoad, open, myInjuries, toReview, myPending] = await Promise.all([
       // Jugador: su carga de partidos y sus convocatorias del formato activo (solo datos propios).
       isPlayer ? getMyLoad(supabase, format) : null,
@@ -117,13 +119,16 @@ export default async function DashboardPage() {
       // Bandeja "Por revisar": lesiones esperando el diagnóstico del jugador y
       // diagnósticos que el jugador ya subió y nadie ha revisado.
       canManage
-        ? supabase
-            .from("injuries")
-            .select("id, type, status, started_on, players(full_name)")
-            .eq("club_id", profile.club_id!)
-            .or("status.eq.en_evaluacion,and(status.eq.activa,reviewed_at.is.null)")
-            .order("started_on")
-            .then(({ data }) => (data ?? []) as ReviewRow[])
+        ? (() => {
+            const q = supabase
+              .from("injuries")
+              .select("id, type, status, started_on, players(full_name)")
+              .eq("club_id", profile.club_id!)
+              .or("status.eq.en_evaluacion,and(status.eq.activa,reviewed_at.is.null)");
+            return (sevensIds ? q.in("player_id", sevensIds) : q)
+              .order("started_on")
+              .then(({ data }) => (data ?? []) as ReviewRow[]);
+          })()
         : [],
       // RLS: el jugador ve solo sus lesiones; se filtra por si además es staff.
       isPlayer
@@ -142,12 +147,14 @@ export default async function DashboardPage() {
   });
 
   // Franja de métricas (staff): sus datos salen ya, en paralelo con el resto.
-  const metricsPromise = confirmed.then((profile) =>
+  // En Sevens, las métricas son del grupo Sevens (0046).
+  const metricsPromise = Promise.all([confirmed, formatPromise]).then(([profile, { format }]) =>
     profile && isStaff((profile.roles ?? []) as UserRole[])
       ? loadMetricsStrip(
           supabase,
           dashboardMetricsOf(profile.club?.dashboard_metrics ?? null),
           dashboardMetricsOf(profile.club?.dashboard_metrics_mobile ?? null, DEFAULT_DASHBOARD_METRICS_MOBILE),
+          format,
         )
       : null,
   );
@@ -199,9 +206,14 @@ export default async function DashboardPage() {
   const { avatarUrls, phaseByPlayer } = squad;
   // En Sevens, las listas muestran solo al grupo Sevens.
   const players = inFormat(squad.players, formatCtx);
-  // Aviso para elegir posición: en Sevens, a quien está en el grupo y no tiene una.
+  // Aviso para elegir posición: en Sevens, solo a los jugadores del grupo sin posición
+  // (el staff del grupo no lo ve).
   const mySevens = formatCtx.group.get(user.id);
-  const askSevensPosition = formatCtx.format === "7" && mySevens !== undefined && !mySevens.position;
+  const askSevensPosition =
+    formatCtx.format === "7" &&
+    (profile.roles ?? []).includes("jugador") &&
+    mySevens !== undefined &&
+    !mySevens.position;
   // En el Resumen, solo los primeros disponibles; el plantel completo está en /plantel.
   const availablePlayers = players
     .filter((p) => p.availability === "disponible")

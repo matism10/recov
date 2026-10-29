@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { Check, ChevronDown, Clock } from "lucide-react";
-import type { ClubIdentity } from "@/lib/club-identity";
+import { COVER_GRADIENT, type ClubIdentity } from "@/lib/club-identity";
 import type { ClubOption } from "@/lib/club-options";
 import { Avatar } from "@/app/avatar";
 import { isNavHidden } from "@/app/nav-items";
@@ -120,13 +120,16 @@ export function ClubHero({
           }}
         />
       )}
+      {/* Celular: degradado más leve; computador: el de siempre. */}
       <div
         aria-hidden="true"
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(to top, rgba(11,23,38,.90) 0%, rgba(11,23,38,.78) 55%, rgba(11,23,38,.35) 100%)",
-        }}
+        className="absolute inset-0 lg:hidden"
+        style={{ background: COVER_GRADIENT.celular }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 hidden lg:block"
+        style={{ background: COVER_GRADIENT.computador }}
       />
       </div>
       {/* En escritorio el perfil va abajo en la sidebar. */}
@@ -164,14 +167,15 @@ export function ClubHeader({
   fullName,
   avatarUrl,
   clubs,
-  sevens = false,
+  format = null,
 }: {
   identity: ClubIdentity;
   fullName: string;
   avatarUrl: string | null;
   clubs: ClubOption[];
-  // Formato activo Sevens: chip pasivo junto al nombre (el selector está en el Resumen).
-  sevens?: boolean;
+  // Formato activo ("15" o "7") para quien tiene los dos; null si no. Chip pasivo junto
+  // al nombre en todas las pantallas (el selector está en el Resumen).
+  format?: "15" | "7" | null;
 }) {
   const pathname = usePathname();
   if (isNavHidden(pathname)) return null;
@@ -197,7 +201,7 @@ export function ClubHeader({
             {subtitle && <p className="truncate text-sm leading-4 text-[#475569]">{subtitle}</p>}
           </div>
         </ClubSwitcher>
-        {sevens && <SevensChip />}
+        {format && <SevensChip format={format} />}
       </div>
       <span className="lg:hidden">
         <ProfileLink fullName={fullName} avatarUrl={avatarUrl} />

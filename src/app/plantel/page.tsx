@@ -58,7 +58,8 @@ export default async function SquadPage() {
         </p>
       </header>
 
-      {sevens && mySevens && !mySevens.position && <SevensPositionBanner />}
+      {/* Aviso de posición de Sevens: solo jugadores del grupo, no el staff. */}
+      {sevens && roles.includes("jugador") && mySevens && !mySevens.position && <SevensPositionBanner />}
 
       {players.length > 0 && sevens ? (
         <SevensSquad

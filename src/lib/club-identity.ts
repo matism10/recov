@@ -48,3 +48,10 @@ export function clubIdentity(club: {
     coverPosition: club.coverPosition,
   };
 }
+
+// Degradado sobre la portada para que se lea el nombre del club. En celular es más
+// leve (la foto se ve más); en computador, el de siempre.
+export const COVER_GRADIENT = {
+  celular: "linear-gradient(to top, rgba(11,23,38,.72) 0%, rgba(11,23,38,.45) 55%, rgba(11,23,38,.08) 100%)",
+  computador: "linear-gradient(to top, rgba(11,23,38,.90) 0%, rgba(11,23,38,.78) 55%, rgba(11,23,38,.35) 100%)",
+} as const;

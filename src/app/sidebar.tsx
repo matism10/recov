@@ -67,7 +67,8 @@ const getNavData = cache(async () => {
     evaluations: canReadEvaluations(roles),
     player: roles.includes("jugador"),
     pendingCount,
-    sevens: formatCtx.format === "7",
+    // Indicador de formato: solo para quien puede trabajar en Rugby 15 y en Sevens.
+    format: formatCtx.canSevens ? formatCtx.format : null,
   };
 });
 
@@ -98,7 +99,7 @@ export async function ClubHeaderNav() {
       fullName={nav.fullName}
       avatarUrl={nav.avatarUrl}
       clubs={nav.clubs}
-      sevens={nav.sevens}
+      format={nav.format}
     />
   );
 }

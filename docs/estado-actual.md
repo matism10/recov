@@ -5,8 +5,8 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #80, 28 oct), salvo #81 (Sevens, app).
-- Migraciones 0001 a 0045 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
+- Todo está mergeado en `main` (último: PR #81, 28 oct), salvo #82 (ajustes de Sevens).
+- Migraciones 0001 a 0046 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
 - 28 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
 - Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones) y `sevens_test.sql` (Rugby Sevens).
@@ -24,9 +24,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 0043: `profiles` queda solo como identidad (sin `club_id`, `roles`, `status`, `requested_role`); respaldo en `private.profiles_legacy_backup`.
   - 0044: evaluaciones físicas (`test_definitions`, `test_results` y sus funciones).
   - 0045: Rugby Sevens: `clubs.has_sevens`, `positions.format`, `sevens_group`, `events.format`, `sport_format_config`, `create_event` con `p_format` y carga por formato.
+  - 0046: métricas por formato: `dash_*(…, p_format)` (en '7' solo el grupo Sevens y su posición de Sevens); las de siempre no cambian.
 
 ## Historial
 - 28 oct · #81 · Rugby Sevens, app: formato activo, selector en el Resumen, filtros por formato, nómina Sevens y Grupo Sevens.
+- 28 oct · #82 · Sevens: métricas por formato (0046), cancha horizontal de Sevens también en el Plantel, indicador de formato en el encabezado, aviso de posición solo para jugadores, lesiones separadas por formato y degradado más leve en la portada del celular.
 - 28 oct · #80 · Rugby Sevens, base de datos (0045); la app filtra posiciones al formato 15.
 - 26 oct · #79 · `docs/estado-actual.md` al día y regla para mantenerlo en `CLAUDE.md`.
 - 25 oct · #78 · Evaluaciones físicas (0044): carga, comparación del plantel y "Mis evaluaciones".
@@ -96,10 +98,12 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - La dirección activa Sevens (`set_club_sevens`, solo rugby) y arma el grupo con jugadores y staff (`set_sevens_group`). Cada miembro elige su posición de Sevens (`set_my_sevens_position`): Pilar, Hooker, Medio scrum, Apertura, Centro o Wing (`positions.format = '7'`).
 - Los eventos tienen formato (`events.format`). En Sevens, la nómina admite los puestos 1 a 12 (7 titulares y 5 de banca) y la participación usa 14 minutos con tope 14 y rangos 0 / 1–4 / 5–9 / 10–13 / 14 (provisorio, en `sport_format_config`). La carga se calcula por formato (`team_match_load(n, formato)`, `my_match_load(formato)`).
 - Formato activo: cookie `recov_format` (`src/lib/format.ts`, `getActiveFormat`). Es '7' solo si el plantel tiene Sevens y la cuenta está en el grupo o es de la dirección; al cambiar de plantel vuelve a '15'.
-- El selector "Rugby 15 | Sevens" va solo arriba del Resumen; en las demás pantallas, un chip "Sevens" en el encabezado.
-- En Sevens: Plantel, Lesiones activas del Resumen y las listas de jugadores muestran solo el grupo. El Plantel muestra la posición de Sevens con chips por posición. Calendario, Nóminas, Métricas, Carga y la ficha usan solo eventos del formato; los eventos nuevos nacen en el formato activo. Lesiones, documentos, fases y evaluaciones no se separan.
-- Quien está en el grupo y no tiene posición de Sevens ve el aviso "Elige tu posición en Sevens" en el Resumen y el Plantel.
-- La nómina sigue el formato del evento: en Sevens, cancha de 7 (puestos 1 a 7) y banca 8 a 12 (`src/lib/pitch.ts`, tipo `sevens`).
+- El selector "Rugby 15 | Sevens" va solo arriba del Resumen.
+- En Sevens: Plantel, Lesiones activas del Resumen y las listas de jugadores muestran solo el grupo. El Plantel muestra la posición de Sevens con chips por posición. Calendario, Nóminas, Métricas, Carga y la ficha usan solo eventos del formato; los eventos nuevos nacen en el formato activo. "Por revisar" del Resumen y la pantalla Lesiones muestran solo las lesiones del grupo; el detalle de cada lesión, documentos, fases y evaluaciones no se separan.
+- Los jugadores del grupo sin posición de Sevens ven el aviso "Elige tu posición en Sevens" en el Resumen y el Plantel (el staff no).
+- Métricas del Resumen y de Métricas por formato (0046): en Sevens, solo el grupo y su posición de Sevens.
+- El selector cambia todo de una vez. Para quien tiene los dos formatos, el encabezado de cada pantalla muestra "Rugby 15" o "Sevens".
+- Cancha de Sevens horizontal, como la imagen de referencia (1 y 3 arriba, 2 entre ellos, 4 a 7 en diagonal), en el Plantel y en la nómina (banca 8 a 12 en una franja debajo). La nómina sigue el formato del evento (`src/lib/pitch.ts`, tipo `sevens`).
 - Configuración (dirección, solo rugby): "Activar Sevens" y la pantalla `/configuracion/sevens` (Grupo Sevens: casillas y "Guardar grupo"). El registro por `/c/[slug]` no cambia: siempre entra al 15.
 
 ## Funciones por rol
@@ -162,7 +166,7 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Seguridad:** activar "Leaked password protection" en Supabase Auth (desde el panel).
 - **Base de datos:**
   - anotar la 0043 en `supabase_migrations.schema_migrations`;
-  - 0046: borrar `private.profiles_legacy_backup` una semana después de aplicar la 0043 (desde ~1 nov);
+  - 0047: borrar `private.profiles_legacy_backup` una semana después de aplicar la 0043 (desde ~1 nov);
   - quedan sin uso `pg_net`, `private.member_emails`, `profiles.email_verified_at`, `private.email_verification_tokens`, `create_email_verification` y `verify_email`.
 - **Datos de demo:** hc.demo sigue como head coach confirmado en Demo - Fútbol; no hay cuentas demo de preparador físico ni de nutricionista.
 - **Limpieza:** borrar las ramas viejas ya mergeadas, en local y en GitHub.
