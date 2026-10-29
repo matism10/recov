@@ -72,3 +72,12 @@ export const getSevensPlayerIds = cache(async (userId: string): Promise<Set<stri
     .in("user_id", [...ctx.group.keys()]);
   return new Set(((data ?? []) as { id: string }[]).map((p) => p.id));
 });
+
+// Para filtrar consultas por jugador (.in("player_id", …)) en el formato activo: null en
+// Rugby 15 (no se filtra); en Sevens, las fichas del grupo. Sin nadie en el grupo, un id
+// que no existe deja la lista vacía.
+export async function formatPlayerIds(userId: string): Promise<string[] | null> {
+  if ((await getActiveFormat(userId)) !== "7") return null;
+  const ids = [...(await getSevensPlayerIds(userId))];
+  return ids.length > 0 ? ids : ["00000000-0000-0000-0000-000000000000"];
+}

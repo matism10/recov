@@ -5,6 +5,7 @@ import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/
 import { isStaff, type UserRole } from "@/lib/roles";
 import { formatDate, type InjuryStatus } from "@/lib/injuries";
 import { getAvatarUrls } from "@/lib/avatars";
+import { formatPlayerIds } from "@/lib/format";
 import { Avatar } from "@/app/avatar";
 import { InjuryProgress } from "../injury-progress";
 import { InjuryStatusBadge, PageTitle, SectionTitle, buttonSecondary, cardClass } from "@/app/ui";
@@ -49,22 +50,26 @@ export default async function InjuriesPage({
   const columns =
     "id, type, status, started_on, expected_return_on, closed_on, players(full_name, user_id)";
   // Solo las del plantel activo (RLS trae las de todos los planteles de la cuenta).
-  const clubId = await getActiveClubId(user.id);
+  // En Sevens, solo las lesiones de los jugadores del grupo Sevens.
+  const [clubId, sevensIds] = await Promise.all([getActiveClubId(user.id), formatPlayerIds(user.id)]);
+  let openQuery = supabase
+    .from("injuries")
+    .select(columns)
+    .eq("club_id", clubId)
+    .in("status", OPEN_STATUSES);
+  let pastQuery = supabase
+    .from("injuries")
+    .select(columns, { count: "exact" })
+    .eq("club_id", clubId)
+    .in("status", PAST_STATUSES);
+  if (sevensIds) {
+    openQuery = openQuery.in("player_id", sevensIds);
+    pastQuery = pastQuery.in("player_id", sevensIds);
+  }
   const [me, { data: openRows }, { data: pastRows, count: pastTotal }] = await Promise.all([
     getProfile(user.id),
-    supabase
-      .from("injuries")
-      .select(columns)
-      .eq("club_id", clubId)
-      .in("status", OPEN_STATUSES)
-      .order("started_on", { ascending: false }),
-    supabase
-      .from("injuries")
-      .select(columns, { count: "exact" })
-      .eq("club_id", clubId)
-      .in("status", PAST_STATUSES)
-      .order("started_on", { ascending: false })
-      .range(0, historyLimit - 1),
+    openQuery.order("started_on", { ascending: false }),
+    pastQuery.order("started_on", { ascending: false }).range(0, historyLimit - 1),
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");

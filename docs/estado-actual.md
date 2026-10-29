@@ -28,7 +28,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 - 28 oct · #81 · Rugby Sevens, app: formato activo, selector en el Resumen, filtros por formato, nómina Sevens y Grupo Sevens.
-- 28 oct · #82 · Sevens: métricas por formato (0046), cancha horizontal de Sevens también en el Plantel, indicador de formato en el encabezado, aviso de posición solo para jugadores y degradado más leve en la portada del celular.
+- 28 oct · #82 · Sevens: métricas por formato (0046), cancha horizontal de Sevens también en el Plantel, indicador de formato en el encabezado, aviso de posición solo para jugadores, lesiones separadas por formato y degradado más leve en la portada del celular.
 - 28 oct · #80 · Rugby Sevens, base de datos (0045); la app filtra posiciones al formato 15.
 - 26 oct · #79 · `docs/estado-actual.md` al día y regla para mantenerlo en `CLAUDE.md`.
 - 25 oct · #78 · Evaluaciones físicas (0044): carga, comparación del plantel y "Mis evaluaciones".
@@ -99,7 +99,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Los eventos tienen formato (`events.format`). En Sevens, la nómina admite los puestos 1 a 12 (7 titulares y 5 de banca) y la participación usa 14 minutos con tope 14 y rangos 0 / 1–4 / 5–9 / 10–13 / 14 (provisorio, en `sport_format_config`). La carga se calcula por formato (`team_match_load(n, formato)`, `my_match_load(formato)`).
 - Formato activo: cookie `recov_format` (`src/lib/format.ts`, `getActiveFormat`). Es '7' solo si el plantel tiene Sevens y la cuenta está en el grupo o es de la dirección; al cambiar de plantel vuelve a '15'.
 - El selector "Rugby 15 | Sevens" va solo arriba del Resumen.
-- En Sevens: Plantel, Lesiones activas del Resumen y las listas de jugadores muestran solo el grupo. El Plantel muestra la posición de Sevens con chips por posición. Calendario, Nóminas, Métricas, Carga y la ficha usan solo eventos del formato; los eventos nuevos nacen en el formato activo. Lesiones, documentos, fases y evaluaciones no se separan.
+- En Sevens: Plantel, Lesiones activas del Resumen y las listas de jugadores muestran solo el grupo. El Plantel muestra la posición de Sevens con chips por posición. Calendario, Nóminas, Métricas, Carga y la ficha usan solo eventos del formato; los eventos nuevos nacen en el formato activo. "Por revisar" del Resumen y la pantalla Lesiones muestran solo las lesiones del grupo; el detalle de cada lesión, documentos, fases y evaluaciones no se separan.
 - Los jugadores del grupo sin posición de Sevens ven el aviso "Elige tu posición en Sevens" en el Resumen y el Plantel (el staff no).
 - Métricas del Resumen y de Métricas por formato (0046): en Sevens, solo el grupo y su posición de Sevens.
 - El selector cambia todo de una vez. Para quien tiene los dos formatos, el encabezado de cada pantalla muestra "Rugby 15" o "Sevens".
