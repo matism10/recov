@@ -9,7 +9,7 @@
 export type PitchKind = "rugby" | "sevens" | "futbol" | "hockey" | "futsal" | "handball" | "basquetbol" | "voleibol";
 
 // Dónde va la etiqueta del puesto respecto del círculo (por defecto, debajo).
-export type LabelSide = "below" | "left" | "right";
+export type LabelSide = "below" | "above" | "left" | "right";
 
 export type PitchSlot = { slot: number; position: string; code: string; x: number; y: number; labelSide?: LabelSide };
 
@@ -67,17 +67,17 @@ const SPOTS: Record<PitchKind, Spot[]> = {
     ["Wing", 86, 72],
     ["Fullback", 50, 88],
   ],
-  // Sevens: 1 y 3 arriba, 2 debajo al medio, 4 más abajo a la derecha del 2 y 5, 6 y
-  // 7 en diagonal hacia la derecha. Desde la referencia (326 × 392 px, círculo de
-  // 52 px): centro del círculo en % del ancho y del alto.
+  // Sevens: cancha horizontal (626 × 432, como la imagen de referencia). 1 y 3 arriba,
+  // 2 entre ellos y más abajo, 4 abajo a la derecha y 5, 6 y 7 en diagonal hacia la
+  // derecha. Centro de cada círculo en % del ancho y del alto.
   sevens: [
-    ["Pilar", 12.3, 6.6],
-    ["Hooker", 29.1, 28.1],
-    ["Pilar", 46, 6.6],
-    ["Medio scrum", 59.5, 42.3],
-    ["Apertura", 68.1, 59.7],
-    ["Centro", 76.7, 77],
-    ["Wing", 90.8, 93.4],
+    ["Pilar", 16, 14.4],
+    ["Hooker", 24, 28],
+    ["Pilar", 31.6, 14.4],
+    ["Medio scrum", 39.1, 45.4],
+    ["Apertura", 52.4, 62],
+    ["Centro", 68.4, 74.5],
+    ["Wing", 86.3, 85.6],
   ],
   futbol: [
     ["Portero", 50, 90],
@@ -138,8 +138,9 @@ const SPOTS: Record<PitchKind, Spot[]> = {
   ],
 };
 
-// Sevens: etiqueta debajo en 1, 2 y 3; a la derecha en 4; a la izquierda en 5, 6 y 7.
-const SEVENS_LABEL_SIDE: LabelSide[] = ["below", "below", "below", "right", "left", "left", "left"];
+// Sevens, como la imagen: etiqueta arriba en 1 y 3, abajo en 2, a la derecha en 4 y a
+// la izquierda en 5, 6 y 7.
+const SEVENS_LABEL_SIDE: LabelSide[] = ["above", "below", "above", "right", "left", "left", "left"];
 
 export const PITCH_LAYOUTS: Record<PitchKind, PitchSlot[]> = Object.fromEntries(
   (Object.keys(SPOTS) as PitchKind[]).map((kind) => [

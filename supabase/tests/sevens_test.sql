@@ -1,5 +1,5 @@
 -- Recov · Test de Rugby Sevens (migración 0045)
--- Correr DESPUÉS de las migraciones 0001 a 0045. Autónomo: crea sus propios datos y termina en ROLLBACK.
+-- Correr DESPUÉS de las migraciones 0001 a 0046. Autónomo: crea sus propios datos y termina en ROLLBACK.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
 begin;
@@ -279,6 +279,40 @@ select pg_temp.expect_count($q$select 1 where (public.my_match_load('7') -> 'pla
   and (public.my_match_load() ->> 'starters')::int = 15
   and jsonb_array_length(public.my_match_load() -> 'callups') = 1$q$, 1, 'my_match_load por formato (y sin argumento = 15)');
 select pg_temp.back();
+
+-- =======================================================================
+-- 5b. Métricas por formato (0046): en '7' solo el grupo y su posición de Sevens.
+-- =======================================================================
+insert into public.injuries (club_id, player_id, type, severity, status, started_on, expected_return_on) values
+  ('aaaaaaaa-0000-0000-0000-0000000000f7', 'f7100000-0000-0000-0000-000000000001', 'Esguince', 'leve', 'activa', current_date - 3, current_date + 5),
+  ('aaaaaaaa-0000-0000-0000-0000000000f7', 'f7100000-0000-0000-0000-000000000003', 'Golpe',    'leve', 'activa', current_date - 3, current_date + 5);
+select pg_temp.as_user('f7000000-0000-0000-0000-000000000004'); -- entrenador (staff)
+select pg_temp.expect_count($q$select 1 from public.dash_summary('7') where total = 1$q$, 1, 'métricas Sevens: solo el jugador del grupo');
+select pg_temp.expect_count($q$select 1 from public.dash_summary('15') where total = 3$q$, 1, 'métricas 15: todo el plantel');
+select pg_temp.expect_count($q$select 1 from public.dash_summary() where total = 3$q$, 1, 'dash_summary() sin formato sigue igual');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_position('7')
+  where position_name = 'Pilar' and injuries_count = 1$q$, 1, 'por posición en Sevens: la posición de Sevens (Pilar)');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_position('7')$q$, 1, 'por posición en Sevens: sin jugadores fuera del grupo');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_position('15') where position_name = 'Flanker'$q$, 1, 'por posición en 15: la de la ficha');
+select pg_temp.expect_count($q$select 1 from public.dash_upcoming_returns('7')$q$, 1, 'próximas altas en Sevens: solo el grupo');
+select pg_temp.expect_count($q$select 1 from public.dash_upcoming_returns('15')$q$, 2, 'próximas altas en 15: todos');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_week(4, '7') where injuries_count > 0$q$, 1, 'lesiones por semana en Sevens');
+select pg_temp.expect_count($q$select 1 from public.dash_injuries_by_place('7')$q$, 4, 'por lugar en Sevens: las 4 claves');
+select pg_temp.expect_count($q$select 1 from public.dash_availability_series(4, '7')$q$, 4, 'serie de disponibilidad en Sevens');
+select pg_temp.expect_count($q$select 1 from public.dash_recurring_players('7')$q$, 0, 'recurrentes en Sevens');
+select pg_temp.expect_fail($q$select * from public.dash_summary('9')$q$, 'métricas con formato inválido');
+select pg_temp.back();
+select pg_temp.as_user('f7000000-0000-0000-0000-000000000005'); -- jugador
+select pg_temp.expect_fail($q$select * from public.dash_summary('7')$q$, 'el jugador no lee métricas');
+select pg_temp.back();
+select pg_temp.as_user('f7000000-0000-0000-0000-000000000011'); -- head coach B
+select pg_temp.expect_count($q$select 1 from public.dash_summary('7') where total = 0$q$, 1, 'otro club no ve las métricas de A');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
+  and p.proname like 'dash\_%' and pg_get_function_identity_arguments(p.oid) like '%p_format text%'
+  and p.prosecdef and p.proconfig = array['search_path=""']
+  and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE')$q$, 7,
+  'las 7 dash_* por formato: SECURITY DEFINER, search_path vacío, authenticated sí y anon no');
 
 -- =======================================================================
 -- 6. Permisos de las funciones nuevas.

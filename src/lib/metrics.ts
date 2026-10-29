@@ -3,6 +3,9 @@
 // el club de su perfil; aquí solo se tipan los resultados y se registran errores.
 import type { createClient } from "@/lib/supabase/server";
 import type { Availability } from "@/lib/roles";
+import type { Format } from "@/lib/sevens";
+
+// Desde 0046 cada función recibe el formato: en Sevens cuenta solo el grupo Sevens.
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -24,8 +27,11 @@ export type AvailabilityWeek = {
 
 export type MetricsResult<T> = { ok: true; data: T } | { ok: false };
 
-export async function getDashSummary(supabase: Client): Promise<MetricsResult<DashSummary>> {
-  const { data, error } = await supabase.rpc("dash_summary");
+export async function getDashSummary(
+  supabase: Client,
+  format: Format = "15",
+): Promise<MetricsResult<DashSummary>> {
+  const { data, error } = await supabase.rpc("dash_summary", { p_format: format });
   if (error) {
     console.error("[metrics] dash_summary:", error.message);
     return { ok: false };
@@ -46,8 +52,9 @@ export async function getDashSummary(supabase: Client): Promise<MetricsResult<Da
 export async function getAvailabilitySeries(
   supabase: Client,
   weeks = 12,
+  format: Format = "15",
 ): Promise<MetricsResult<AvailabilityWeek[]>> {
-  const { data, error } = await supabase.rpc("dash_availability_series", { p_weeks: weeks });
+  const { data, error } = await supabase.rpc("dash_availability_series", { p_weeks: weeks, p_format: format });
   if (error) {
     console.error("[metrics] dash_availability_series:", error.message);
     return { ok: false };
@@ -99,41 +106,41 @@ async function rpcRows<T>(
   return { ok: true, data: ((data ?? []) as Record<string, unknown>[]).map(map) };
 }
 
-export function getInjuriesByWeek(supabase: Client, weeks = 12) {
+export function getInjuriesByWeek(supabase: Client, weeks = 12, format: Format = "15") {
   return rpcRows<WeekCount>(
     supabase,
     "dash_injuries_by_week",
     (r) => ({ week_start: String(r.week_start), injuries_count: Number(r.injuries_count) }),
-    { p_weeks: weeks },
+    { p_weeks: weeks, p_format: format },
   );
 }
 
-export function getInjuriesByPlace(supabase: Client) {
+export function getInjuriesByPlace(supabase: Client, format: Format = "15") {
   return rpcRows<PlaceCount>(supabase, "dash_injuries_by_place", (r) => ({
     place_key: r.place_key as PlaceKey,
     injuries_count: Number(r.injuries_count),
-  }));
+  }), { p_format: format });
 }
 
-export function getInjuriesByPosition(supabase: Client) {
+export function getInjuriesByPosition(supabase: Client, format: Format = "15") {
   return rpcRows<PositionCount>(supabase, "dash_injuries_by_position", (r) => ({
     position_name: String(r.position_name),
     injuries_count: Number(r.injuries_count),
     players_count: Number(r.players_count),
-  }));
+  }), { p_format: format });
 }
 
-export function getRecurringPlayers(supabase: Client) {
+export function getRecurringPlayers(supabase: Client, format: Format = "15") {
   return rpcRows<RecurringPlayer>(supabase, "dash_recurring_players", (r) => ({
     player_id: String(r.player_id),
     full_name: String(r.full_name),
     position_name: String(r.position_name),
     injuries_count: Number(r.injuries_count),
     last_injury_on: String(r.last_injury_on),
-  }));
+  }), { p_format: format });
 }
 
-export function getUpcomingReturns(supabase: Client) {
+export function getUpcomingReturns(supabase: Client, format: Format = "15") {
   return rpcRows<UpcomingReturn>(supabase, "dash_upcoming_returns", (r) => ({
     injury_id: String(r.injury_id),
     player_id: String(r.player_id),
@@ -141,7 +148,7 @@ export function getUpcomingReturns(supabase: Client) {
     position_name: String(r.position_name),
     return_on: String(r.return_on),
     days_left: Number(r.days_left),
-  }));
+  }), { p_format: format });
 }
 
 export type PlayerStatus = { id: string; availability: Availability; user_id: string | null };

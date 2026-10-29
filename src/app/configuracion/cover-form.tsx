@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { resizeCover } from "@/app/avatar-resize";
+import { COVER_GRADIENT } from "@/lib/club-identity";
 import { ErrorMessage, SuccessMessage, buttonPrimary, textButton } from "@/app/ui";
 import { setClubCover, setClubCoverPosition, type CoverState } from "./actions";
 
@@ -193,10 +194,7 @@ export function CoverForm({
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0"
-                  style={{
-                    background:
-                      "linear-gradient(to top, rgba(11,23,38,.90) 0%, rgba(11,23,38,.78) 55%, rgba(11,23,38,.35) 100%)",
-                  }}
+                  style={{ background: COVER_GRADIENT[frame.key] }}
                 />
                 <p
                   aria-hidden="true"

@@ -22,6 +22,7 @@ import {
   UpcomingReturnsBlock,
 } from "@/app/metricas/blocks";
 import { buttonSecondary } from "@/app/ui";
+import type { Format } from "@/lib/sevens";
 
 // Ancho de cada métrica en la grilla. Celular: una columna (tarjetas lado a lado
 // desde sm). Escritorio (4 columnas): tarjetas de 1, bloques de 2 y próximas altas
@@ -47,6 +48,7 @@ export async function loadMetricsStrip(
   supabase: Client,
   desktop: DashboardMetric[],
   mobile: DashboardMetric[],
+  format: Format = "15",
 ) {
   // Todas las elegidas, en el orden del catálogo; cada una se muestra donde se eligió.
   const metrics = DASHBOARD_METRICS.filter((m) => desktop.includes(m) || mobile.includes(m));
@@ -56,13 +58,13 @@ export async function loadMetricsStrip(
   );
 
   const [summary, series, byWeek, byPlace, byPosition, recurring, upcoming] = await Promise.all([
-    needsSummary ? getDashSummary(supabase) : null,
-    has("disponibilidad") ? getAvailabilitySeries(supabase, 12) : null,
-    has("lesiones_semana") ? getInjuriesByWeek(supabase, 12) : null,
-    has("lugar") ? getInjuriesByPlace(supabase) : null,
-    has("posicion") ? getInjuriesByPosition(supabase) : null,
-    has("recurrentes") ? getRecurringPlayers(supabase) : null,
-    has("proximas_altas") ? getUpcomingReturns(supabase) : null,
+    needsSummary ? getDashSummary(supabase, format) : null,
+    has("disponibilidad") ? getAvailabilitySeries(supabase, 12, format) : null,
+    has("lesiones_semana") ? getInjuriesByWeek(supabase, 12, format) : null,
+    has("lugar") ? getInjuriesByPlace(supabase, format) : null,
+    has("posicion") ? getInjuriesByPosition(supabase, format) : null,
+    has("recurrentes") ? getRecurringPlayers(supabase, format) : null,
+    has("proximas_altas") ? getUpcomingReturns(supabase, format) : null,
   ]);
 
   // Estado y foto solo de los jugadores de "Jugadores recurrentes" y "Próximas altas".

@@ -142,12 +142,14 @@ export default async function DashboardPage() {
   });
 
   // Franja de métricas (staff): sus datos salen ya, en paralelo con el resto.
-  const metricsPromise = confirmed.then((profile) =>
+  // En Sevens, las métricas son del grupo Sevens (0046).
+  const metricsPromise = Promise.all([confirmed, formatPromise]).then(([profile, { format }]) =>
     profile && isStaff((profile.roles ?? []) as UserRole[])
       ? loadMetricsStrip(
           supabase,
           dashboardMetricsOf(profile.club?.dashboard_metrics ?? null),
           dashboardMetricsOf(profile.club?.dashboard_metrics_mobile ?? null, DEFAULT_DASHBOARD_METRICS_MOBILE),
+          format,
         )
       : null,
   );
@@ -199,9 +201,14 @@ export default async function DashboardPage() {
   const { avatarUrls, phaseByPlayer } = squad;
   // En Sevens, las listas muestran solo al grupo Sevens.
   const players = inFormat(squad.players, formatCtx);
-  // Aviso para elegir posición: en Sevens, a quien está en el grupo y no tiene una.
+  // Aviso para elegir posición: en Sevens, solo a los jugadores del grupo sin posición
+  // (el staff del grupo no lo ve).
   const mySevens = formatCtx.group.get(user.id);
-  const askSevensPosition = formatCtx.format === "7" && mySevens !== undefined && !mySevens.position;
+  const askSevensPosition =
+    formatCtx.format === "7" &&
+    (profile.roles ?? []).includes("jugador") &&
+    mySevens !== undefined &&
+    !mySevens.position;
   // En el Resumen, solo los primeros disponibles; el plantel completo está en /plantel.
   const availablePlayers = players
     .filter((p) => p.availability === "disponible")

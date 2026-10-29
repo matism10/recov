@@ -49,13 +49,16 @@ export function FormatSwitch({ format }: { format: Format }) {
   );
 }
 
-// Chip pasivo del encabezado cuando el formato activo es Sevens.
-export function SevensChip({ className = "" }: { className?: string }) {
+// Indicador del formato que se está viendo ("Rugby 15" o "Sevens"), para quien tiene los dos.
+export function SevensChip({ format, className = "" }: { format: Format; className?: string }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-text ${className}`}
+      aria-label={`Viendo ${FORMAT_LABEL[format]}`}
+      className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${
+        format === "7" ? "bg-brand-soft text-brand-text" : "border border-line bg-white text-ink"
+      } ${className}`}
     >
-      Sevens
+      {FORMAT_LABEL[format]}
     </span>
   );
 }

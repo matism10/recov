@@ -37,17 +37,18 @@ export default async function MetricsPage() {
   // que sea staff; si no lo es, se redirige antes de mostrar). Luego, estado y foto
   // solo de los jugadores de "Jugadores recurrentes" y "Próximas altas"; si esa
   // lectura falla, esos bloques usan iniciales y omiten el estado.
+  // Formato activo: en Sevens, todas las métricas son del grupo Sevens (0046).
+  const format = await getActiveFormat(user.id);
   const [me, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, load] = await Promise.all([
     getProfile(user.id),
-    getDashSummary(supabase),
-    getAvailabilitySeries(supabase, 12),
-    getInjuriesByWeek(supabase, 12),
-    getInjuriesByPlace(supabase),
-    getInjuriesByPosition(supabase),
-    getRecurringPlayers(supabase),
-    getUpcomingReturns(supabase),
-    // Carga: solo partidos del formato activo.
-    getActiveFormat(user.id).then((f) => getTeamLoad(supabase, 4, f)),
+    getDashSummary(supabase, format),
+    getAvailabilitySeries(supabase, 12, format),
+    getInjuriesByWeek(supabase, 12, format),
+    getInjuriesByPlace(supabase, format),
+    getInjuriesByPosition(supabase, format),
+    getRecurringPlayers(supabase, format),
+    getUpcomingReturns(supabase, format),
+    getTeamLoad(supabase, 4, format),
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
