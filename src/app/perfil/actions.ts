@@ -158,3 +158,31 @@ export async function updatePhone(
   revalidatePath("/perfil");
   return { ok: true, phone };
 }
+
+export type NavSlotsState = { ok?: "saved" | "reset"; error?: string; slots?: string[] };
+
+// Barra inferior móvil (0047): set_nav_slots valida en la base la cantidad y que
+// cada pantalla la pueda ver el rol en el plantel activo. null = valor por defecto.
+export async function saveNavSlots(
+  _prevState: NavSlotsState,
+  formData: FormData,
+): Promise<NavSlotsState> {
+  const reset = formData.get("intent") === "reset";
+  const slots = reset ? null : formData.getAll("slot").map((v) => String(v));
+  if (slots && new Set(slots).size !== slots.length) {
+    return { error: "Elige pantallas distintas para cada posición." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_nav_slots", { p_slots: slots });
+  if (error) {
+    return {
+      error:
+        error.message === "invalid_slots"
+          ? "Alguna pantalla no está disponible para tu rol. Revisa la selección."
+          : "No se pudo guardar la barra. Intenta de nuevo.",
+    };
+  }
+  revalidatePath("/", "layout"); // la barra está en el layout
+  return { ok: reset ? "reset" : "saved" };
+}

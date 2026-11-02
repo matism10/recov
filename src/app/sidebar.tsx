@@ -11,13 +11,14 @@ import { clubOptions } from "@/lib/club-options";
 
 import { photoUrl } from "@/lib/photos";
 import { getFormatContext } from "@/lib/format";
+import { allowedScreens, resolveSlots } from "@/lib/nav-slots";
 
 // Datos de la navegación (sidebar de escritorio, barra móvil y encabezado del club).
 // Solo para usuarios confirmados: sin sesión, pendientes o rechazados no ven
 // navegación. Las páginas siguen validando su propio acceso. `cache` evita repetir
 // las consultas cuando varias piezas de la navegación las piden en el mismo request.
 // Viajes a Supabase: el perfil (con sus planteles, el activo y la ruta de la foto)
-// y, solo para la dirección, el conteo de pendientes del plantel activo. La foto propia va por /foto, sin firmar.
+// y, solo para la dirección, el conteo de pendientes del plantel activo, más la barra móvil elegida. La foto propia va por /foto, sin firmar.
 const getNavData = cache(async () => {
   const supabase = await getSupabase();
   // getClaims verifica el JWT de la sesión (firmado con ES256) contra las claves
@@ -35,7 +36,7 @@ const getNavData = cache(async () => {
   const roles = (profile.roles ?? []) as UserRole[];
   const direction = isDirection(roles);
 
-  const [pendingCount, avatarUrl, formatCtx] = await Promise.all([
+  const [pendingCount, avatarUrl, formatCtx, savedSlots] = await Promise.all([
     // RLS: solo la dirección ve las membresías pendientes de su plantel. Se cuentan
     // las del plantel activo, no las de otros planteles de la cuenta.
     direction && profile.club_id
@@ -48,7 +49,19 @@ const getNavData = cache(async () => {
       : 0,
     profile.avatar_path ? photoUrl("avatars", profile.avatar_path) : null,
     getFormatContext(userId),
+    // Barra inferior móvil elegida en Perfil (0047). RLS: solo la fila propia del
+    // plantel activo; sin fila o con slots NULL, el valor por defecto del rol.
+    profile.club_id
+      ? supabase
+          .from("nav_preferences")
+          .select("slots")
+          .eq("club_id", profile.club_id)
+          .maybeSingle()
+          .then(({ data }) => (data?.slots as string[] | null) ?? null)
+      : null,
   ]);
+
+  const slots = resolveSlots(savedSlots, roles, { kineDelegate: club?.kine_delegate_id === userId });
 
   return {
     identity: clubIdentity({
@@ -67,6 +80,10 @@ const getNavData = cache(async () => {
     evaluations: canReadEvaluations(roles),
     player: roles.includes("jugador"),
     pendingCount,
+    // Barra móvil: los slots y, en "Más", el resto de las pantallas del rol.
+    slots,
+    more: allowedScreens(roles).filter((s) => !slots.includes(s)),
+    headCoach: roles.includes("head_coach"),
     // Indicador de formato: solo para quien puede trabajar en Rugby 15 y en Sevens.
     format: formatCtx.canSevens ? formatCtx.format : null,
   };
@@ -110,10 +127,10 @@ export async function MobileNav() {
   if (!nav) return null;
   return (
     <MobileNavBar
-      direction={nav.direction}
-      staff={nav.staff}
-      evaluations={nav.evaluations}
+      slots={nav.slots}
+      more={nav.more}
       player={nav.player}
+      headCoach={nav.headCoach}
       pendingCount={nav.pendingCount}
     />
   );

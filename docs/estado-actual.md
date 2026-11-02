@@ -5,8 +5,8 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #82, 28 oct).
-- Migraciones 0001 a 0046 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
+- Todo está mergeado en `main` (último: PR #83, 2 nov).
+- Migraciones 0001 a 0047 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
 - 28 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
 - Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones) y `sevens_test.sql` (Rugby Sevens).
@@ -25,9 +25,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 0044: evaluaciones físicas (`test_definitions`, `test_results` y sus funciones).
   - 0045: Rugby Sevens: `clubs.has_sevens`, `positions.format`, `sevens_group`, `events.format`, `sport_format_config`, `create_event` con `p_format` y carga por formato.
   - 0046: métricas por formato: `dash_*(…, p_format)` (en '7' solo el grupo Sevens y su posición de Sevens); las de siempre no cambian.
+  - 0047: barra inferior móvil por cuenta y plantel: `nav_preferences` (`slots` NULL = por defecto; RLS: solo la fila propia del plantel activo) y `set_nav_slots` (valida cantidad y pantallas del rol con `private.nav_allowed_screens`).
 
 ## Historial
-- 2 nov · PR pendiente · Transiciones más rápidas: semana/mes del calendario y pestañas del link del plantel sin ir al servidor, sesión con `getClaims` (sin viaje a Auth), pantallas visitadas al instante por 30 s (`staleTimes`), formato 15 sin consultar el grupo Sevens y esqueletos en Evaluaciones.
+- 2 nov · PR pendiente · Navegación móvil: barra configurable por cuenta y plantel (0047), botón "Registrar lesión" del jugador, hoja "Más" en grilla con Perfil y Cerrar sesión, y sección "Barra principal" en Perfil.
+- 2 nov · #83 · Transiciones más rápidas: semana/mes del calendario y pestañas del link del plantel sin ir al servidor, sesión con `getClaims` (sin viaje a Auth), pantallas visitadas al instante por 30 s (`staleTimes`), formato 15 sin consultar el grupo Sevens y esqueletos en Evaluaciones.
 - 28 oct · #81 · Rugby Sevens, app: formato activo, selector en el Resumen, filtros por formato, nómina Sevens y Grupo Sevens.
 - 28 oct · #82 · Sevens: métricas por formato (0046), cancha horizontal de Sevens también en el Plantel, indicador de formato en el encabezado, aviso de posición solo para jugadores, lesiones separadas por formato y degradado más leve en la portada del celular.
 - 28 oct · #80 · Rugby Sevens, base de datos (0045); la app filtra posiciones al formato 15.
@@ -108,12 +110,20 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Cancha de Sevens horizontal, como la imagen de referencia (1 y 3 arriba, 2 entre ellos, 4 a 7 en diagonal), en el Plantel y en la nómina (banca 8 a 12 en una franja debajo). La nómina sigue el formato del evento (`src/lib/pitch.ts`, tipo `sevens`).
 - Configuración (dirección, solo rugby): "Activar Sevens" y la pantalla `/configuracion/sevens` (Grupo Sevens: casillas y "Guardar grupo"). El registro por `/c/[slug]` no cambia: siempre entra al 15.
 
+**10. Navegación móvil** (solo celular; en escritorio sigue la sidebar)
+- Barra inferior: 4 pestañas configurables y "Más" fijo a la derecha. El jugador tiene 3 y, al centro, el botón fijo "Registrar lesión" (`src/app/mobile-nav.tsx`).
+- Pantallas que se pueden elegir según el rol (`src/lib/nav-slots.ts`, la misma regla que `set_nav_slots`): Resumen, Calendario y Plantel (todos); Lesiones, Nóminas y Métricas (staff); Evaluaciones (quienes ven resultados); Registros y Staff (dirección); Mis lesiones y Mis evaluaciones (jugador).
+- Por defecto: head coach Resumen, Calendario, Plantel, Lesiones; manager Resumen, Calendario, Plantel, Nóminas; kine, delegado y entrenador Resumen, Calendario, Lesiones, Plantel; preparador físico y nutricionista Resumen, Calendario, Evaluaciones, Plantel; jugador Resumen, Calendario, Mis lesiones.
+- "Más": hoja flotante con las pantallas del rol que no están en la barra (grilla de 3), punto rojo en Registros si hay pendientes, Configuración solo para el head coach, y abajo "Perfil" y "Cerrar sesión".
+- Perfil → "Barra principal" (solo celular): elegir las pestañas, "Guardar" y "Restablecer" (vuelve al valor por defecto del rol). Si cambian los roles y lo guardado ya no vale, se usa el valor por defecto.
+
 ## Funciones por rol
 
 **Todos los roles**
 - Registrarse por el link del plantel, con foto opcional, o unirse a otro plantel con la misma cuenta. Los roles son por plantel.
 - Ver el ranking de cada test del plantel (sin notas).
 - Ver el plantel con la disponibilidad, la foto y la fase en curso de cada jugador (solo el nombre de la fase).
+- Elegir las pestañas de la barra inferior del celular (Perfil → "Barra principal"), solo entre las pantallas de su rol.
 
 **Jugador**
 - Registrar su propia lesión con documentos.
@@ -163,13 +173,14 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Avisos abiertos:** "Leaked password protection" desactivado; `pg_net` en el esquema `public` (sin uso).
 
 ## Pendiente
+- **Nóminas para el jugador:** el diseño de la barra pide Nóminas para todos los roles, pero el jugador hoy solo lee sus propias convocatorias (RLS de `event_callups`). Abrirla en lectura al jugador necesita ampliar RLS: falta la decisión de Mati. Mientras, el jugador no la tiene en la barra ni en "Más".
 - **Sevens:**
   - la escala de Sevens es provisoria (fila `rugby`/`7` de `sport_format_config`);
   - solo cuentas pueden estar en el grupo (`sevens_group.member_id` = `club_members.user_id`): un jugador sin cuenta no entra.
 - **Seguridad:** activar "Leaked password protection" en Supabase Auth (desde el panel).
 - **Base de datos:**
   - anotar la 0043 en `supabase_migrations.schema_migrations`;
-  - 0047: borrar `private.profiles_legacy_backup` una semana después de aplicar la 0043 (desde ~1 nov);
+  - 0048: borrar `private.profiles_legacy_backup` una semana después de aplicar la 0043 (desde ~1 nov);
   - quedan sin uso `pg_net`, `private.member_emails`, `profiles.email_verified_at`, `private.email_verification_tokens`, `create_email_verification` y `verify_email`.
 - **Datos de demo:** hc.demo sigue como head coach confirmado en Demo - Fútbol; no hay cuentas demo de preparador físico ni de nutricionista.
 - **Limpieza:** borrar las ramas viejas ya mergeadas, en local y en GitHub.
