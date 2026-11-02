@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { ChevronRight, Dumbbell } from "lucide-react";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
@@ -32,14 +33,14 @@ import {
 } from "@/app/ui";
 import { SummarySquad } from "./squad-browser";
 import { NextMatch } from "./next-match";
-import { MetricsStrip, loadMetricsStrip } from "./metrics-strip";
+import { MetricsStrip, MetricsStripSkeleton, loadMetricsStrip } from "./metrics-strip";
 import { MyMatches } from "./my-matches";
 import { canManageNominas, getMyLoad } from "@/lib/match-load";
 import { ResumenCover } from "./resumen-cover";
 import { clubOptions } from "@/lib/club-options";
 import { LoadBlock } from "@/app/load-block";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
-import { formatPlayerIds, getFormatContext, inFormat } from "@/lib/format";
+import { getFormatContext, inFormat, withActiveFormat } from "@/lib/format";
 import { FormatSwitch, SevensPositionBanner } from "@/app/sevens-ui";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
@@ -50,7 +51,7 @@ type ReviewRow = {
   type: string;
   status: string;
   started_on: string;
-  players: { full_name: string } | { full_name: string }[] | null;
+  players: { full_name: string; user_id: string | null } | { full_name: string; user_id: string | null }[] | null;
 };
 
 type OpenInjury = { id: string; player_id: string; type: string; started_on: string; expected_return_on: string | null };
@@ -76,7 +77,8 @@ export default async function DashboardPage() {
   // Plantel activo: filtra las listas (RLS devuelve las de todos los planteles de la cuenta).
   const clubIdPromise = getActiveClubId(user.id);
   const confirmed = profilePromise.then((p) => (p?.status === "confirmado" ? p : null));
-  // Formato activo (Rugby 15 o Sevens) y grupo Sevens del plantel.
+  // Formato activo (Rugby 15 o Sevens) y grupo Sevens del plantel. Las consultas que
+  // dependen del formato no lo esperan: parten con el de la cookie (withActiveFormat).
   const formatPromise = getFormatContext(user.id);
 
   const byRolePromise = confirmed.then(async (profile) => {
@@ -87,12 +89,9 @@ export default async function DashboardPage() {
     // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
     // Solo decide qué se muestra; las funciones de la base validan el permiso real.
     const canManage = canManageInjuries(roles, user.id, profile.club?.kine_delegate_id);
-    const { format } = await formatPromise;
-    // En Sevens, "Por revisar" muestra solo las lesiones de los jugadores del grupo.
-    const sevensIds = await formatPlayerIds(user.id);
     const [myLoad, open, myInjuries, toReview, myPending] = await Promise.all([
       // Jugador: su carga de partidos y sus convocatorias del formato activo (solo datos propios).
-      isPlayer ? getMyLoad(supabase, format) : null,
+      isPlayer ? withActiveFormat(user.id, (format) => getMyLoad(supabase, format)) : null,
       // "Lesiones activas" (staff): lesiones abiertas del club (RLS); abajo se toman
       // solo las de los jugadores en Lesionado o Reintegro.
       staff
@@ -117,18 +116,16 @@ export default async function DashboardPage() {
             .then(({ data }) => data as MyInjury[] | null)
         : null,
       // Bandeja "Por revisar": lesiones esperando el diagnóstico del jugador y
-      // diagnósticos que el jugador ya subió y nadie ha revisado.
+      // diagnósticos que el jugador ya subió y nadie ha revisado. En Sevens se filtra
+      // abajo por el grupo (con el user_id del jugador), sin otra consulta.
       canManage
-        ? (() => {
-            const q = supabase
-              .from("injuries")
-              .select("id, type, status, started_on, players(full_name)")
-              .eq("club_id", profile.club_id!)
-              .or("status.eq.en_evaluacion,and(status.eq.activa,reviewed_at.is.null)");
-            return (sevensIds ? q.in("player_id", sevensIds) : q)
-              .order("started_on")
-              .then(({ data }) => (data ?? []) as ReviewRow[]);
-          })()
+        ? supabase
+            .from("injuries")
+            .select("id, type, status, started_on, players(full_name, user_id)")
+            .eq("club_id", profile.club_id!)
+            .or("status.eq.en_evaluacion,and(status.eq.activa,reviewed_at.is.null)")
+            .order("started_on")
+            .then(({ data }) => (data ?? []) as ReviewRow[])
         : [],
       // RLS: el jugador ve solo sus lesiones; se filtra por si además es staff.
       isPlayer
@@ -146,39 +143,43 @@ export default async function DashboardPage() {
     return { myLoad, open, myInjuries, toReview, myPending };
   });
 
-  // Franja de métricas (staff): sus datos salen ya, en paralelo con el resto.
-  // En Sevens, las métricas son del grupo Sevens (0046).
-  const metricsPromise = Promise.all([confirmed, formatPromise]).then(([profile, { format }]) =>
+  // Franja de métricas (staff): sus datos salen ya, en paralelo con el resto, y la
+  // página no los espera: la franja llega aparte (Suspense). En Sevens, las métricas
+  // son del grupo Sevens (0046).
+  const metricsPromise = confirmed.then((profile) =>
     profile && isStaff((profile.roles ?? []) as UserRole[])
-      ? loadMetricsStrip(
-          supabase,
-          dashboardMetricsOf(profile.club?.dashboard_metrics ?? null),
-          dashboardMetricsOf(profile.club?.dashboard_metrics_mobile ?? null, DEFAULT_DASHBOARD_METRICS_MOBILE),
-          format,
+      ? withActiveFormat(user.id, (format) =>
+          loadMetricsStrip(
+            supabase,
+            dashboardMetricsOf(profile.club?.dashboard_metrics ?? null),
+            dashboardMetricsOf(profile.club?.dashboard_metrics_mobile ?? null, DEFAULT_DASHBOARD_METRICS_MOBILE),
+            format,
+          ),
         )
       : null,
   );
-  const [profile, squad, { data: nextMatch }, byRole, metricsData, formatCtx] = await Promise.all([
+  const [profile, squad, { data: nextMatch }, byRole, formatCtx] = await Promise.all([
     profilePromise,
     // Plantel confirmado y activo, con fotos y la fase en curso de cada jugador.
     clubIdPromise.then((clubId) => getSquad(supabase, clubId)),
     // Próximo partido: la competencia no cancelada más cercana del plantel activo,
     // del formato activo.
-    Promise.all([clubIdPromise, formatPromise]).then(([clubId, { format }]) =>
-      supabase
-        .from("events")
-        .select("id, starts_at, opponent")
-        .eq("club_id", clubId)
-        .eq("type", "competencia")
-        .eq("format", format)
-        .is("cancelled_at", null)
-        .gte("starts_at", new Date().toISOString())
-        .order("starts_at")
-        .limit(1)
-        .maybeSingle(),
+    clubIdPromise.then((clubId) =>
+      withActiveFormat(user.id, (format) =>
+        supabase
+          .from("events")
+          .select("id, starts_at, opponent")
+          .eq("club_id", clubId)
+          .eq("type", "competencia")
+          .eq("format", format)
+          .is("cancelled_at", null)
+          .gte("starts_at", new Date().toISOString())
+          .order("starts_at")
+          .limit(1)
+          .maybeSingle(),
+      ),
     ),
     byRolePromise,
-    metricsPromise,
     formatPromise,
   ]);
 
@@ -227,6 +228,11 @@ export default async function DashboardPage() {
 
   const staff = isStaff(roles);
   const isPlayer = roles.includes("jugador");
+  const metricsDesktop = dashboardMetricsOf(club?.dashboard_metrics as string[] | null);
+  const metricsMobile = dashboardMetricsOf(
+    club?.dashboard_metrics_mobile as string[] | null,
+    DEFAULT_DASHBOARD_METRICS_MOBILE,
+  );
   // Estado propio (rol jugador): su fila del plantel que ya trae getSquad, y la
   // fase en curso de squad_current_phases. Sin consultas nuevas.
   const me = isPlayer ? players.find((p) => p.user_id === user.id) : undefined;
@@ -266,7 +272,14 @@ export default async function DashboardPage() {
     injury ? `/lesiones/${injury.id}` : `/jugadores/${playerId}`;
 
   const injuries = byRole.myInjuries;
-  const toReview = byRole.toReview;
+  // En Sevens, "Por revisar" muestra solo las lesiones de los jugadores del grupo.
+  const toReview =
+    formatCtx.format === "7"
+      ? byRole.toReview.filter((i) => {
+          const player = Array.isArray(i.players) ? i.players[0] : i.players;
+          return !!player?.user_id && formatCtx.group.has(player.user_id);
+        })
+      : byRole.toReview;
   const awaitingDiagnosis = toReview.filter((i) => i.status === "en_evaluacion");
   const diagnosisToReview = toReview.filter((i) => i.status === "activa");
   const myPendingInjury = byRole.myPending;
@@ -305,15 +318,12 @@ export default async function DashboardPage() {
 
       {/* Franja de métricas: solo staff. En celular, disponibles y lesionados, justo
           bajo el título. */}
-      {staff && metricsData && (
-        <MetricsStrip
-          data={Promise.resolve(metricsData)}
-          desktop={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
-          mobile={dashboardMetricsOf(
-            club?.dashboard_metrics_mobile as string[] | null,
-            DEFAULT_DASHBOARD_METRICS_MOBILE,
-          )}
-        />
+      {/* Llega aparte: el resto del Resumen no la espera. key: al cambiar de formato
+          muestra el esqueleto en vez de dejar las cifras del otro formato. */}
+      {staff && (
+        <Suspense key={formatCtx.format} fallback={<MetricsStripSkeleton desktop={metricsDesktop} mobile={metricsMobile} />}>
+          <MetricsStrip data={metricsPromise} desktop={metricsDesktop} mobile={metricsMobile} />
+        </Suspense>
       )}
 
       {/* Celular: el próximo partido a lo ancho. */}

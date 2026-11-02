@@ -43,18 +43,24 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-  if (!isLoggedIn && !isPublic) {
+  // Redirección que conserva las cookies que getClaims haya renovado (sesión vencida al
+  // abrir la app): sin ellas, el request siguiente usaría el token anterior.
+  const redirectTo = (path: string) => {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
+    url.pathname = path;
+    const redirect = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+    return redirect;
+  };
+
+  // "/" (la Web App instalada antes de que start_url fuera /dashboard): directo desde
+  // aquí, sin armar la página "/" ni consultar las membresías para nada.
+  if (pathname === "/") return redirectTo(isLoggedIn ? "/dashboard" : "/login");
+
+  if (!isLoggedIn && !isPublic) return redirectTo("/login");
 
   // Solo el login redirige a quien ya tiene sesión; el link de registro no.
-  if (isLoggedIn && pathname.startsWith("/login")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
+  if (isLoggedIn && pathname.startsWith("/login")) return redirectTo("/dashboard");
 
   const current = request.cookies.get(ACTIVE_CLUB_COOKIE)?.value ?? null;
   let next: string | null = null;

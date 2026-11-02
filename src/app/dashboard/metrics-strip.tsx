@@ -22,6 +22,7 @@ import {
   UpcomingReturnsBlock,
 } from "@/app/metricas/blocks";
 import { buttonSecondary } from "@/app/ui";
+import { Block, Line } from "@/app/skeleton";
 import type { Format } from "@/lib/sevens";
 
 // Ancho de cada métrica en la grilla. Celular: una columna (tarjetas lado a lado
@@ -41,6 +42,47 @@ const SPAN: Record<DashboardMetric, string> = {
 };
 
 type Client = Awaited<ReturnType<typeof createClient>>;
+
+// Dónde se ve cada métrica: en los dos, solo en computador (lg+) o solo en celular.
+function visibilityOf(m: DashboardMetric, desktop: DashboardMetric[], mobile: DashboardMetric[]) {
+  return desktop.includes(m) && mobile.includes(m) ? "" : desktop.includes(m) ? "hidden lg:block" : "lg:hidden";
+}
+
+const STAT_CARDS: DashboardMetric[] = ["total", "disponibles", "lesionados", "reintegro"];
+
+// Esqueleto de la franja mientras llegan sus datos: la misma grilla, con un bloque por
+// métrica elegida (tarjeta o gráfico), para que la página no salte al llegar.
+export function MetricsStripSkeleton({
+  desktop,
+  mobile,
+}: {
+  desktop: DashboardMetric[];
+  mobile: DashboardMetric[];
+}) {
+  const metrics = DASHBOARD_METRICS.filter((m) => desktop.includes(m) || mobile.includes(m));
+  return (
+    <div aria-hidden="true" className={mobile.length > 0 ? "mb-8" : "lg:mb-8"}>
+      {metrics.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {metrics.map((m) => (
+            <div key={m} className={`min-w-0 *:h-full ${visibilityOf(m, desktop, mobile)} ${SPAN[m]}`}>
+              {STAT_CARDS.includes(m) ? (
+                <Block className="space-y-4 p-5">
+                  <Line className="h-4 w-36" />
+                  <Line className="h-10 w-14" />
+                  <Line className="h-2 w-full rounded-full" />
+                  <Line className="h-3 w-40" />
+                </Block>
+              ) : (
+                <Block className="min-h-56" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Datos de la franja: solo los de las métricas elegidas. El Resumen lo llama apenas
 // conoce el perfil, para que corra en paralelo con sus otras consultas.
@@ -92,14 +134,16 @@ export async function MetricsStrip({
   desktop,
   mobile,
 }: {
-  data: ReturnType<typeof loadMetricsStrip>;
+  // null: no le toca la franja (quien la monta ya lo decidió con el perfil).
+  data: Promise<Awaited<ReturnType<typeof loadMetricsStrip>> | null>;
   desktop: DashboardMetric[];
   mobile: DashboardMetric[];
 }) {
+  const loaded = await data;
+  if (!loaded) return null;
   const { metrics, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, status, avatarUrls } =
-    await data;
-  const visibility = (m: DashboardMetric) =>
-    desktop.includes(m) && mobile.includes(m) ? "" : desktop.includes(m) ? "hidden lg:block" : "lg:hidden";
+    loaded;
+  const visibility = (m: DashboardMetric) => visibilityOf(m, desktop, mobile);
 
   const card = (node: ReactNode) => (summary?.ok ? node : <MetricsError />);
   const render: Record<DashboardMetric, () => ReactNode> = {
