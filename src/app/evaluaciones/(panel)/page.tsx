@@ -6,8 +6,8 @@ import type { UserRole } from "@/lib/roles";
 import { parseIsoDate, todayInChile } from "@/lib/injuries";
 import { TEST_COLUMNS, canReadEvaluations, canWriteEvaluations, type TestDefinition } from "@/lib/evaluations";
 import { PageTitle, SectionTitle, cardClass } from "@/app/ui";
-import { Ranking, type RankingRow } from "./parts";
-import { CatalogManager, DatePicker, ResultsForm, SuggestedTestsButton, TestPicker, type LoadRow } from "./client-parts";
+import { Ranking, type RankingRow } from "../parts";
+import { CatalogManager, DatePicker, ResultsForm, SuggestedTestsButton, TestPicker, type LoadRow } from "../client-parts";
 
 type Tab = "cargar" | "comparar";
 

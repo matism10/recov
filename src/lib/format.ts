@@ -49,7 +49,10 @@ export const getFormatContext = cache(async (userId: string): Promise<FormatCont
   return { canSevens, format, group };
 });
 
+// Sin la cookie en '7' el formato es '15' sin consultar nada: así las páginas piden sus
+// datos sin esperar al grupo Sevens. Con '7', se confirma que la cuenta puede usarlo.
 export async function getActiveFormat(userId: string): Promise<Format> {
+  if ((await cookies()).get(FORMAT_COOKIE)?.value !== "7") return "15";
   return (await getFormatContext(userId)).format;
 }
 

@@ -1,11 +1,11 @@
-# Recov: estado actual de la plataforma (26 oct 2026)
+# Recov: estado actual de la plataforma (2 nov 2026)
 
 Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 deportes: fútbol, futsal, rugby, handball, vóleibol, básquetbol, hockey césped; cada club tiene uno, fijado al crearlo). Proyecto del Taller de Emprendimiento Tecnológico y Sostenibilidad (UAI). Interfaz en español; pruebas y demos solo con datos ficticios. Primer plantel real: Old Locks M16 (25 oct).
 
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #81, 28 oct), salvo #82 (ajustes de Sevens).
+- Todo está mergeado en `main` (último: PR #82, 28 oct).
 - Migraciones 0001 a 0046 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
 - 28 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
@@ -27,6 +27,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 0046: métricas por formato: `dash_*(…, p_format)` (en '7' solo el grupo Sevens y su posición de Sevens); las de siempre no cambian.
 
 ## Historial
+- 2 nov · PR pendiente · Transiciones más rápidas: semana/mes del calendario y pestañas del link del plantel sin ir al servidor, sesión con `getClaims` (sin viaje a Auth), pantallas visitadas al instante por 30 s (`staleTimes`), formato 15 sin consultar el grupo Sevens y esqueletos en Evaluaciones.
 - 28 oct · #81 · Rugby Sevens, app: formato activo, selector en el Resumen, filtros por formato, nómina Sevens y Grupo Sevens.
 - 28 oct · #82 · Sevens: métricas por formato (0046), cancha horizontal de Sevens también en el Plantel, indicador de formato en el encabezado, aviso de posición solo para jugadores, lesiones separadas por formato y degradado más leve en la portada del celular.
 - 28 oct · #80 · Rugby Sevens, base de datos (0045); la app filtra posiciones al formato 15.
@@ -87,6 +88,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 **7. Calendario**
 - Las competencias solo piden hora de inicio; los entrenamientos, inicio y término.
+- Celular: cambiar entre Semana y Mes, y entre semanas del mes cargado, es inmediato (sin ir al servidor; la URL se actualiza con `replaceState`). Solo cambiar de mes pide datos nuevos.
 
 **8. Evaluaciones físicas** (0044)
 - **Evaluaciones** (staff menos el manager; sidebar y "Más"): "Cargar resultados" (test, fecha no futura, valor anterior por jugador, "Guardar N resultados"; un resultado del día se anula y se vuelve a cargar) y "Comparar plantel" (ranking por test con barra y cambio con flecha y texto "mejor" o "peor").
@@ -153,6 +155,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFINER` con permisos explícitos), no solo la interfaz.
 
 ## Seguridad
+- **Sesión en las páginas:** `getSessionUser` usa `getClaims` (verifica la firma ES256 del JWT sin ir a Auth). Las acciones que escriben siguen usando `getUser`.
 - **Plantel:** `club_members` es la única fuente de plantel, roles y estado; `profiles` solo guarda identidad (0043). RLS usa el `club_id` de cada fila; las funciones toman el plantel activo del header `x-club-id`, validado contra las membresías (inválido o ajeno: sin permisos).
 - **App:** las listas filtran por el plantel activo (RLS devuelve las filas de todos los planteles de la cuenta). La clave de servicio solo se usa en el servidor (correos y recuperación de contraseña).
 - **Correos de Auth:** máximo 1 por minuto y 5 por hora por correo (`allow_auth_email`, se guarda el hash del correo).
