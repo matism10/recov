@@ -119,7 +119,9 @@ export function sidebarItems({
   admin: NavItem[];
 } {
   const main = [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
-  if (staff) main.push(METRICAS, NOMINAS);
+  if (staff) main.push(METRICAS);
+  // Nóminas: todos los confirmados (0048); el jugador la ve en lectura.
+  main.push(NOMINAS);
   if (evaluations) main.push(EVALUACIONES);
   return { main, admin: direction ? [REGISTROS, STAFF, CONFIGURACION] : [] };
 }

@@ -29,7 +29,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 0048: Nóminas en lectura para el jugador: `event_callups_select` pasa a todo confirmado del club (antes staff o la fila propia; aprobado por Mati). `event_participations` no cambia. La barra ofrece Nóminas también al jugador.
 
 ## Historial
-- 2 nov · PR pendiente · Navegación móvil: barra configurable por cuenta y plantel (0047), botón "Registrar lesión" del jugador, hoja "Más" en grilla con Perfil y Cerrar sesión, sección "Barra principal" en Perfil y Nóminas en lectura para el jugador (0048, `/nominas/[eventId]`).
+- 2 nov · PR pendiente · Navegación móvil: barra configurable por cuenta y plantel (0047), botón "Registrar lesión" del jugador, hoja "Más" en grilla con Perfil y Cerrar sesión, sección "Barra principal" en Perfil y Nóminas para todos (0048; el jugador en lectura en `/nominas/[eventId]`, también en la sidebar).
 - 2 nov · #83 · Transiciones más rápidas: semana/mes del calendario y pestañas del link del plantel sin ir al servidor, sesión con `getClaims` (sin viaje a Auth), pantallas visitadas al instante por 30 s (`staleTimes`), formato 15 sin consultar el grupo Sevens y esqueletos en Evaluaciones.
 - 28 oct · #81 · Rugby Sevens, app: formato activo, selector en el Resumen, filtros por formato, nómina Sevens y Grupo Sevens.
 - 28 oct · #82 · Sevens: métricas por formato (0046), cancha horizontal de Sevens también en el Plantel, indicador de formato en el encabezado, aviso de posición solo para jugadores, lesiones separadas por formato y degradado más leve en la portada del celular.
@@ -80,14 +80,14 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Fase: Pendiente, En curso, Completada.
 
 **6. Nóminas y carga del plantel** (migraciones 0027 y 0028)
-- **Nóminas** (sidebar del staff y barra o "Más" del celular para todos): las nóminas de cada partido y un botón grande **"Armar nómina"** que lleva al próximo partido (si no hay, avisa y ofrece crearlo). También se llega desde el detalle del partido en el calendario ("Armar nómina") y desde el ícono junto al próximo partido en el Resumen.
+- **Nóminas** (todos los confirmados: sidebar en escritorio y barra o "Más" en el celular): las nóminas de cada partido y un botón grande **"Armar nómina"** que lleva al próximo partido (si no hay, avisa y ofrece crearlo). También se llega desde el detalle del partido en el calendario ("Armar nómina") y desde el ícono junto al próximo partido en el Resumen.
 - **Convocatoria por puestos** (0029): en lista se convoca con casillas; en la cancha cada puesto titular (en rugby, 1 a 15) y de banca (16 a 23, al costado de la cancha) se asigna a un jugador, con filtro "Solo disponibles". Titulares y banca por deporte están en la tabla `sports`. Se ve la disponibilidad de cada jugador y se puede convocar a un no disponible, con aviso. Quitar a alguien lo archiva (no se borra).
 - **Participación:** cuando el partido ya empezó, el botón pasa a **"Cargar participación"**: lista de convocados con un control según el modo del club y un solo guardado.
 - **Modo por club** (Configuración, dirección): minutos exactos, rango de minutos (5 niveles que dependen del deporte) o jugó / no jugó. Por defecto, rango. Lo ya cargado se conserva; las métricas usan el modo actual y no estiman hacia arriba un dato menos detallado ("N partidos cargados en otro modo").
 - **Escala por deporte:** duración, tope y cortes de los rangos viven en la tabla `sports` (una sola fuente de verdad).
 - **Métricas → "Carga del plantel"** (staff): resumen (cuántos con carga alta y cuántos sin minutos o sin partidos) y los primeros 5 del ranking, con mini barras de los últimos 4 partidos y semáforo (con 3 partidos o más); "Ver ranking completo" abre `/metricas/carga`.
 - **Ficha del jugador → "Carga"** (staff): últimos 6 partidos, carga de la ventana, comparación con el promedio del plantel y última lesión.
-- **Jugador:** en su Resumen, "Mi carga" (sin semáforo) y "Mis partidos"; también ve su propia ficha. En Nóminas (celular) ve cada nómina en lectura (`/nominas/[eventId]`, 0048): titulares, banca y convocados sin puesto, sin disponibilidad ni minutos. Nunca la carga ni los minutos de otros jugadores.
+- **Jugador:** en su Resumen, "Mi carga" (sin semáforo) y "Mis partidos"; también ve su propia ficha. En Nóminas ve cada nómina en lectura (`/nominas/[eventId]`, 0048): titulares, banca y convocados sin puesto, sin disponibilidad ni minutos. Nunca la carga ni los minutos de otros jugadores.
 
 **7. Calendario**
 - Las competencias solo piden hora de inicio; los entrenamientos, inicio y término.
@@ -131,7 +131,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Completar el diagnóstico de una lesión en evaluación.
 - Ver sus lesiones, documentos y fases ("Mis lesiones").
 - Ver sus evaluaciones, con notas, y su progreso ("Mis evaluaciones").
-- Ver la nómina de cada partido en lectura (quién va, titular o banca y su puesto), desde Nóminas en el celular.
+- Ver la nómina de cada partido en lectura (quién va, titular o banca y su puesto), desde Nóminas.
 - No ve lesiones, fechas ni documentos de otros jugadores.
 
 **Kinesiólogo y su delegado** (la persona del staff en quien el head coach delegó las funciones de kinesiólogo)
@@ -175,7 +175,6 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Avisos abiertos:** "Leaked password protection" desactivado; `pg_net` en el esquema `public` (sin uso).
 
 ## Pendiente
-- **Nóminas en escritorio para el jugador:** la sidebar no cambió (el diseño era solo móvil): el jugador entra a Nóminas desde el celular o por el link. Falta decidir si la sidebar la muestra.
 - **Sevens:**
   - la escala de Sevens es provisoria (fila `rugby`/`7` de `sport_format_config`);
   - solo cuentas pueden estar en el grupo (`sevens_group.member_id` = `club_members.user_id`): un jugador sin cuenta no entra.
