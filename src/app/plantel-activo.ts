@@ -30,6 +30,8 @@ export async function setActiveClub(clubId: string): Promise<{ ok: boolean }> {
 
 // Cambia el formato activo (cookie recov_format). Solo guarda la preferencia:
 // getActiveFormat la ignora si el plantel no tiene Sevens o la cuenta no puede usarlo.
+// Al cambiar una cookie en una acción, Next vuelve a armar la página y su layout en la
+// misma respuesta: quien llama no necesita router.refresh().
 export async function setActiveFormat(format: Format): Promise<{ ok: boolean }> {
   if (format !== "15" && format !== "7") return { ok: false };
   const user = await getSessionUser();

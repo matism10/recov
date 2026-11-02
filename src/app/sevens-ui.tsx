@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState, useSyncExternalStore, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { setActiveFormat } from "./plantel-activo";
 import { setMySevensPosition, type SevensState } from "./sevens-actions";
 import { FORMAT_LABEL, SEVENS_POSITIONS, type Format } from "@/lib/sevens";
@@ -9,7 +8,6 @@ import { ErrorMessage, buttonPrimary, labelClass, inputClass, textButton } from 
 
 // Selector segmentado "Rugby 15 | Sevens". Solo va arriba del Resumen.
 export function FormatSwitch({ format }: { format: Format }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   // Mientras se guarda, se marca el elegido; después manda el formato del servidor.
   const [chosen, setChosen] = useState<Format | null>(null);
@@ -18,9 +16,10 @@ export function FormatSwitch({ format }: { format: Format }) {
   function choose(next: Format) {
     if (next === current || pending) return;
     setChosen(next);
+    // La acción cambia la cookie y Next devuelve el Resumen ya en el formato nuevo en
+    // la misma respuesta: sin router.refresh(), que pedía la página una segunda vez.
     startTransition(async () => {
-      const { ok } = await setActiveFormat(next);
-      if (ok) router.refresh();
+      await setActiveFormat(next);
     });
   }
 

@@ -49,10 +49,29 @@ export const getFormatContext = cache(async (userId: string): Promise<FormatCont
   return { canSevens, format, group };
 });
 
+// Formato que pide la cookie, sin confirmar que la cuenta pueda usarlo (no consulta nada).
+async function getRequestedFormat(): Promise<Format> {
+  return (await cookies()).get(FORMAT_COOKIE)?.value === "7" ? "7" : "15";
+}
+
+// Para consultas que dependen del formato: parten de inmediato con el de la cookie, sin
+// esperar al grupo Sevens. En '7', si al confirmar resulta que la cuenta no puede usar
+// Sevens, se repiten en '15' y el primer resultado se descarta (nunca llega al cliente;
+// la base igual valida cada función).
+export async function withActiveFormat<T>(userId: string, fn: (format: Format) => PromiseLike<T>): Promise<T> {
+  const requested = await getRequestedFormat();
+  const first = Promise.resolve(fn(requested));
+  if (requested === "15") return first;
+  const { format } = await getFormatContext(userId);
+  if (format === requested) return first;
+  first.catch(() => {});
+  return fn(format);
+}
+
 // Sin la cookie en '7' el formato es '15' sin consultar nada: así las páginas piden sus
 // datos sin esperar al grupo Sevens. Con '7', se confirma que la cuenta puede usarlo.
 export async function getActiveFormat(userId: string): Promise<Format> {
-  if ((await cookies()).get(FORMAT_COOKIE)?.value !== "7") return "15";
+  if ((await getRequestedFormat()) !== "7") return "15";
   return (await getFormatContext(userId)).format;
 }
 

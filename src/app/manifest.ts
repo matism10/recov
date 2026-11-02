@@ -9,7 +9,9 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Recov",
     description: "Seguimiento de lesiones para clubes deportivos amateur",
     lang: "es-CL",
-    start_url: "/",
+    // Directo al Resumen: "/" redirigía y sumaba un viaje al abrir la app. Sin sesión,
+    // el proxy lleva al login.
+    start_url: "/dashboard",
     scope: "/",
     display: "standalone",
     background_color: "#FFFFFF",
