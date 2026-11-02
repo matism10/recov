@@ -4,9 +4,11 @@
 import {
   Activity,
   CalendarDays,
+  CircleUserRound,
   ChartColumn,
   ClipboardList,
   Dumbbell,
+  HeartPulse,
   LayoutDashboard,
   Settings,
   UserCheck,
@@ -14,6 +16,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
+import type { NavScreen } from "@/lib/nav-slots";
 
 export type NavItem = {
   href: string;
@@ -116,31 +119,48 @@ export function sidebarItems({
   admin: NavItem[];
 } {
   const main = [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
-  if (staff) main.push(METRICAS, NOMINAS);
+  if (staff) main.push(METRICAS);
+  // Nóminas: todos los confirmados (0048); el jugador la ve en lectura.
+  main.push(NOMINAS);
   if (evaluations) main.push(EVALUACIONES);
   return { main, admin: direction ? [REGISTROS, STAFF, CONFIGURACION] : [] };
 }
 
-// Barra inferior móvil: los mismos cuatro destinos para todos los roles. El jugador
-// suma al centro el botón "+" para registrar una lesión (no es un destino).
-export const BOTTOM_BAR_ITEMS: NavItem[] = [RESUMEN, PLANTEL, LESIONES, CALENDARIO];
+// Pantallas propias del jugador (barra móvil y hoja "Más"). "Mis lesiones" es la
+// misma lista de Lesiones: para el jugador, RLS deja solo las suyas.
+export const MIS_LESIONES: NavItem = {
+  href: "/lesiones",
+  label: "Mis lesiones",
+  Icon: HeartPulse,
+  isActive: LESIONES.isActive,
+};
+export const MIS_EVALUACIONES: NavItem = {
+  href: "/evaluaciones/mias",
+  label: "Mis evaluaciones",
+  Icon: Dumbbell,
+  isActive: (p) => startsWith(p, "/evaluaciones/mias"),
+};
+export const PERFIL: NavItem = {
+  href: "/perfil",
+  label: "Perfil",
+  Icon: CircleUserRound,
+  isActive: (p) => startsWith(p, "/perfil"),
+};
+
+// Ítem de cada pantalla que se puede poner en la barra móvil (src/lib/nav-slots.ts).
+export const NAV_SCREEN_ITEM: Record<NavScreen, NavItem> = {
+  resumen: RESUMEN,
+  calendario: CALENDARIO,
+  plantel: PLANTEL,
+  lesiones: LESIONES,
+  nominas: NOMINAS,
+  evaluaciones: EVALUACIONES,
+  metricas: METRICAS,
+  registros: REGISTROS,
+  staff: STAFF,
+  mis_lesiones: MIS_LESIONES,
+  mis_evaluaciones: MIS_EVALUACIONES,
+};
 
 // Formulario con el que el jugador registra su lesión (el mismo del Resumen).
 export const REGISTRAR_LESION_HREF = "/registrar-lesion";
-
-// Hoja "Más" de la barra móvil: solo el staff la tiene (el jugador no): Métricas
-// y Nóminas, y la dirección suma Registros, Staff y Configuración. "Cerrar sesión"
-// va aparte.
-export function moreItems({
-  direction,
-  staff,
-  evaluations = false,
-}: {
-  direction: boolean;
-  staff: boolean;
-  evaluations?: boolean;
-}): NavItem[] {
-  const daily = staff ? [METRICAS, NOMINAS, ...(evaluations ? [EVALUACIONES] : [])] : [];
-  if (direction) return [...daily, REGISTROS, STAFF, CONFIGURACION];
-  return daily;
-}

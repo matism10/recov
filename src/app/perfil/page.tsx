@@ -4,7 +4,10 @@ import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/
 import { signOut } from "@/app/login/actions";
 import { ROLE_LABEL, type UserRole } from "@/lib/roles";
 import { photoUrl } from "@/lib/photos";
-import { buttonSecondary, cardClass, textButton } from "@/app/ui";
+import { cardClass, signOutButtonClass, textButton } from "@/app/ui";
+import { LogOut } from "lucide-react";
+import { allowedScreens, defaultSlots, resolveSlots } from "@/lib/nav-slots";
+import { NavSlotsForm } from "./nav-slots-form";
 import {
   AvatarForm,
   PasswordForm,
@@ -28,7 +31,7 @@ export default async function ProfilePage() {
   // plantel (RLS: el jugador ve la suya).
   // La ficha es la del plantel activo: con varios planteles, la cuenta tiene una por plantel.
   const clubId = await getActiveClubId(user.id);
-  const [profile, { data: playerRow }] = await Promise.all([
+  const [profile, { data: playerRow }, { data: navRow }] = await Promise.all([
     getProfile(user.id),
     supabase
       .from("players")
@@ -36,6 +39,8 @@ export default async function ProfilePage() {
       .eq("user_id", user.id)
       .eq("club_id", clubId)
       .maybeSingle(),
+    // Barra móvil guardada (0047; RLS: solo la fila propia del plantel activo).
+    supabase.from("nav_preferences").select("slots").eq("club_id", clubId).maybeSingle(),
   ]);
 
   if (profile?.status === "pendiente") redirect("/pendiente");
@@ -43,6 +48,8 @@ export default async function ProfilePage() {
 
   const club = profile.club;
   const roles = (profile.roles ?? []) as UserRole[];
+  const navOpts = { kineDelegate: club?.kine_delegate_id === user.id };
+  const navSlots = resolveSlots((navRow?.slots as string[] | null) ?? null, roles, navOpts);
 
   // Solo jugadores, en paralelo: posiciones de su deporte y su teléfono
   // (get_player_phone, 0030: al propio jugador siempre le devuelve su número).
@@ -117,8 +124,22 @@ export default async function ProfilePage() {
           <PasswordForm />
         </section>
 
+        {/* Barra inferior: solo existe en el celular. */}
+        <section className={`p-5 lg:hidden ${cardClass}`}>
+          <h2 className="mb-4 font-semibold text-ink">Barra principal</h2>
+          <NavSlotsForm
+            current={navSlots}
+            defaults={defaultSlots(roles, navOpts)}
+            allowed={allowedScreens(roles)}
+            player={roles.includes("jugador")}
+          />
+        </section>
+
         <form action={signOut}>
-          <button className={`w-full ${buttonSecondary}`}>Cerrar sesión</button>
+          <button className={signOutButtonClass}>
+            <LogOut aria-hidden="true" className="size-5" />
+            Cerrar sesión
+          </button>
         </form>
       </div>
     </main>

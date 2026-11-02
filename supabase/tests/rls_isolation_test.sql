@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0045.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0048.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -1984,5 +1984,116 @@ select pg_temp.expect_count($q$select 1 from pg_proc where oid = 'public.registe
   and proacl::text = '{postgres=X/postgres,service_role=X/postgres,authenticated=X/postgres}'$q$, 1, 'permisos de register_member sin cambios');
 select pg_temp.expect_count($q$select 1 from pg_proc where oid = 'public.create_email_verification(uuid)'::regprocedure
   and proacl::text = '{postgres=X/postgres,service_role=X/postgres}'$q$, 1, 'permisos de create_email_verification sin cambios');
+
+-- =======================================================================
+-- Barra inferior móvil (0047): nav_preferences y set_nav_slots
+-- =======================================================================
+-- Jugador A1: 3 pantallas que el jugador ve (el centro es "Registrar lesión").
+select pg_temp.as_user_h('60000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'calendario', 'mis_lesiones'])$q$, 'jugador A1 guarda su barra');
+select pg_temp.expect_count($q$select 1 from public.nav_preferences where slots = array['resumen', 'calendario', 'mis_lesiones']$q$, 1, 'jugador A1 lee su barra');
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['plantel', 'mis_evaluaciones', 'resumen'])$q$, 'jugador A1 elige Plantel y Mis evaluaciones');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'mis_lesiones', 'plantel'])$q$, 'jugador A1 guarda 4 pantallas');
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'calendario', 'nominas'])$q$, 'jugador A1 elige Nóminas (0048)');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'lesiones'])$q$, 'jugador A1 elige Lesiones del plantel');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'registros'])$q$, 'jugador A1 elige Registros');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'resumen', 'plantel'])$q$, 'jugador A1 repite una pantalla');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', null, 'plantel'])$q$, 'jugador A1 guarda una pantalla nula');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'configuracion'])$q$, 'jugador A1 elige una pantalla fuera del catálogo');
+select pg_temp.expect_ok($q$select public.set_nav_slots(null)$q$, 'jugador A1 restablece su barra');
+select pg_temp.expect_count($q$select 1 from public.nav_preferences where slots is null$q$, 1, 'restablecer deja la fila con slots NULL (sin borrar)');
+select pg_temp.expect_fail($q$insert into public.nav_preferences (user_id, club_id, slots)
+  values ('60000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', array['resumen', 'calendario', 'staff'])$q$, 'jugador A1 escribe directo en nav_preferences');
+select pg_temp.expect_fail($q$update public.nav_preferences set slots = array['resumen', 'calendario', 'staff']$q$, 'jugador A1 actualiza directo nav_preferences');
+select pg_temp.back_h();
+
+-- Head coach A: 4 pantallas, con las de la dirección.
+select pg_temp.as_user_h('10000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'registros', 'staff', 'evaluaciones'])$q$, 'head coach A elige Registros, Staff y Evaluaciones');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'plantel'])$q$, 'head coach A guarda 3 pantallas');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'plantel', 'mis_lesiones'])$q$, 'head coach A elige Mis lesiones');
+select pg_temp.expect_count($q$select 1 from public.nav_preferences$q$, 1, 'head coach A ve solo su fila (no la del jugador)');
+select pg_temp.back_h();
+
+-- Manager A: Nóminas sí, Evaluaciones no.
+select pg_temp.as_user_h('20000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'calendario', 'plantel', 'nominas'])$q$, 'manager A elige Nóminas');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'plantel', 'evaluaciones'])$q$, 'manager A elige Evaluaciones');
+select pg_temp.back_h();
+
+-- Entrenador y nutricionista A: sin pantallas de la dirección.
+select pg_temp.as_user_h('40000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'calendario', 'lesiones', 'nominas'])$q$, 'entrenador A elige Lesiones y Nóminas');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'lesiones', 'registros'])$q$, 'entrenador A elige Registros');
+select pg_temp.back_h();
+select pg_temp.as_user_h('50000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'calendario', 'evaluaciones', 'plantel'])$q$, 'nutricionista A elige Evaluaciones');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'evaluaciones', 'staff'])$q$, 'nutricionista A elige Staff');
+select pg_temp.back_h();
+
+-- Pendiente: sin plantel confirmado no guarda.
+select pg_temp.as_user_h('70000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'plantel'])$q$, 'jugador pendiente guarda su barra');
+select pg_temp.back_h();
+
+-- Kine B no ve las filas del club A.
+select pg_temp.as_user_h('30000000-0000-0000-0000-00000000000b', null);
+select pg_temp.expect_count($q$select 1 from public.nav_preferences$q$, 0, 'kine B no ve barras del club A');
+select pg_temp.back_h();
+
+-- Una cuenta en dos planteles: una barra por plantel, cada una con los roles de ese plantel.
+insert into public.club_members (user_id, club_id, roles, status)
+values ('30000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002', '{jugador}', 'confirmado');
+select pg_temp.as_user_h('30000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001');
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'lesiones', 'plantel', 'evaluaciones'])$q$, 'kine A guarda su barra en A');
+select pg_temp.back_h();
+select pg_temp.as_user_h('30000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'lesiones', 'plantel', 'evaluaciones'])$q$, 'en B (jugador) no guarda la barra de staff');
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'plantel', 'calendario'])$q$, 'en B guarda una barra de jugador');
+select pg_temp.expect_count($q$select 1 from public.nav_preferences$q$, 1, 'con el header de B ve solo la fila de B');
+select pg_temp.expect_count($q$select 1 from public.nav_preferences where club_id = 'bbbbbbbb-0000-0000-0000-000000000002' and cardinality(slots) = 3$q$, 1, 'la fila de B es la de jugador');
+select pg_temp.back_h();
+select pg_temp.as_user_h('30000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001');
+select pg_temp.expect_count($q$select 1 from public.nav_preferences where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 1, 'con el header de A ve la fila de A');
+select pg_temp.expect_count($q$select 1 from public.nav_preferences where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'con el header de A no ve la fila de B');
+select pg_temp.back_h();
+select pg_temp.as_user_h('40000000-0000-0000-0000-00000000000a', 'bbbbbbbb-0000-0000-0000-000000000002');
+select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'lesiones', 'plantel'])$q$, 'header de un plantel ajeno: sin permiso');
+select pg_temp.back_h();
+
+-- Permisos: authenticated solo lee la tabla y ejecuta set_nav_slots; anon nada.
+select pg_temp.expect_count($q$select 1 where has_table_privilege('authenticated', 'public.nav_preferences', 'SELECT')
+  and not has_table_privilege('authenticated', 'public.nav_preferences', 'INSERT, UPDATE, TRUNCATE')
+  and not exists (select 1 from information_schema.role_table_grants where table_schema = 'public'
+    and table_name = 'nav_preferences' and grantee = 'authenticated' and privilege_type <> 'SELECT')
+  and not has_table_privilege('anon', 'public.nav_preferences', 'SELECT')$q$, 1, 'nav_preferences: authenticated solo SELECT, anon nada');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'public.set_nav_slots(text[])', 'EXECUTE')
+  and not has_function_privilege('anon', 'public.set_nav_slots(text[])', 'EXECUTE')
+  and not has_function_privilege('authenticated', 'private.nav_allowed_screens(uuid)', 'EXECUTE')$q$, 1, 'set_nav_slots para authenticated; helpers privados sin permiso');
+
+-- =======================================================================
+-- Nóminas en lectura para el jugador (0048): convocatoria completa de su club
+-- =======================================================================
+insert into public.events (id, club_id, type, starts_at, ends_at, opponent, created_by) values
+  ('ee000000-0000-0000-0000-0000000000a1', 'aaaaaaaa-0000-0000-0000-000000000001', 'competencia', now() + interval '2 days', now() + interval '2 days 2 hours', 'Rival', '10000000-0000-0000-0000-00000000000a'),
+  ('ee000000-0000-0000-0000-0000000000b1', 'bbbbbbbb-0000-0000-0000-000000000002', 'competencia', now() + interval '2 days', now() + interval '2 days 2 hours', 'Rival', '30000000-0000-0000-0000-00000000000b');
+insert into public.event_callups (club_id, event_id, player_id, created_by, slot) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'ee000000-0000-0000-0000-0000000000a1', 'a1000000-1111-0000-0000-000000000001', '10000000-0000-0000-0000-00000000000a', 1),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'ee000000-0000-0000-0000-0000000000a1', 'a1000000-1111-0000-0000-000000000002', '10000000-0000-0000-0000-00000000000a', 2),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'ee000000-0000-0000-0000-0000000000b1', 'b1000000-1111-0000-0000-000000000001', '30000000-0000-0000-0000-00000000000b', null);
+select pg_temp.as_user_h('60000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_count($q$select 1 from public.event_callups where event_id = 'ee000000-0000-0000-0000-0000000000a1'$q$, 2, 'jugador A1 ve la nómina completa de su partido');
+select pg_temp.expect_count($q$select 1 from public.event_callups where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'jugador A1 no ve nóminas del club B');
+select pg_temp.expect_fail($q$insert into public.event_callups (club_id, event_id, player_id, created_by)
+  values ('aaaaaaaa-0000-0000-0000-000000000001', 'ee000000-0000-0000-0000-0000000000a1', 'a1000000-1111-0000-0000-000000000002', '60000000-0000-0000-0000-00000000000a')$q$, 'jugador A1 escribe directo en event_callups');
+select pg_temp.expect_fail($q$update public.event_callups set slot = 3$q$, 'jugador A1 actualiza directo event_callups');
+select pg_temp.expect_fail($q$select public.set_event_callups('ee000000-0000-0000-0000-0000000000a1', array['a1000000-1111-0000-0000-000000000001']::uuid[])$q$, 'jugador A1 arma la convocatoria');
+select pg_temp.back_h();
+select pg_temp.as_user_h('70000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_count($q$select 1 from public.event_callups$q$, 0, 'jugador pendiente no ve convocatorias');
+select pg_temp.back_h();
+select pg_temp.as_user_h('60000000-0000-0000-0000-00000000000b', null);
+select pg_temp.expect_count($q$select 1 from public.event_callups where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'jugador B1 no ve nóminas del club A');
+select pg_temp.back_h();
 
 rollback;

@@ -1,13 +1,14 @@
 -- Recov · Pruebas de nóminas y carga del plantel (0027, 0028, 0029)
 -- Correr en el SQL Editor de Supabase (o por execute_sql) DESPUÉS de las migraciones
--- 0001 a 0045. Todo va en una transacción que termina en ROLLBACK: no deja datos.
+-- 0001 a 0048. Todo va en una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, se detiene con "FAIL: ...".
 --
 -- Cubre: aislamiento entre clubes; quién escribe (head coach, manager, delegado) y
--- quién no (entrenador, nutri, pf, kine, jugador, anónimo); el jugador lee solo lo
--- suyo; validación según el modo; derivación de rangos y puntos medios en rugby y
--- hockey; semáforo en los tres modos; modo cambiado con datos previos; quitar de
--- la convocatoria archiva sin borrar; nómina por puestos (titulares y banca).
+-- quién no (entrenador, nutri, pf, kine, jugador, anónimo); el jugador ve la
+-- convocatoria completa de su club (0048) y solo sus minutos; validación según el
+-- modo; derivación de rangos y puntos medios en rugby y hockey; semáforo en los
+-- tres modos; modo cambiado con datos previos; quitar de la convocatoria archiva
+-- sin borrar; nómina por puestos (titulares y banca).
 
 begin;
 
@@ -425,11 +426,15 @@ select pg_temp.expect_load('P3', 30, 'baja', 'rango: P3 vuelve a sumar el partid
 select pg_temp.back();
 
 -- =======================================================================
--- 7. El jugador lee solo lo suyo; aislamiento entre clubes
+-- 7. El jugador ve la convocatoria del club y solo sus minutos; aislamiento entre clubes
 -- =======================================================================
 select pg_temp.as_user('60000000-0000-0000-0000-0000000000a1');   -- P1
-select pg_temp.expect_count($q$select 1 from public.event_callups$q$, 5, 'P1 ve solo sus 5 convocatorias');
-select pg_temp.expect_count($q$select 1 from public.event_callups where player_id <> 'a1000000-0000-0000-0000-000000000001'$q$, 0, 'P1 no ve convocatorias de otros');
+-- Desde 0048 el jugador confirmado ve la convocatoria completa (no los minutos).
+select pg_temp.expect_count($q$select 1 from public.event_callups where player_id = 'a1000000-0000-0000-0000-000000000001'$q$, 5, 'P1 ve sus 5 convocatorias');
+select pg_temp.expect_count($q$select 1 where exists (select 1 from public.event_callups where player_id <> 'a1000000-0000-0000-0000-000000000001')
+  and not exists (select 1 from public.event_callups where club_id <> 'aaaaaaaa-0000-0000-0000-0000000000a1')$q$, 1, 'P1 ve las convocatorias de sus compañeros, solo de su club (0048)');
+select pg_temp.expect_fail($q$insert into public.event_callups (club_id, event_id, player_id, created_by)
+  values ('aaaaaaaa-0000-0000-0000-0000000000a1', 'e0000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000002', '60000000-0000-0000-0000-0000000000a1')$q$, 'P1 escribe directo en event_callups');
 select pg_temp.expect_count($q$select 1 from public.event_participations where player_id <> 'a1000000-0000-0000-0000-000000000001'$q$, 0, 'P1 no ve participaciones de otros');
 select pg_temp.expect_fail($q$select public.team_match_load(4)$q$, 'P1 lee la carga del plantel');
 select pg_temp.expect_count($q$select 1 where not (public.my_match_load() ? 'players')

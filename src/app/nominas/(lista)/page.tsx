@@ -15,9 +15,10 @@ type MatchRow = {
   location: string | null;
 };
 
-// Nóminas del club (staff): las convocatorias registradas en cada partido y, para
-// quien las arma (head coach, manager y el delegado), el acceso directo a armar
-// la del próximo partido. RLS: el staff ve las convocatorias de su club.
+// Nóminas del club: las convocatorias registradas en cada partido y, para quien
+// las arma (head coach, manager y el delegado), el acceso directo a armar la del
+// próximo partido. RLS (0048): todo confirmado del club ve las convocatorias. El
+// jugador las ve en lectura en /nominas/[eventId] (sin disponibilidad ni minutos).
 export default async function NominasPage() {
   const supabase = await getSupabase();
   const user = await getSessionUser();
@@ -47,7 +48,8 @@ export default async function NominasPage() {
   ]);
   if (me?.status === "pendiente") redirect("/pendiente");
   const roles = (me?.roles ?? []) as UserRole[];
-  if (!me || me.status !== "confirmado" || !isStaff(roles)) redirect("/dashboard");
+  if (!me || me.status !== "confirmado") redirect("/dashboard");
+  const staff = isStaff(roles);
   const club = me.club;
   const canNomina = canManageNominas(roles, user.id, club?.nomina_delegate_id);
 
@@ -64,7 +66,8 @@ export default async function NominasPage() {
           .is("cancelled_at", null)
           .order("starts_at", { ascending: false })
       : Promise.resolve({ data: [] }),
-    ids.length
+    // Participación cargada: solo para el staff (el jugador ve solo sus propias filas).
+    ids.length && staff
       ? supabase.from("event_participations").select("event_id").eq("club_id", clubId).in("event_id", ids)
       : Promise.resolve({ data: [] }),
   ]);
@@ -100,7 +103,7 @@ export default async function NominasPage() {
               {m.location && ` · ${m.location}`}
             </p>
           </div>
-          {past && (
+          {past && staff && (
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                 withParticipation.has(m.id) ? "bg-disponible-bg text-disponible-fg" : "bg-revision-bg text-revision-fg"
@@ -118,7 +121,10 @@ export default async function NominasPage() {
           </span>
         </p>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/calendario/${m.id}/disponibles`} className={`text-sm ${buttonSecondary}`}>
+          <Link
+            href={staff ? `/calendario/${m.id}/disponibles` : `/nominas/${m.id}`}
+            className={`text-sm ${buttonSecondary}`}
+          >
             {canNomina && !past ? "Editar nómina" : "Ver nómina"}
           </Link>
           {past && canNomina && (
