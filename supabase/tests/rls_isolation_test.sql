@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0047.
+-- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0048.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -1994,7 +1994,7 @@ select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'calend
 select pg_temp.expect_count($q$select 1 from public.nav_preferences where slots = array['resumen', 'calendario', 'mis_lesiones']$q$, 1, 'jugador A1 lee su barra');
 select pg_temp.expect_ok($q$select public.set_nav_slots(array['plantel', 'mis_evaluaciones', 'resumen'])$q$, 'jugador A1 elige Plantel y Mis evaluaciones');
 select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'mis_lesiones', 'plantel'])$q$, 'jugador A1 guarda 4 pantallas');
-select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'nominas'])$q$, 'jugador A1 elige Nóminas');
+select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'calendario', 'nominas'])$q$, 'jugador A1 elige Nóminas (0048)');
 select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'lesiones'])$q$, 'jugador A1 elige Lesiones del plantel');
 select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'registros'])$q$, 'jugador A1 elige Registros');
 select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'resumen', 'plantel'])$q$, 'jugador A1 repite una pantalla');
@@ -2070,5 +2070,30 @@ select pg_temp.expect_count($q$select 1 where has_table_privilege('authenticated
 select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'public.set_nav_slots(text[])', 'EXECUTE')
   and not has_function_privilege('anon', 'public.set_nav_slots(text[])', 'EXECUTE')
   and not has_function_privilege('authenticated', 'private.nav_allowed_screens(uuid)', 'EXECUTE')$q$, 1, 'set_nav_slots para authenticated; helpers privados sin permiso');
+
+-- =======================================================================
+-- Nóminas en lectura para el jugador (0048): convocatoria completa de su club
+-- =======================================================================
+insert into public.events (id, club_id, type, starts_at, ends_at, opponent, created_by) values
+  ('ee000000-0000-0000-0000-0000000000a1', 'aaaaaaaa-0000-0000-0000-000000000001', 'competencia', now() + interval '2 days', now() + interval '2 days 2 hours', 'Rival', '10000000-0000-0000-0000-00000000000a'),
+  ('ee000000-0000-0000-0000-0000000000b1', 'bbbbbbbb-0000-0000-0000-000000000002', 'competencia', now() + interval '2 days', now() + interval '2 days 2 hours', 'Rival', '30000000-0000-0000-0000-00000000000b');
+insert into public.event_callups (club_id, event_id, player_id, created_by, slot) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'ee000000-0000-0000-0000-0000000000a1', 'a1000000-1111-0000-0000-000000000001', '10000000-0000-0000-0000-00000000000a', 1),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'ee000000-0000-0000-0000-0000000000a1', 'a1000000-1111-0000-0000-000000000002', '10000000-0000-0000-0000-00000000000a', 2),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'ee000000-0000-0000-0000-0000000000b1', 'b1000000-1111-0000-0000-000000000001', '30000000-0000-0000-0000-00000000000b', null);
+select pg_temp.as_user_h('60000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_count($q$select 1 from public.event_callups where event_id = 'ee000000-0000-0000-0000-0000000000a1'$q$, 2, 'jugador A1 ve la nómina completa de su partido');
+select pg_temp.expect_count($q$select 1 from public.event_callups where club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 0, 'jugador A1 no ve nóminas del club B');
+select pg_temp.expect_fail($q$insert into public.event_callups (club_id, event_id, player_id, created_by)
+  values ('aaaaaaaa-0000-0000-0000-000000000001', 'ee000000-0000-0000-0000-0000000000a1', 'a1000000-1111-0000-0000-000000000002', '60000000-0000-0000-0000-00000000000a')$q$, 'jugador A1 escribe directo en event_callups');
+select pg_temp.expect_fail($q$update public.event_callups set slot = 3$q$, 'jugador A1 actualiza directo event_callups');
+select pg_temp.expect_fail($q$select public.set_event_callups('ee000000-0000-0000-0000-0000000000a1', array['a1000000-1111-0000-0000-000000000001']::uuid[])$q$, 'jugador A1 arma la convocatoria');
+select pg_temp.back_h();
+select pg_temp.as_user_h('70000000-0000-0000-0000-00000000000a', null);
+select pg_temp.expect_count($q$select 1 from public.event_callups$q$, 0, 'jugador pendiente no ve convocatorias');
+select pg_temp.back_h();
+select pg_temp.as_user_h('60000000-0000-0000-0000-00000000000b', null);
+select pg_temp.expect_count($q$select 1 from public.event_callups where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'jugador B1 no ve nóminas del club A');
+select pg_temp.back_h();
 
 rollback;

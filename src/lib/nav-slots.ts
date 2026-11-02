@@ -1,4 +1,4 @@
-// Barra inferior móvil configurable (0047): pantallas por rol, cantidad de slots y
+// Barra inferior móvil configurable (0047, 0048): pantallas por rol, cantidad de slots y
 // valores por defecto. Compartido entre servidor y cliente. Las mismas reglas las
 // valida la base en set_nav_slots (private.nav_allowed_screens); aquí solo deciden
 // qué se muestra y qué se ofrece en Perfil.
@@ -42,13 +42,13 @@ export function isNavScreen(value: unknown): value is NavScreen {
 }
 
 // Pantallas que el rol puede ver (para la barra y la hoja "Más").
-// Nóminas: todo el staff (en lectura salvo la dirección y el delegado); el jugador
-// no, porque la base solo le deja leer sus propias convocatorias.
+// Nóminas: todos los confirmados (0048); la arman solo la dirección y el delegado,
+// el resto la ve en lectura.
 export function allowedScreens(roles: readonly UserRole[]): NavScreen[] {
   const staff = isStaff(roles);
   const player = roles.includes("jugador");
-  const allowed = new Set<NavScreen>(["resumen", "calendario", "plantel"]);
-  if (staff) ["lesiones", "nominas", "metricas"].forEach((s) => allowed.add(s as NavScreen));
+  const allowed = new Set<NavScreen>(["resumen", "calendario", "plantel", "nominas"]);
+  if (staff) ["lesiones", "metricas"].forEach((s) => allowed.add(s as NavScreen));
   if (canReadEvaluations(roles)) allowed.add("evaluaciones");
   if (isDirection(roles)) ["registros", "staff"].forEach((s) => allowed.add(s as NavScreen));
   // Para el staff, Lesiones ya muestra las del plantel: Mis lesiones solo es del jugador.
