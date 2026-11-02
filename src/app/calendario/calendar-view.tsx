@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, ClipboardList, MapPin, Swords, X } from "lucide-react";
 import { addDays } from "@/lib/injuries";
 import {
@@ -74,22 +75,57 @@ export function CalendarView({
     onSelect: setSelectedId,
   };
 
+  // Celular: la vista (semana o mes) y la semana mostrada cambian en el cliente
+  // mientras caigan dentro de la grilla del mes que ya trajo el servidor (sin otro
+  // viaje). La URL se actualiza con replaceState para que recargar o compartir
+  // muestre lo mismo. Fuera de la grilla, se navega y el servidor trae el otro mes.
+  const router = useRouter();
+  const [view, setView] = useState(mobileView);
+  const [weekAnchor, setWeekAnchor] = useState(anchor);
+  const loaded = (week: string[]) => week[0] >= days[0] && week[6] <= days[days.length - 1];
+  const syncUrl = (fecha: string, v: "semana" | "mes") =>
+    window.history.replaceState(null, "", `/calendario?fecha=${fecha}${v === "mes" ? "&vista=mes" : ""}`);
+
+  const showWeek = (date: string) => {
+    if (!loaded(weekDays(date))) return router.push(`/calendario?fecha=${date}`);
+    setWeekAnchor(date);
+    setView("semana");
+    syncUrl(date, "semana");
+  };
+  const showMonth = () => {
+    // El mes de la grilla cargada, si la semana actual toca ese mes.
+    const month = anchor.slice(0, 7);
+    if (!weekDays(weekAnchor).some((d) => d.slice(0, 7) === month)) {
+      return router.push(`/calendario?fecha=${weekAnchor}&vista=mes`);
+    }
+    setView("mes");
+    syncUrl(weekAnchor, "mes");
+  };
+
   return (
     <div>
       <MonthGrid anchor={anchor} today={today} days={days} byDay={byDay} {...chipProps} />
       {/* Celular: semana (por defecto) o mes. */}
-      <ViewToggle anchor={anchor} view={mobileView} />
-      {mobileView === "mes" ? (
+      <ViewToggle view={view} onWeek={() => showWeek(weekAnchor)} onMonth={showMonth} />
+      {view === "mes" ? (
         <MobileMonth
           anchor={anchor}
           today={today}
           days={days}
           byDay={byDay}
-          initialDay={selected?.day ?? null}
+          initialDay={selected?.day ?? (weekAnchor.slice(0, 7) === anchor.slice(0, 7) ? weekAnchor : null)}
+          onPickDay={setWeekAnchor}
           {...chipProps}
         />
       ) : (
-        <WeekList anchor={anchor} today={today} byDay={byDay} {...chipProps} />
+        <WeekList
+          anchor={weekAnchor}
+          today={today}
+          byDay={byDay}
+          loaded={loaded}
+          onShowWeek={showWeek}
+          {...chipProps}
+        />
       )}
       {selected && (
         <EventPanel
@@ -196,32 +232,42 @@ function MonthGrid({
 // ---------------------------------------------------------------------------
 // Celular: selector de vista (semana o mes); conserva el día de referencia
 // ---------------------------------------------------------------------------
-function ViewToggle({ anchor, view }: { anchor: string; view: "semana" | "mes" }) {
+function ViewToggle({
+  view,
+  onWeek,
+  onMonth,
+}: {
+  view: "semana" | "mes";
+  onWeek: () => void;
+  onMonth: () => void;
+}) {
   const options = [
-    { value: "semana", label: "Semana", href: `/calendario?fecha=${anchor}` },
-    { value: "mes", label: "Mes", href: `/calendario?fecha=${anchor}&vista=mes` },
+    { value: "semana", label: "Semana", onClick: onWeek },
+    { value: "mes", label: "Mes", onClick: onMonth },
   ] as const;
   return (
-    <nav
+    <div
+      role="group"
       aria-label="Vista del calendario"
       className="mb-4 grid grid-cols-2 gap-1 rounded-xl border border-line bg-mist p-1 lg:hidden"
     >
       {options.map((o) => {
         const active = view === o.value;
         return (
-          <Link
+          <button
             key={o.value}
-            href={o.href}
-            aria-current={active ? "page" : undefined}
+            type="button"
+            onClick={active ? undefined : o.onClick}
+            aria-pressed={active}
             className={`flex min-h-11 items-center justify-center rounded-lg text-sm font-medium transition ${
               active ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
             }`}
           >
             {o.label}
-          </Link>
+          </button>
         );
       })}
-    </nav>
+    </div>
   );
 }
 
@@ -239,6 +285,7 @@ function MobileMonth({
   days,
   byDay,
   initialDay,
+  onPickDay,
   ...chipProps
 }: {
   anchor: string;
@@ -246,6 +293,8 @@ function MobileMonth({
   days: string[];
   byDay: Map<string, CalendarEvent[]>;
   initialDay: string | null;
+  // El día elegido pasa a ser la semana que se ve al volver a "Semana".
+  onPickDay: (day: string) => void;
 } & ChipProps) {
   const month = anchor.slice(0, 7);
   const inMonth = (d: string) => d.slice(0, 7) === month;
@@ -295,7 +344,10 @@ function MobileMonth({
             <li key={d} className="min-w-0">
               <button
                 type="button"
-                onClick={() => setDay(d)}
+                onClick={() => {
+                  setDay(d);
+                  onPickDay(d);
+                }}
                 aria-pressed={chosen}
                 aria-label={`${longDayLabel(d)}${isToday ? " (hoy)" : ""}${
                   events.length > 0
@@ -357,29 +409,39 @@ function WeekList({
   anchor,
   today,
   byDay,
+  loaded,
+  onShowWeek,
   ...chipProps
-}: { anchor: string; today: string; byDay: Map<string, CalendarEvent[]> } & ChipProps) {
+}: {
+  anchor: string;
+  today: string;
+  byDay: Map<string, CalendarEvent[]>;
+  loaded: (week: string[]) => boolean;
+  onShowWeek: (date: string) => void;
+} & ChipProps) {
   const week = weekDays(anchor);
   const start = weekStart(anchor);
   const inThisWeek = week.includes(today);
+  const prev = addDays(start, -7);
+  const next = addDays(start, 7);
   return (
     <section aria-label="Semana" className="lg:hidden">
       <div className="mb-4 flex items-center gap-2">
-        <Link href={`/calendario?fecha=${addDays(start, -7)}`} className={navButton}>
+        <WeekStep date={prev} href={`/calendario?fecha=${prev}`} loaded={loaded} onShowWeek={onShowWeek} className={navButton}>
           <ChevronLeft aria-hidden="true" className="size-5" />
           <span className="sr-only">Semana anterior</span>
-        </Link>
-        <Link href={`/calendario?fecha=${addDays(start, 7)}`} className={navButton}>
+        </WeekStep>
+        <WeekStep date={next} href={`/calendario?fecha=${next}`} loaded={loaded} onShowWeek={onShowWeek} className={navButton}>
           <ChevronRight aria-hidden="true" className="size-5" />
           <span className="sr-only">Semana siguiente</span>
-        </Link>
+        </WeekStep>
         <h2 className="ml-1 flex-1 text-base font-semibold text-ink">
           {shortDayLabel(week[0])} – {shortDayLabel(week[6])}
         </h2>
         {!inThisWeek && (
-          <Link href="/calendario" className={`text-sm ${buttonSecondary}`}>
+          <WeekStep date={today} href="/calendario" loaded={loaded} onShowWeek={onShowWeek} className={`text-sm ${buttonSecondary}`}>
             Hoy
-          </Link>
+          </WeekStep>
         )}
       </div>
 
@@ -417,6 +479,37 @@ function WeekList({
         })}
       </ol>
     </section>
+  );
+}
+
+// Paso de semana: un botón si la semana ya está cargada (cambio inmediato en el
+// cliente); si no, un link que trae el otro mes del servidor.
+function WeekStep({
+  date,
+  href,
+  loaded,
+  onShowWeek,
+  className,
+  children,
+}: {
+  date: string;
+  href: string;
+  loaded: (week: string[]) => boolean;
+  onShowWeek: (date: string) => void;
+  className: string;
+  children: React.ReactNode;
+}) {
+  if (!loaded(weekDays(date))) {
+    return (
+      <Link href={href} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={() => onShowWeek(date)} className={className}>
+      {children}
+    </button>
   );
 }
 

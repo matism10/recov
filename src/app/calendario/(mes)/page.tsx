@@ -48,25 +48,29 @@ export default async function CalendarPage({
   const days = monthGridDays(anchor);
   const first = days[0];
   const last = days[days.length - 1];
-  // Solo los eventos del formato activo (Rugby 15 o Sevens).
-  const format = await getActiveFormat(userId);
-  const { data: rows } = await supabase
-    .from("events")
-    .select(EVENT_COLUMNS)
-    .eq("club_id", clubId)
-    .eq("format", format)
-    .gte("starts_at", `${addDays(first, -1)}T00:00:00Z`)
-    .lt("starts_at", `${addDays(last, 2)}T00:00:00Z`)
-    .order("starts_at");
+  // Solo los eventos del formato activo (Rugby 15 o Sevens). Los eventos del mes se
+  // piden en paralelo con el formato y se filtran aquí, sin esperar uno al otro.
+  const [format, { data: rows }] = await Promise.all([
+    getActiveFormat(userId),
+    supabase
+      .from("events")
+      .select(EVENT_COLUMNS)
+      .eq("club_id", clubId)
+      .gte("starts_at", `${addDays(first, -1)}T00:00:00Z`)
+      .lt("starts_at", `${addDays(last, 2)}T00:00:00Z`)
+      .order("starts_at"),
+  ]);
+  const sevensIdsPromise = format === "7" ? getSevensPlayerIds(userId) : Promise.resolve(null);
   const now = new Date();
   const events = ((rows ?? []) as EventRow[])
+    .filter((r) => (r.format === "7" ? "7" : "15") === format)
     .map((r) => toCalendarEvent(r, now))
     .filter((e) => e.day >= first && e.day <= last);
 
   // Staff: disponibilidad proyectada de cada evento visible no cancelado, una
   // llamada por evento. Solo viajan al cliente los conteos y los primeros nombres.
   const availability: Record<string, EventAvailabilitySummary> = {};
-  const sevensIds = format === "7" ? await getSevensPlayerIds(userId) : null;
+  const sevensIds = await sevensIdsPromise;
   if (staff) {
     await Promise.all(
       events

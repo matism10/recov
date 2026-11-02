@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Clock, LogIn, UserPlus } from "lucide-react";
+import { Clock } from "lucide-react";
 import { getProfile, getSupabase } from "@/lib/session";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { ClubLogo } from "@/app/club-logo";
@@ -17,6 +17,7 @@ import {
   textButton,
 } from "@/app/ui";
 import { RegisterForm } from "./register-form";
+import { AuthTabs, SwitchTab } from "./auth-tabs";
 import { JoinForm } from "./join-form";
 import { accountName } from "./account-name";
 import { joinWithAnotherEmail } from "./actions";
@@ -166,20 +167,17 @@ export default async function ClubLinkPage({
 
   // Sin sesión: Registro | Iniciar sesión.
   const previous = newAccount ? ((await cookies()).get(PREVIOUS_CLUB_COOKIE)?.value ?? "") : "";
-  const positions = tab === "registro" ? await positionsPromise : [];
+  // Las dos pestañas se arman aquí y se cambian en el cliente (auth-tabs.tsx).
+  const positions = await positionsPromise;
   const base = `/c/${slug}`;
   return (
     <Shell card={card} logoUrl={logoUrl}>
-      <nav aria-label="Elige una opción" className="grid grid-cols-2 gap-1 rounded-xl bg-white p-1 ring-1 ring-line">
-        <TabLink href={`${base}?tab=registro`} active={tab === "registro"} Icon={UserPlus}>
-          Registro
-        </TabLink>
-        <TabLink href={`${base}?tab=login`} active={tab === "login"} Icon={LogIn}>
-          Iniciar sesión
-        </TabLink>
-      </nav>
-
-      {tab === "registro" ? (
+      <AuthTabs
+        // Una navegación a ?tab= (p. ej. "Inicia sesión con ese correo") abre esa pestaña.
+        key={tab}
+        initial={tab}
+        base={base}
+        registro={
         <div className="mt-5 space-y-4">
           {newAccount && (
             <p role="status" className="rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink">
@@ -190,12 +188,11 @@ export default async function ClubLinkPage({
           <RegisterForm slug={slug} positions={positions} loginHref={`${base}?tab=login`} />
           <p className="text-center text-sm text-muted">
             {newAccount ? "¿Prefieres usar tu cuenta actual?" : "¿Ya tienes cuenta?"}{" "}
-            <Link href={`${base}?tab=login`} className={`inline-flex min-h-11 items-center ${linkClass}`}>
-              Inicia sesión
-            </Link>
+            <SwitchTab to="login">Inicia sesión</SwitchTab>
           </p>
         </div>
-      ) : (
+        }
+        login={
         <form action={signIn} className="mt-5 space-y-4">
           <input type="hidden" name="slug" value={slug} />
           <p className="text-sm text-ink">
@@ -226,12 +223,11 @@ export default async function ClubLinkPage({
           </Link>
           <p className="text-center text-sm text-muted">
             ¿No tienes cuenta?{" "}
-            <Link href={`${base}?tab=registro`} className={`inline-flex min-h-11 items-center ${linkClass}`}>
-              Regístrate
-            </Link>
+            <SwitchTab to="registro">Regístrate</SwitchTab>
           </p>
         </form>
-      )}
+        }
+      />
     </Shell>
   );
 }
@@ -263,31 +259,5 @@ function Shell({
         <InstallGuide />
       </div>
     </main>
-  );
-}
-
-function TabLink({
-  href,
-  active,
-  Icon,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  Icon: typeof LogIn;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      replace
-      aria-current={active ? "page" : undefined}
-      className={`flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-ink transition ${
-        active ? "bg-brand-soft font-semibold ring-1 ring-brand" : "hover:bg-mist"
-      }`}
-    >
-      <Icon aria-hidden="true" className="size-4 shrink-0" />
-      {children}
-    </Link>
   );
 }

@@ -10,14 +10,18 @@ import { ACTIVE_CLUB_COOKIE, isUuid } from "@/lib/active-club";
 // Cliente de Supabase del request (lee las cookies de la sesión).
 export const getSupabase = cache(createClient);
 
-// Usuario verificado contra el servidor de Auth. Las páginas lo usan para decidir
-// identidad y acceso; el layout, que solo decide qué navegación mostrar, usa getClaims().
-export const getSessionUser = cache(async () => {
+// Usuario de la sesión. getClaims verifica la firma del JWT (ES256) con las claves
+// públicas del proyecto, sin ir al servidor de Auth en cada pantalla (getUser sumaba
+// un viaje a cada navegación). Los datos los sigue protegiendo RLS, que valida el
+// mismo JWT. Las acciones que escriben siguen usando getUser.
+export type SessionUser = { id: string; email: string | null };
+
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await getSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub) return null;
+  return { id: claims.sub, email: typeof claims.email === "string" ? claims.email : null };
 });
 
 // Columnas del plantel que piden el layout y las páginas.
