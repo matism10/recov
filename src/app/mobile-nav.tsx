@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef } from "react";
 import { CirclePlus, Ellipsis, LogOut, X } from "lucide-react";
 import {
-  BIENESTAR_CONFIG,
   CONFIGURACION,
   NAV_SCREEN_ITEM,
   PERFIL,
@@ -71,12 +70,11 @@ export function MobileNavBar({
   if (isNavHidden(pathname)) return null;
 
   const barItems = slots.map((s) => NAV_SCREEN_ITEM[s]);
-  // Configuración va en "Más" solo para el head coach; el check de bienestar, también
-  // para el manager y el preparador físico.
+  // Configuración va en "Más" para quien elige los días del check de bienestar (head
+  // coach, manager y preparador físico); el preparador físico ahí solo ve el check.
   const moreItems = [
     ...more.map((s) => NAV_SCREEN_ITEM[s]),
-    ...(headCoach ? [CONFIGURACION] : []),
-    ...(wellnessConfig ? [BIENESTAR_CONFIG] : []),
+    ...(headCoach || wellnessConfig ? [CONFIGURACION] : []),
   ];
   const current = activeHref([...barItems, ...moreItems, PERFIL], pathname);
   // El botón del jugador va al centro: después del segundo slot.

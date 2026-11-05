@@ -20,7 +20,7 @@ export async function saveWellnessDays(days: number[]): Promise<WellnessDaysStat
           : "No se pudieron guardar los días.",
     };
   }
-  revalidatePath("/configuracion/bienestar");
+  revalidatePath("/configuracion");
   revalidatePath("/dashboard");
   revalidatePath("/bienestar");
   return { ok: true };

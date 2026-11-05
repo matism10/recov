@@ -7,7 +7,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 ## Estado del repositorio
 - Todo está mergeado en `main` (último: PR #88, 5 nov).
 - Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000 y 20261105190000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
-- 37 pantallas (rutas de página en `src/app`).
+- 36 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
 - Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones), `sevens_test.sql` (Rugby Sevens) y `load_wellness_test.sql` (sRPE y bienestar). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
 - 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel. 0029: nómina por puestos (titulares y banca). 0030: teléfono opcional del jugador (solo base de datos, sin UI).
@@ -37,7 +37,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 0048: Nóminas en lectura para el jugador: `event_callups_select` pasa a todo confirmado del club (antes staff o la fila propia; aprobado por Mati). `event_participations` no cambia. La barra ofrece Nóminas también al jugador.
 
 ## Historial
-- 5 nov · #89 · sRPE y check de bienestar (20261105180000, 20261105190000): "Pendientes" y "Mi bienestar" en el Resumen del jugador, `/reportar/[eventId]`, `/bienestar`, "Reportes" en el detalle del evento, carga semanal y bienestar en la ficha, tarjeta "Carga sRPE" en Métricas y `/configuracion/bienestar`.
+- 5 nov · #89 · sRPE y check de bienestar (20261105180000, 20261105190000): "Pendientes" y "Mi bienestar" en el Resumen del jugador, `/reportar/[eventId]`, `/bienestar`, "Reportes" en el detalle del evento, carga semanal y bienestar en la ficha, tarjeta "Carga sRPE" en Métricas y la sección "Check de bienestar" en Configuración.
 - 5 nov · #88 · Asistencia a entrenamientos (20261105120000): "Pasar lista" en el detalle del entrenamiento, etiqueta "Asistencia sin registrar", métrica opcional "Asistencia a entrenamientos" en el Resumen y pantalla `/asistencia`.
 - 4 nov · #87 · Versiones anteriores de `report_injury` y `complete_injury_report` sin permisos (20261104233000); los tests usan las versiones con zona.
 - 4 nov · #86 · Registro de lesión v2: el jugador elige la zona en un mapa del cuerpo (Frente/Espalda, o lista) y el lado (sugerido según dónde tocó), el documento médico es opcional con Reemplazar/Eliminar hasta la revisión, el kine ve "Sin documento", zona y lado, y el Resumen del staff tiene el mapa "Zonas lesionadas".
@@ -123,7 +123,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **7c. sRPE y check de bienestar** (20261105180000, 20261105190000). En la interfaz nunca "riesgo de lesión": "Carga alta" y "Bajo lo habitual".
 - **sRPE:** después de cada entrenamiento o partido, el jugador responde "¿Qué tan duro fue?" (0–10; 0 Reposo, 1 Muy, muy fácil, 2 Fácil, 3 Moderado, 4 Algo duro, 5 Duro, 7 Muy duro, 10 Máximo). Carga = esfuerzo × minutos. Se responde desde que empieza hasta 48 h después del término y se puede corregir en ese plazo. No aparece si el evento está cancelado, si figura ausente en la lista, si no fue convocado al partido o (en Sevens) si no está en el grupo. "No fui a este entrenamiento" / "No jugué este partido" queda como respuesta sin esfuerzo.
 - **Minutos** (se calculan al leer, no se guardan): entrenamiento = término − inicio; partido en minutos exactos = los cargados; no jugó = 0; rango, jugó / no jugó o sin participación cargada = la duración del partido del formato, marcada "estimada".
-- **Check de bienestar:** fatiga, calidad del sueño, dolor muscular, estrés y ánimo, de 1 a 5 (5 = mejor siempre), total sobre 25. Se responde los días que eligen el head coach, el manager o el preparador físico en `/configuracion/bienestar` (por defecto, lunes) o al día siguiente; se corrige el mismo día.
+- **Check de bienestar:** fatiga, calidad del sueño, dolor muscular, estrés y ánimo, de 1 a 5 (5 = mejor siempre), total sobre 25. Se responde los días que eligen el head coach, el manager o el preparador físico en Configuración → "Check de bienestar" (por defecto, lunes) o al día siguiente; se corrige el mismo día.
 - **Jugador:** en el Resumen, bloque "Pendientes" arriba (tarjetas "¿Qué tan duro fue el entrenamiento/partido?" con fecha, hora y duración, y "Check de bienestar"; sin pendientes no aparece) y "Mi bienestar" (último total / 25) junto a "Mi carga". Pantallas `/reportar/[eventId]` (escala vertical, carga en vivo "7 × 90 min = 630") y `/bienestar` (chips 1–5, "N de 5 respondidas", total y "Enviar").
 - **Staff:** en el detalle del evento, botón "Reportes" desde que empieza → `/calendario/[id]/reportes`: respondieron X de Y con barra, esfuerzo y carga promedio, "Sin responder (N)", "Dijo que no fue" y "Bienestar bajo lo habitual" (solo jugadores de ese evento). Ficha del jugador: "Carga" (6 semanas en barras, la actual en naranjo si es "Carga alta", línea punteada del promedio de 4 semanas, "+X % sobre su promedio" y sesiones de la semana) y "Bienestar" (últimos 6 checks con los 5 ítems); los minutos de partidos siguen debajo ("Minutos en partidos"). Métricas → "Carga del plantel": tarjeta "Carga sRPE" con cuántos tienen "Carga alta" esta semana y cuántos están "Bajo lo habitual", con link a cada ficha.
 - **Avisos (provisorios):** "Carga alta" = semana actual (lunes a domingo, Chile) > 1,3 × promedio de las 4 semanas anteriores con datos, con al menos 3. "Bajo lo habitual" = último check de los últimos 7 días ≤ promedio de sus 4 anteriores − 4 (con al menos 3) o algún ítem en 1; los ítems con 1 o 2 se nombran.
@@ -151,7 +151,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Barra inferior: 4 pestañas configurables y "Más" fijo a la derecha. El jugador tiene 3 y, al centro, el botón fijo "Registrar lesión" (`src/app/mobile-nav.tsx`).
 - Pantallas que se pueden elegir según el rol (`src/lib/nav-slots.ts`, la misma regla que `set_nav_slots`): Resumen, Calendario y Plantel (todos); Nóminas (todos, desde 0048); Lesiones y Métricas (staff); Evaluaciones (quienes ven resultados); Registros y Staff (dirección); Mis lesiones y Mis evaluaciones (jugador).
 - Por defecto: head coach Resumen, Calendario, Plantel, Lesiones; manager Resumen, Calendario, Plantel, Nóminas; kine, delegado y entrenador Resumen, Calendario, Lesiones, Plantel; preparador físico y nutricionista Resumen, Calendario, Evaluaciones, Plantel; jugador Resumen, Calendario, Mis lesiones.
-- "Más": hoja flotante con las pantallas del rol que no están en la barra (grilla de 3), punto rojo en Registros si hay pendientes, Configuración solo para el head coach, y abajo "Perfil" y "Cerrar sesión".
+- "Más": hoja flotante con las pantallas del rol que no están en la barra (grilla de 3), punto rojo en Registros si hay pendientes, Configuración para el head coach, el manager y el preparador físico, y abajo "Perfil" y "Cerrar sesión".
 - Perfil → "Barra principal" (solo celular): elegir las pestañas, "Guardar" y "Restablecer" (vuelve al valor por defecto del rol). Si cambian los roles y lo guardado ya no vale, se usa el valor por defecto.
 
 ## Funciones por rol
@@ -200,7 +200,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 **sRPE y bienestar**
 - Todo el staff confirmado: ver los reportes de cada evento, la carga semanal y el bienestar en la ficha, y la tarjeta "Carga sRPE" de Métricas.
-- Elegir los días del check de bienestar: head coach, manager y preparador físico (`/configuracion/bienestar`, en la sidebar y en "Más").
+- Elegir los días del check de bienestar: head coach, manager y preparador físico, en Configuración. El preparador físico entra a Configuración solo para eso (ve solo esa sección).
 
 **Entrenador, nutricionista y preparador físico** (staff)
 - Ver "Lesiones activas" y la ficha de cada jugador.
