@@ -21,7 +21,7 @@ export async function completeInjuryReport(
 
   const read = readReportFields(formData);
   if ("error" in read) return read;
-  const { type, durationValue, durationUnit, description, files } = read.fields;
+  const { bodyZone, laterality, durationValue, durationUnit, description, files } = read.fields;
 
   const supabase = await createClient();
 
@@ -46,7 +46,8 @@ export async function completeInjuryReport(
   // complete_injury_report verifica que la lesión sea del jugador y siga en evaluación.
   const { error } = await supabase.rpc("complete_injury_report", {
     p_injury_id: injuryId,
-    p_type: type,
+    p_body_zone: bodyZone,
+    p_laterality: laterality,
     p_duration_value: durationValue,
     p_duration_unit: durationUnit,
     p_description: description || null,

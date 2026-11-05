@@ -1,15 +1,15 @@
-# Recov: estado actual de la plataforma (2 nov 2026)
+# Recov: estado actual de la plataforma (4 nov 2026)
 
 Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 deportes: fútbol, futsal, rugby, handball, vóleibol, básquetbol, hockey césped; cada club tiene uno, fijado al crearlo). Proyecto del Taller de Emprendimiento Tecnológico y Sostenibilidad (UAI). Interfaz en español; pruebas y demos solo con datos ficticios. Primer plantel real: Old Locks M16 (25 oct).
 
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #84, 2 nov).
-- Migraciones 0001 a 0048 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
+- Todo está mergeado en `main` (último: PR #85, 2 nov).
+- Migraciones 0001 a 0048 y 20261104230000 a 20261104230200 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
 - 28 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
-- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones) y `sevens_test.sql` (Rugby Sevens).
+- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones) y `sevens_test.sql` (Rugby Sevens). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
 - 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel. 0029: nómina por puestos (titulares y banca). 0030: teléfono opcional del jugador (solo base de datos, sin UI).
 - CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones.
 - Migraciones desde el 21 oct:
@@ -26,10 +26,15 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 0045: Rugby Sevens: `clubs.has_sevens`, `positions.format`, `sevens_group`, `events.format`, `sport_format_config`, `create_event` con `p_format` y carga por formato.
   - 0046: métricas por formato: `dash_*(…, p_format)` (en '7' solo el grupo Sevens y su posición de Sevens); las de siempre no cambian.
   - 0047: barra inferior móvil por cuenta y plantel: `nav_preferences` (`slots` NULL = por defecto; RLS: solo la fila propia del plantel activo) y `set_nav_slots` (valida cantidad y pantallas del rol con `private.nav_allowed_screens`).
+  - 20261104230000–20261104230200 (registro de lesión v2; nombre con fecha y hora, no con número):
+    - 230000: enums `body_zone` (19 zonas) e `injury_laterality` (derecha, izquierda, bilateral, no_aplica).
+    - 230100: `injuries.body_zone` y `injuries.laterality` (nulas o ambas con valor) y `delete_own_draft_document(document_id)`: el jugador quita un documento suyo en borrador si la lesión no tiene `reviewed_at`; devuelve el `storage_path` y el servidor borra el archivo con la clave de servicio.
+    - 230200: `report_injury` y `complete_injury_report` nuevas (con `p_body_zone`, `p_laterality` y 0 a 5 documentos; `injuries.type` = "<Zona> <lado>" con `private.injury_zone_type`), `add_own_injury_document` (agregar o reemplazar antes de la revisión, máximo 5) y `private.check_player_files`. Las versiones anteriores siguen con permisos hasta el deploy.
   - 0048: Nóminas en lectura para el jugador: `event_callups_select` pasa a todo confirmado del club (antes staff o la fila propia; aprobado por Mati). `event_participations` no cambia. La barra ofrece Nóminas también al jugador.
 
 ## Historial
-- 2 nov · PR pendiente · Abrir la Web App y cambiar Rugby 15 ↔ Sevens más rápido: `start_url` a `/dashboard` y "/" redirige desde el proxy (antes armaba la página; ~0,6 s menos), el selector de formato ya no pide la página dos veces (sin `router.refresh()`), el Resumen no espera al grupo Sevens para sus consultas (`withActiveFormat`), "Por revisar" en Sevens se filtra sin consultar las fichas del grupo y la franja de métricas llega aparte con su esqueleto. Medido con `next start`: abrir la app 1,24 s → 0,72 s (head coach); cambio de formato 1,2–1,4 s → 0,7 s.
+- 4 nov · PR pendiente · Registro de lesión v2: el jugador elige la zona en un mapa del cuerpo (Frente/Espalda, o lista) y el lado (sugerido según dónde tocó), el documento médico es opcional con Reemplazar/Eliminar hasta la revisión, el kine ve "Sin documento", zona y lado, y el Resumen del staff tiene el mapa "Zonas lesionadas".
+- 2 nov · #85 · Abrir la Web App y cambiar Rugby 15 ↔ Sevens más rápido: `start_url` a `/dashboard` y "/" redirige desde el proxy (antes armaba la página; ~0,6 s menos), el selector de formato ya no pide la página dos veces (sin `router.refresh()`), el Resumen no espera al grupo Sevens para sus consultas (`withActiveFormat`), "Por revisar" en Sevens se filtra sin consultar las fichas del grupo y la franja de métricas llega aparte con su esqueleto. Medido con `next start`: abrir la app 1,24 s → 0,72 s (head coach); cambio de formato 1,2–1,4 s → 0,7 s.
 - 2 nov · #84 · Navegación móvil: barra configurable por cuenta y plantel (0047), botón "Registrar lesión" del jugador, hoja "Más" en grilla con Perfil y Cerrar sesión, sección "Barra principal" en Perfil y Nóminas para todos (0048; el jugador en lectura en `/nominas/[eventId]`, también en la sidebar).
 - 2 nov · #83 · Transiciones más rápidas: semana/mes del calendario y pestañas del link del plantel sin ir al servidor, sesión con `getClaims` (sin viaje a Auth), pantallas visitadas al instante por 30 s (`staleTimes`), formato 15 sin consultar el grupo Sevens y esqueletos en Evaluaciones.
 - 28 oct · #81 · Rugby Sevens, app: formato activo, selector en el Resumen, filtros por formato, nómina Sevens y Grupo Sevens.
@@ -57,11 +62,19 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Recuperar contraseña en `/recuperar`. Recov se instala como Web App (guía en el login y el registro).
 
 **2. Una lesión entra al sistema por uno de dos caminos**
-- **A. El kine la ve en terreno:** en el plantel pulsa "Marcar lesionado" junto al jugador e indica dónde ocurrió (entrenamiento o competencia) y una nota breve. La lesión queda **En evaluación** y el jugador **En revisión**. Al jugador le aparece una tarjeta para subir su diagnóstico (tipo, duración que indicó el médico, 1 a 5 documentos). Al subirlo, la lesión pasa a **Activa, sin revisar**.
-- **B. El jugador la reporta por su cuenta** ("Registrar lesión", con fecha, diagnóstico y documentos). Queda **Activa, sin revisar**.
+- **A. El kine la ve en terreno:** en el plantel pulsa "Marcar lesionado" junto al jugador e indica dónde ocurrió (entrenamiento o competencia) y una nota breve. La lesión queda **En evaluación** y el jugador **En revisión**. Al jugador le aparece una tarjeta para subir su diagnóstico (zona del cuerpo y lado, duración que indicó el médico, detalle y documentos opcionales). Al subirlo, la lesión pasa a **Activa, sin revisar**.
+- **B. El jugador la reporta por su cuenta** ("Registrar lesión"). Queda **Activa, sin revisar**.
+- **Formulario del jugador** (los dos caminos, `src/app/registrar-lesion/injury-form.tsx`):
+  - Zona en el mapa del cuerpo (`src/app/body-map.tsx`: figura anatómica oscura, zona elegida en celeste; cada región lleva `data-zone` = valor de `body_zone`) o en una lista. Una zona por lesión. Escritorio: Frente y Espalda lado a lado y el formulario a la derecha; celular: un cuerpo con cambio Frente/Espalda y la lista debajo.
+  - Lado en chips Derecha / Izquierda / Bilateral / No aplica, sugerido según el lado tocado (de frente se invierte; las zonas centrales sugieren No aplica) y editable (`src/lib/body-zones.ts`).
+  - Detalle opcional (`injuries.description`). `injuries.type` lo arma la base: "Isquiotibial derecho".
+  - "Orden médica o examen (opcional)" con botón de información; se puede registrar sin archivo y no se le muestra al jugador ningún aviso de documento pendiente.
+- **Documentos después de enviar:** en el detalle de su lesión, el jugador puede Reemplazar, Eliminar o adjuntar otro mientras la lesión está activa y sin revisar. Después de la revisión los botones quedan deshabilitados.
 
 **3. Revisión**
-- La lesión aparece en la bandeja **"Por revisar"** del kine, su delegado y el head coach.
+- La lesión aparece en la bandeja **"Por revisar"** del kine, su delegado y el head coach. Si no tiene documentos lleva el indicador **"Sin documento"** (también en `/lesiones` y en el detalle; se calcula con `documents(count)`, sin columna nueva).
+- Lista y detalle muestran zona y lado; el detalle, un mapa con la zona. Las lesiones antiguas sin zona se ven como antes (tipo libre).
+- **Resumen del staff → "Zonas lesionadas":** mapa Frente/Espalda con las lesiones abiertas del plantel (en Sevens, del grupo) pintadas por cantidad (amarillo 1, naranjo 2, rojo 3 o más) y una lista por zona.
 - Desde el detalle de la lesión se puede:
   - **Confirmar:** gravedad, fecha estimada de alta y disponibilidad (sugiere Lesionado).
   - **Descartar:** el jugador vuelve a Disponible si no tiene otra lesión abierta; si tiene otra activa, queda Lesionado.
@@ -128,8 +141,9 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Elegir las pestañas de la barra inferior del celular (Perfil → "Barra principal"), solo entre las pantallas de su rol.
 
 **Jugador**
-- Registrar su propia lesión con documentos.
+- Registrar su propia lesión por zona y lado, con documentos opcionales.
 - Completar el diagnóstico de una lesión en evaluación.
+- Reemplazar o eliminar sus documentos mientras el kine no revisa la lesión.
 - Ver sus lesiones, documentos y fases ("Mis lesiones").
 - Ver sus evaluaciones, con notas, y su progreso ("Mis evaluaciones").
 - Ver la nómina de cada partido en lectura (quién va, titular o banca y su puesto), desde Nóminas.
@@ -137,7 +151,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 **Kinesiólogo y su delegado** (la persona del staff en quien el head coach delegó las funciones de kinesiólogo)
 - Todo lo del staff, más:
-- Ver documentos médicos.
+- Ver documentos médicos y el indicador "Sin documento".
 - Cambiar la disponibilidad a mano.
 - Marcar lesionado desde el plantel.
 - Bandeja "Por revisar": confirmar, descartar y dar de alta.
@@ -182,6 +196,7 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Seguridad:** activar "Leaked password protection" en Supabase Auth (desde el panel).
 - **Base de datos:**
   - anotar la 0043 en `supabase_migrations.schema_migrations`;
+  - después del deploy del registro v2: quitar los permisos de las versiones anteriores de `report_injury` (tipo libre) y `complete_injury_report` (`revoke execute`);
   - 0049: borrar `private.profiles_legacy_backup` una semana después de aplicar la 0043 (desde ~1 nov);
   - quedan sin uso `pg_net`, `private.member_emails`, `profiles.email_verified_at`, `private.email_verification_tokens`, `create_email_verification` y `verify_email`.
 - **Datos de demo:** hc.demo sigue como head coach confirmado en Demo - Fútbol; no hay cuentas demo de preparador físico ni de nutricionista.
@@ -194,4 +209,8 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Funciones aún sin pantalla:**
   - Que el kine registre una lesión desde cero, sin marcarla primero.
   - Revisar documentos (pasar de borrador a revisado).
+- **Registro de lesión v2:**
+  - en celular el codo mide ~26 × 22 px y la rodilla ~28 × 32 px (la lista es la alternativa); revisar en iPhone;
+  - el detalle de la ficha del jugador (`/jugadores/[id]`) aún muestra el tipo, sin el mapa;
+  - un archivo subido a Storage en un intento de registro que falla y no se reintenta queda sin fila en `documents` (como antes).
 - **Fase "Reintegro":** el cambio automático depende de que la fase se llame exactamente "Reintegro"; si se renombra, deja de funcionar.

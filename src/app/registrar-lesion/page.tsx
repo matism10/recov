@@ -25,7 +25,7 @@ export default async function ReportInjuryPage() {
   if (!player) redirect("/dashboard");
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 lg:max-w-5xl">
       <header className="mb-6">
         <Link href="/dashboard" className={textButton}>
           ← Volver
@@ -34,10 +34,10 @@ export default async function ReportInjuryPage() {
           Registrar lesión
         </h1>
         <p className="mt-1 text-sm text-muted">
-          El kinesiólogo del plantel revisará tu reporte y tus documentos.
+          El kinesiólogo del plantel revisará tu reporte.
         </p>
       </header>
-      <div className="rounded-xl bg-mist p-6 border border-line">
+      <div className="rounded-xl border border-line bg-mist p-5 lg:p-8">
         <InjuryForm clubId={player.club_id} playerId={player.id} />
       </div>
     </main>

@@ -6,6 +6,7 @@ import {
   Check,
   CircleAlert,
   CircleCheck,
+  FileX,
   Search,
   Undo2,
   type LucideIcon,
@@ -136,6 +137,16 @@ const INJURY_STATUS_STYLE: Record<InjuryStatus, string> = {
   cerrada: "bg-disponible-bg text-disponible-fg",
   descartada: "bg-mist text-muted",
 };
+
+// Lesión sin ninguna fila en documents (lo ven el kine, su delegado y el head coach).
+export function NoDocumentBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-revision-bg px-2 py-0.5 text-xs font-medium text-revision-fg">
+      <FileX aria-hidden="true" className="size-3.5" />
+      Sin documento
+    </span>
+  );
+}
 
 export function InjuryStatusBadge({ status }: { status: InjuryStatus }) {
   return (

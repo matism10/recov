@@ -18,11 +18,14 @@ import {
   type InjuryStatus,
 } from "@/lib/injuries";
 import { InjuryProgress } from "@/app/lesiones/injury-progress";
+import { BodyMapPair, type BodyMark } from "@/app/body-map";
+import { BODY_ZONES, isBodyZone, isLaterality, zoneLabel, type BodyZone } from "@/lib/body-zones";
 import { Avatar } from "@/app/avatar";
 import { getSquad } from "@/lib/squad";
 import {
   AvailabilityBadge,
   InjuryStatusBadge,
+  NoDocumentBadge,
   PageTitle,
   SectionTitle,
   buttonPrimary,
@@ -51,10 +54,29 @@ type ReviewRow = {
   type: string;
   status: string;
   started_on: string;
+  body_zone: string | null;
+  laterality: string | null;
+  // Conteo embebido de documents (RLS: cuenta para kine, delegado y head coach).
+  documents: { count: number }[] | null;
   players: { full_name: string; user_id: string | null } | { full_name: string; user_id: string | null }[] | null;
 };
 
-type OpenInjury = { id: string; player_id: string; type: string; started_on: string; expected_return_on: string | null };
+type OpenInjury = {
+  id: string;
+  player_id: string;
+  type: string;
+  started_on: string;
+  expected_return_on: string | null;
+  body_zone: string | null;
+  laterality: string | null;
+};
+
+// Zona y lado de una lesión (registro v2); null en las antiguas.
+function markOf(i: { body_zone: string | null; laterality: string | null }): BodyMark | null {
+  return isBodyZone(i.body_zone) && isLaterality(i.laterality)
+    ? { zone: i.body_zone, laterality: i.laterality }
+    : null;
+}
 
 type MyInjury = {
   id: string;
@@ -97,7 +119,7 @@ export default async function DashboardPage() {
       staff
         ? supabase
             .from("injuries")
-            .select("id, player_id, type, started_on, expected_return_on")
+            .select("id, player_id, type, started_on, expected_return_on, body_zone, laterality")
             .eq("club_id", profile.club_id!)
             .in("status", ["en_evaluacion", "activa"])
             .then(({ data }) => (data ?? []) as OpenInjury[])
@@ -121,7 +143,7 @@ export default async function DashboardPage() {
       canManage
         ? supabase
             .from("injuries")
-            .select("id, type, status, started_on, players(full_name, user_id)")
+            .select("id, type, status, started_on, body_zone, laterality, documents(count), players(full_name, user_id)")
             .eq("club_id", profile.club_id!)
             .or("status.eq.en_evaluacion,and(status.eq.activa,reviewed_at.is.null)")
             .order("started_on")
@@ -265,6 +287,16 @@ export default async function DashboardPage() {
     }
   }
 
+  // Mapa de zonas (staff): lesiones abiertas de los jugadores de la lista (en Sevens,
+  // solo el grupo) que tienen zona. Las antiguas sin zona solo se cuentan.
+  const listedIds = new Set(players.map((p) => p.id));
+  const openListed = byRole.open.filter((i) => listedIds.has(i.player_id));
+  const zoneMarks = openListed.map(markOf).filter((m): m is BodyMark => m !== null);
+  const withoutZone = openListed.length - zoneMarks.length;
+  const zoneCounts = new Map<BodyZone, number>();
+  for (const m of zoneMarks) zoneCounts.set(m.zone, (zoneCounts.get(m.zone) ?? 0) + 1);
+  const zoneLegend = [...zoneCounts.entries()].sort((a, b) => b[1] - a[1]);
+
   // Cada fila de "Lesiones activas" lleva directo al detalle de su lesión. Si el
   // jugador figura lesionado sin una lesión abierta (cambio manual de disponibilidad),
   // va a su ficha.
@@ -383,10 +415,15 @@ export default async function DashboardPage() {
                             >
                               <div>
                                 <p className="font-medium text-ink">
-                                  {player ? `${player.full_name} · ${i.type}` : i.type}
+                                  {(() => {
+                                    const mark = markOf(i);
+                                    const title = mark ? zoneLabel(mark.zone, mark.laterality) : i.type;
+                                    return player ? `${player.full_name} · ${title}` : title;
+                                  })()}
                                 </p>
-                                <p className="text-sm text-muted">
+                                <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
                                   Desde el {formatDate(i.started_on)}
+                                  {(i.documents?.[0]?.count ?? 0) === 0 && <NoDocumentBadge />}
                                 </p>
                               </div>
                               <span className="text-sm font-medium text-brand-text underline">
@@ -522,6 +559,30 @@ export default async function DashboardPage() {
               No hay jugadores lesionados ni en reintegro.
             </p>
           )}
+        </section>
+      )}
+
+      {staff && zoneMarks.length > 0 && (
+        <section className="mb-8">
+          <SectionTitle className="mb-3">Zonas lesionadas</SectionTitle>
+          <div className={`grid grid-cols-1 items-center gap-6 p-5 sm:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] ${cardClass}`}>
+            <BodyMapPair heat={zoneMarks} legend className="mx-auto w-full max-w-80" />
+            <div className="min-w-0">
+              <ul className="divide-y divide-line">
+                {zoneLegend.map(([zone, count]) => (
+                  <li key={zone} className="flex items-center justify-between gap-4 py-2 text-sm">
+                    <span className="text-ink">{BODY_ZONES[zone].label}</span>
+                    <span className="font-semibold tabular-nums text-ink">{count}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-muted">
+                Lesiones abiertas (en evaluación o activas) del plantel.
+                {withoutZone > 0 &&
+                  ` ${withoutZone === 1 ? "1 lesión no tiene" : `${withoutZone} lesiones no tienen`} zona registrada.`}
+              </p>
+            </div>
+          </div>
         </section>
       )}
 

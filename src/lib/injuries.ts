@@ -17,7 +17,8 @@ export const NOTE_MIN = 2;
 export const NOTE_MAX = 120;
 export const DURATION_MAX: Record<DurationUnit, number> = { semanas: 104, meses: 24 };
 
-export const MIN_FILES = 1;
+// El documento médico es opcional desde el registro v2 (20261104230200).
+export const MIN_FILES = 0;
 export const MAX_FILES = 5;
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 // Tipo MIME → extensión con que se guarda en Storage.

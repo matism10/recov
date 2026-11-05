@@ -7,6 +7,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // - getUserEmail: tras un review_member exitoso (aviso de aprobación).
 // - allowAuthEmail: límite de correos para recuperar contraseña.
 // - createRecoveryTokenHash: link para recuperar contraseña (no dice si la cuenta existe).
+// - removeUnreferencedMedicalDoc: borra de Storage un documento médico que el jugador
+//   quitó (delete_own_draft_document ya validó que era suyo y sin revisar).
 
 function adminClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -51,4 +53,22 @@ export async function createRecoveryTokenHash(email: string): Promise<string | n
   const { data, error } = await admin.auth.admin.generateLink({ type: "recovery", email });
   if (error) return null; // Sin cuenta con ese correo (o error): no se envía nada.
   return data.properties?.hashed_token ?? null;
+}
+
+// Borra un archivo de medical-docs solo si ya ninguna fila de documents lo usa.
+// La acción que lo llama ya verificó que la ruta es de la carpeta del jugador.
+export async function removeUnreferencedMedicalDoc(path: string): Promise<boolean> {
+  const admin = adminClient();
+  if (!admin) return false;
+  const { count, error } = await admin
+    .from("documents")
+    .select("id", { count: "exact", head: true })
+    .eq("storage_path", path);
+  if (error || (count ?? 0) > 0) return false;
+  const { error: removeError } = await admin.storage.from("medical-docs").remove([path]);
+  if (removeError) {
+    console.error("[admin] No se pudo borrar el documento de Storage:", removeError.message);
+    return false;
+  }
+  return true;
 }

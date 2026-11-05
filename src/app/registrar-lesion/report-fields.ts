@@ -5,17 +5,17 @@ import {
   DURATION_MAX,
   FILE_NAME_MAX,
   FILE_TYPES,
-  INJURY_TYPE_MAX,
-  INJURY_TYPE_MIN,
   MAX_FILES,
   MIN_FILES,
   type DurationUnit,
 } from "@/lib/injuries";
+import { isBodyZone, isLaterality, type BodyZone, type Laterality } from "@/lib/body-zones";
 
 export type UploadedFile = { path: string; name: string };
 
 export type ReportFields = {
-  type: string;
+  bodyZone: BodyZone;
+  laterality: Laterality;
   durationValue: number;
   durationUnit: DurationUnit;
   description: string;
@@ -45,16 +45,18 @@ function parseFiles(raw: string): UploadedFile[] | null {
 export function readReportFields(
   formData: FormData,
 ): { error: string } | { fields: ReportFields } {
-  const type = String(formData.get("type") ?? "").trim();
+  const bodyZone = formData.get("body_zone");
+  const laterality = formData.get("laterality");
   const durationValue = Number(formData.get("duration_value"));
   const durationUnit = String(formData.get("duration_unit") ?? "") as DurationUnit;
   const description = String(formData.get("description") ?? "").trim();
   const files = parseFiles(String(formData.get("files") ?? ""));
 
-  if (type.length < INJURY_TYPE_MIN || type.length > INJURY_TYPE_MAX) {
-    return {
-      error: `Describe el tipo de lesión (${INJURY_TYPE_MIN} a ${INJURY_TYPE_MAX} caracteres).`,
-    };
+  if (!isBodyZone(bodyZone)) {
+    return { error: "Elige la zona del cuerpo en el mapa o en la lista." };
+  }
+  if (!isLaterality(laterality)) {
+    return { error: "Indica el lado de la lesión." };
   }
   if (
     !(durationUnit in DURATION_MAX) ||
@@ -70,10 +72,10 @@ export function readReportFields(
     return { error: `La descripción no puede superar los ${DESCRIPTION_MAX} caracteres.` };
   }
   if (!files || files.length < MIN_FILES || files.length > MAX_FILES) {
-    return { error: `Adjunta entre ${MIN_FILES} y ${MAX_FILES} documentos.` };
+    return { error: `Puedes adjuntar hasta ${MAX_FILES} documentos.` };
   }
 
-  return { fields: { type, durationValue, durationUnit, description, files } };
+  return { fields: { bodyZone, laterality, durationValue, durationUnit, description, files } };
 }
 
 // Cada archivo debe estar en la carpeta del propio jugador, con el nombre que
