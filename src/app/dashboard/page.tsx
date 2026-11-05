@@ -565,8 +565,8 @@ export default async function DashboardPage() {
       {staff && zoneMarks.length > 0 && (
         <section className="mb-8">
           <SectionTitle className="mb-3">Zonas lesionadas</SectionTitle>
-          <div className={`grid grid-cols-1 items-center gap-6 p-5 sm:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] ${cardClass}`}>
-            <BodyMapPair heat={zoneMarks} className="mx-auto w-full max-w-72" />
+          <div className={`grid grid-cols-1 items-center gap-6 p-5 sm:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] ${cardClass}`}>
+            <BodyMapPair heat={zoneMarks} legend className="mx-auto w-full max-w-80" />
             <div className="min-w-0">
               <ul className="divide-y divide-line">
                 {zoneLegend.map(([zone, count]) => (

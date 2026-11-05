@@ -27,7 +27,7 @@ import {
   type ScreenSide,
 } from "@/lib/body-zones";
 import { completeInjuryReport } from "@/app/lesiones/[id]/completar/actions";
-import { BodyMap } from "@/app/body-map";
+import { BODY_CAPTION_CLASS, BODY_PANEL_CLASS, BodyMap } from "@/app/body-map";
 import { reportInjury, type ReportInjuryState } from "./actions";
 import { AttachmentPicker, uploadMedicalFiles } from "./attachment-picker";
 import { ErrorMessage, buttonPrimary, fieldClass, inputClass, labelClass, optionalClass } from "@/app/ui";
@@ -134,16 +134,16 @@ export function InjuryForm({
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className={`grid grid-cols-1 gap-4 lg:grid-cols-2 ${BODY_PANEL_CLASS}`}>
           {VIEWS.map((v) => (
             <figure key={v.value} className={view === v.value ? "" : "hidden lg:block"}>
               <BodyMap
                 view={v.value}
                 selected={selected}
                 onPick={(z, side) => pickFromMap(z, side, v.value)}
-                className="mx-auto max-w-[300px] lg:max-w-none"
+                className="mx-auto max-w-[280px] lg:max-w-none"
               />
-              <figcaption className="mt-1 text-center text-xs font-medium tracking-wide text-muted uppercase">
+              <figcaption className={BODY_CAPTION_CLASS}>
                 {v.label}
               </figcaption>
             </figure>

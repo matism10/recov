@@ -320,8 +320,8 @@ export default async function InjuryPage({
           </section>
 
           {zone && (
-            <section aria-label="Zona de la lesión" className={`p-5 ${blockClass}`}>
-              <BodyMapPair heat={[zone]} className="mx-auto max-w-xs" />
+            <section aria-label="Zona de la lesión">
+              <BodyMapPair heat={[zone]} className="mx-auto max-w-sm" />
             </section>
           )}
 

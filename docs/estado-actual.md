@@ -65,7 +65,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - **A. El kine la ve en terreno:** en el plantel pulsa "Marcar lesionado" junto al jugador e indica dónde ocurrió (entrenamiento o competencia) y una nota breve. La lesión queda **En evaluación** y el jugador **En revisión**. Al jugador le aparece una tarjeta para subir su diagnóstico (zona del cuerpo y lado, duración que indicó el médico, detalle y documentos opcionales). Al subirlo, la lesión pasa a **Activa, sin revisar**.
 - **B. El jugador la reporta por su cuenta** ("Registrar lesión"). Queda **Activa, sin revisar**.
 - **Formulario del jugador** (los dos caminos, `src/app/registrar-lesion/injury-form.tsx`):
-  - Zona en el mapa del cuerpo (`src/app/body-map.tsx`; cada región lleva `data-zone` = valor de `body_zone`) o en una lista. Una zona por lesión. Escritorio: Frente y Espalda lado a lado y el formulario a la derecha; celular: un cuerpo con cambio Frente/Espalda y la lista debajo.
+  - Zona en el mapa del cuerpo (`src/app/body-map.tsx`: figura anatómica oscura sobre panel oscuro, zona elegida en celeste; cada región lleva `data-zone` = valor de `body_zone`) o en una lista. Una zona por lesión. Escritorio: Frente y Espalda lado a lado y el formulario a la derecha; celular: un cuerpo con cambio Frente/Espalda y la lista debajo.
   - Lado en chips Derecha / Izquierda / Bilateral / No aplica, sugerido según el lado tocado (de frente se invierte; las zonas centrales sugieren No aplica) y editable (`src/lib/body-zones.ts`).
   - Detalle opcional (`injuries.description`). `injuries.type` lo arma la base: "Isquiotibial derecho".
   - "Orden médica o examen (opcional)" con botón de información; se puede registrar sin archivo y no se le muestra al jugador ningún aviso de documento pendiente.
@@ -74,7 +74,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **3. Revisión**
 - La lesión aparece en la bandeja **"Por revisar"** del kine, su delegado y el head coach. Si no tiene documentos lleva el indicador **"Sin documento"** (también en `/lesiones` y en el detalle; se calcula con `documents(count)`, sin columna nueva).
 - Lista y detalle muestran zona y lado; el detalle, un mapa con la zona. Las lesiones antiguas sin zona se ven como antes (tipo libre).
-- **Resumen del staff → "Zonas lesionadas":** mapa Frente/Espalda con las lesiones abiertas del plantel (en Sevens, del grupo) pintadas por cantidad y una lista por zona.
+- **Resumen del staff → "Zonas lesionadas":** mapa Frente/Espalda con las lesiones abiertas del plantel (en Sevens, del grupo) pintadas por cantidad (amarillo 1, naranjo 2, rojo 3 o más) y una lista por zona.
 - Desde el detalle de la lesión se puede:
   - **Confirmar:** gravedad, fecha estimada de alta y disponibilidad (sugiere Lesionado).
   - **Descartar:** el jugador vuelve a Disponible si no tiene otra lesión abierta; si tiene otra activa, queda Lesionado.
@@ -210,7 +210,7 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
   - Que el kine registre una lesión desde cero, sin marcarla primero.
   - Revisar documentos (pasar de borrador a revisado).
 - **Registro de lesión v2:**
-  - targets del mapa en celular de ~36 px en codo y rodilla (la lista es la alternativa); revisar en iPhone;
+  - en celular el codo mide ~26 × 22 px y la rodilla ~28 × 32 px (la lista es la alternativa); revisar en iPhone;
   - el detalle de la ficha del jugador (`/jugadores/[id]`) aún muestra el tipo, sin el mapa;
   - un archivo subido a Storage en un intento de registro que falla y no se reintenta queda sin fila en `documents` (como antes).
 - **Fase "Reintegro":** el cambio automático depende de que la fase se llame exactamente "Reintegro"; si se renombra, deja de funcionar.
