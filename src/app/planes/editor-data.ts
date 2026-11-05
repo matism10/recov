@@ -5,8 +5,7 @@
 import { redirect } from "next/navigation";
 import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import type { UserRole } from "@/lib/roles";
-import { addDays, todayInChile } from "@/lib/injuries";
-import { weekStart } from "@/lib/events";
+import { todayInChile } from "@/lib/injuries";
 import { canPlanGym, type DraftPlan, type IntensityType, type PlanStatus, type TargetKind } from "@/lib/gym";
 
 export type EditorPlayer = {
@@ -117,13 +116,13 @@ export async function loadEditorData(planId: string | null): Promise<EditorData 
   const injuryBy = new Map<string, string>();
   for (const i of injuries) if (!injuryBy.has(i.player_id as string)) injuryBy.set(i.player_id as string, i.type as string);
 
+  // Un plan nuevo parte como planificación diaria: un entrenamiento para hoy.
   const today = todayInChile();
-  const monday = weekStart(today);
   return {
     plan: plan?.plan ?? {
       name: "",
-      starts_on: monday,
-      ends_on: addDays(monday, 6),
+      starts_on: today,
+      ends_on: today,
       sessions: [],
       targets: [],
       exclusions: [],

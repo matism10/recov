@@ -21,12 +21,41 @@ import {
   type IntensityType,
   type PlanTarget,
 } from "@/lib/gym";
-import { WEEKDAYS } from "@/lib/srpe";
+import { WEEKDAYS, isoWeekday } from "@/lib/srpe";
+import { addDays, formatDate } from "@/lib/injuries";
 import { ErrorMessage, SuccessMessage, buttonPrimary, buttonSecondary, fieldClass, labelClass, textButton } from "@/app/ui";
 import type { EditorData, EditorPlayer } from "./editor-data";
 import { archivePlan, savePlan } from "./actions";
 
 const DAY_LETTERS = ["L", "M", "X", "J", "V", "S", "D"];
+
+// Tipo de planificación. Solo cambia cómo se arma el plan en el editor: en la base todo
+// plan es una vigencia (desde–hasta) con sesiones por día de la semana.
+//   Diaria: un entrenamiento, un día (desde = hasta, una sesión con el nombre del plan).
+//   Semanal: 7 días, varias sesiones, cada una en su día.
+//   Mensual: varias semanas; las sesiones de la semana se repiten cada semana.
+type Mode = "diaria" | "semanal" | "mensual";
+const MODES: { id: Mode; label: string; hint: string; placeholder: string }[] = [
+  { id: "diaria", label: "Diaria", hint: "Un entrenamiento para un día.", placeholder: "Nombre del entrenamiento (ej.: Fuerza tren inferior)" },
+  {
+    id: "semanal",
+    label: "Semanal",
+    hint: "Varias sesiones en una semana, cada una en su día.",
+    placeholder: "Nombre del plan (ej.: Fuerza pretemporada · Semana 3)",
+  },
+  {
+    id: "mensual",
+    label: "Mensual",
+    hint: "Armas una semana tipo y se repite cada semana hasta la fecha de término.",
+    placeholder: "Nombre del plan (ej.: Pretemporada · Noviembre)",
+  },
+];
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
+function inferMode(p: DraftPlan): Mode {
+  if (!p.id) return "diaria";
+  if (p.starts_on === p.ends_on && p.sessions.length <= 1) return "diaria";
+  return daysBetween(p.starts_on, p.ends_on) <= 6 ? "semanal" : "mensual";
+}
 const LETTERS = "ABCDEFGHIJKLMN";
 let keySeq = 0;
 const newKey = () => `nuevo-${++keySeq}`;
@@ -71,8 +100,11 @@ const smallField = "min-h-10 w-full rounded-lg border border-line bg-white px-2 
 export function PlanEditor({ data, saved }: { data: EditorData; saved: string | null }) {
   const router = useRouter();
   const [plan, setPlan] = useState<DraftPlan>(() =>
-    data.plan.sessions.length > 0 ? data.plan : { ...data.plan, sessions: [newSession([])] },
+    data.plan.sessions.length > 0
+      ? data.plan
+      : { ...data.plan, sessions: [{ ...newSession([]), weekday: isoWeekday(data.plan.starts_on) }] },
   );
+  const [mode, setMode] = useState<Mode>(() => inferMode(data.plan));
   const [active, setActive] = useState(0);
   const [picker, setPicker] = useState<"none" | "positions" | "players">("none");
   const [showDiscard, setShowDiscard] = useState(false);
@@ -139,6 +171,49 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
       exclusions: all ? p.exclusions.filter((x) => !ids.includes(x)) : [...new Set([...p.exclusions, ...ids])],
     }));
   };
+
+  // ------------------------------------------------------------------
+  // Tipo de planificación y fechas
+  // ------------------------------------------------------------------
+  const changeMode = (next: Mode) => {
+    if (next === mode) return;
+    if (next === "diaria") {
+      const first = plan.sessions[Math.min(active, plan.sessions.length - 1)];
+      if (
+        plan.sessions.length > 1 &&
+        !window.confirm(`La planificación diaria tiene un solo entrenamiento. Se queda «${first.label}» y se quitan las otras sesiones. ¿Seguir?`)
+      )
+        return;
+      setPlan((p) => ({ ...p, ends_on: p.starts_on, sessions: [{ ...first, weekday: isoWeekday(p.starts_on) }] }));
+      setActive(0);
+    } else {
+      setPlan((p) => ({ ...p, ends_on: addDays(p.starts_on, next === "semanal" ? 6 : 27) }));
+    }
+    setMode(next);
+  };
+  // Diaria: la fecha fija el día de la única sesión.
+  const setDay = (date: string) =>
+    setPlan((p) => ({
+      ...p,
+      starts_on: date,
+      ends_on: date,
+      sessions: p.sessions.map((s) => ({ ...s, weekday: date ? isoWeekday(date) : s.weekday })),
+    }));
+  // Semanal: el término es siempre 6 días después del inicio.
+  const setWeekStart = (date: string) => setPlan((p) => ({ ...p, starts_on: date, ends_on: date ? addDays(date, 6) : "" }));
+  // Lo que se guarda: en la diaria, una sesión con el nombre del plan.
+  const toSave = (): DraftPlan =>
+    mode === "diaria"
+      ? {
+          ...plan,
+          ends_on: plan.starts_on,
+          sessions: plan.sessions.slice(0, 1).map((s) => ({
+            ...s,
+            label: plan.name.trim().slice(0, GYM_LIMITS.labelMax),
+            weekday: plan.starts_on ? isoWeekday(plan.starts_on) : s.weekday,
+          })),
+        }
+      : plan;
 
   // ------------------------------------------------------------------
   // Sesiones y ejercicios
@@ -211,10 +286,12 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   // ------------------------------------------------------------------
   // Guardar
   // ------------------------------------------------------------------
-  const validate = (publish: boolean) => {
+  const validate = (plan: DraftPlan, publish: boolean) => {
     const name = plan.name.trim();
-    if (name.length < GYM_LIMITS.nameMin || name.length > GYM_LIMITS.nameMax) return "Ponle un nombre al plan (2 a 80 caracteres).";
-    if (!plan.starts_on || !plan.ends_on || plan.ends_on < plan.starts_on) return "Revisa la vigencia: el término va después del inicio.";
+    if (name.length < GYM_LIMITS.nameMin || name.length > GYM_LIMITS.nameMax)
+      return `Ponle un nombre al ${mode === "diaria" ? "entrenamiento" : "plan"} (2 a 80 caracteres).`;
+    if (!plan.starts_on) return mode === "diaria" ? "Elige la fecha del entrenamiento." : "Elige desde cuándo va el plan.";
+    if (!plan.ends_on || plan.ends_on < plan.starts_on) return "Revisa las fechas: el término va después del inicio.";
     for (const s of plan.sessions) {
       if (!s.label.trim()) return "Cada sesión necesita un nombre.";
       for (const e of s.exercises) {
@@ -229,7 +306,8 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   };
 
   const save = (publish: boolean) => {
-    const invalid = validate(publish);
+    const plan = toSave();
+    const invalid = validate(plan, publish);
     setMessage(null);
     if (invalid) {
       setError(invalid);
@@ -299,7 +377,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
             value={plan.name}
             onChange={(e) => setPlan((p) => ({ ...p, name: e.target.value }))}
             maxLength={GYM_LIMITS.nameMax}
-            placeholder="Nombre del plan (ej.: Fuerza pretemporada · Semana 3)"
+            placeholder={MODES.find((m) => m.id === mode)!.placeholder}
             disabled={readOnly}
             className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-1 font-display text-2xl font-bold text-ink outline-none placeholder:text-muted/70 hover:border-line focus:border-brand-strong lg:text-[30px]"
           />
@@ -320,7 +398,31 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
       <fieldset disabled={readOnly || pending} className="min-w-0">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div className="min-w-0 space-y-5">
-            {/* Asignar a, vigencia y días */}
+            {/* Tipo de planificación */}
+            <section className="rounded-xl border border-line bg-white p-4 lg:p-5">
+              <p id="plan-mode" className={labelClass}>
+                ¿Qué vas a planificar?
+              </p>
+              <div role="radiogroup" aria-labelledby="plan-mode" className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-mist p-1 sm:max-w-md">
+                {MODES.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={m.id === mode}
+                    onClick={() => changeMode(m.id)}
+                    className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition ${
+                      m.id === mode ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-sm text-muted">{MODES.find((m) => m.id === mode)!.hint}</p>
+            </section>
+
+            {/* Asignar a, fechas y días */}
             <section className="space-y-4 rounded-xl border border-line bg-white p-4 lg:p-5">
               <div>
                 <p className={labelClass}>Asignar a</p>
@@ -413,56 +515,96 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <div>
-                  <p className={labelClass}>Vigencia</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <input
-                      type="date"
-                      aria-label="Desde"
-                      value={plan.starts_on}
-                      onChange={(e) => setPlan((p) => ({ ...p, starts_on: e.target.value }))}
-                      className={`${fieldClass} w-auto`}
-                    />
-                    <span aria-hidden="true" className="text-muted">
-                      →
-                    </span>
-                    <input
-                      type="date"
-                      aria-label="Hasta"
-                      value={plan.ends_on}
-                      min={plan.starts_on}
-                      onChange={(e) => setPlan((p) => ({ ...p, ends_on: e.target.value }))}
-                      className={`${fieldClass} w-auto`}
-                    />
+              {mode === "diaria" ? (
+                <label className="block">
+                  <span className={labelClass}>Fecha</span>
+                  <input
+                    type="date"
+                    value={plan.starts_on}
+                    onChange={(e) => setDay(e.target.value)}
+                    className={`${fieldClass} mt-1 w-auto`}
+                  />
+                  {plan.starts_on && (
+                    <span className="mt-1 block text-sm text-muted">{WEEKDAYS[isoWeekday(plan.starts_on) - 1].label}</span>
+                  )}
+                </label>
+              ) : (
+                <div className="flex flex-wrap gap-x-10 gap-y-4">
+                  <div className="min-w-0">
+                    {mode === "semanal" ? (
+                      <label className="block">
+                        <span className={labelClass}>Empieza el</span>
+                        <input
+                          type="date"
+                          value={plan.starts_on}
+                          onChange={(e) => setWeekStart(e.target.value)}
+                          className={`${fieldClass} mt-1 w-auto`}
+                        />
+                      </label>
+                    ) : (
+                      <>
+                        <p className={labelClass}>Desde y hasta</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <input
+                            type="date"
+                            aria-label="Desde"
+                            value={plan.starts_on}
+                            onChange={(e) => setPlan((p) => ({ ...p, starts_on: e.target.value }))}
+                            className={`${fieldClass} w-auto`}
+                          />
+                          <span aria-hidden="true" className="text-muted">
+                            →
+                          </span>
+                          <input
+                            type="date"
+                            aria-label="Hasta"
+                            value={plan.ends_on}
+                            min={plan.starts_on}
+                            onChange={(e) => setPlan((p) => ({ ...p, ends_on: e.target.value }))}
+                            className={`${fieldClass} w-auto`}
+                          />
+                        </div>
+                      </>
+                    )}
+                    {plan.starts_on && plan.ends_on && plan.ends_on >= plan.starts_on && (
+                      <p className="mt-1 text-sm text-muted">
+                        {mode === "semanal"
+                          ? `Hasta el ${formatDate(plan.ends_on)}.`
+                          : `${Math.ceil((daysBetween(plan.starts_on, plan.ends_on) + 1) / 7)} semanas: las sesiones se repiten cada semana.`}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <p className={labelClass}>Días con sesión</p>
+                    <ul className="mt-1 flex gap-1" aria-label="Días con sesión">
+                      {DAY_LETTERS.map((l, i) => {
+                        const on = daysUsed.has(i + 1);
+                        return (
+                          <li
+                            key={l}
+                            className={`flex size-10 items-center justify-center rounded-lg text-sm font-semibold ${
+                              on ? "bg-brand text-ink" : "border border-line bg-white text-muted"
+                            }`}
+                          >
+                            <span aria-hidden="true">{l}</span>
+                            <span className="sr-only">
+                              {WEEKDAYS[i].label}: {on ? "con sesión" : "sin sesión"}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <p className="mt-1 text-xs text-muted">Se marcan al agregar sesiones abajo.</p>
                   </div>
                 </div>
-                <div>
-                  <p className={labelClass}>Días</p>
-                  <ul className="mt-1 flex gap-1" aria-label="Días con sesión">
-                    {DAY_LETTERS.map((l, i) => {
-                      const on = daysUsed.has(i + 1);
-                      return (
-                        <li
-                          key={l}
-                          className={`flex size-10 items-center justify-center rounded-lg text-sm font-semibold ${
-                            on ? "bg-brand text-ink" : "border border-line bg-white text-muted"
-                          }`}
-                        >
-                          <span aria-hidden="true">{l}</span>
-                          <span className="sr-only">
-                            {WEEKDAYS[i].label}: {on ? "con sesión" : "sin sesión"}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              </div>
+              )}
             </section>
 
             {/* Sesiones */}
             <section className="rounded-xl border border-line bg-white">
+              {mode === "diaria" ? (
+                <h2 className="border-b border-line px-4 py-3 font-semibold text-ink lg:px-5">Entrenamiento</h2>
+              ) : (
               <div role="tablist" aria-label="Sesiones" className="flex gap-1 overflow-x-auto border-b border-line p-2">
                 {plan.sessions.map((s, i) => {
                   const on = s.key === session?.key;
@@ -492,11 +634,26 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                   </button>
                 )}
               </div>
+              )}
 
               {session ? (
                 <div className="space-y-4 p-4 lg:p-5">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem_9rem_auto] sm:items-end">
-                    <label className="col-span-2 block sm:col-span-1">
+                  {mode === "diaria" ? (
+                    <label className="block w-44">
+                      <span className="text-xs font-medium text-muted">Duración estimada (min)</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={GYM_LIMITS.minutesMin}
+                        max={GYM_LIMITS.minutesMax}
+                        value={session.est_minutes}
+                        onChange={(e) => updateSession(session.key, { est_minutes: Number(e.target.value) || 0 })}
+                        className={smallField}
+                      />
+                    </label>
+                  ) : (
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(0,1fr)_10rem_9rem_auto] xl:items-end">
+                    <label className="col-span-2 block xl:col-span-1">
                       <span className="text-xs font-medium text-muted">Nombre</span>
                       <input
                         value={session.label}
@@ -537,6 +694,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                       </button>
                     )}
                   </div>
+                  )}
 
                   <datalist id="exercise-names">
                     {data.exerciseNames.map((n) => (
