@@ -16,6 +16,8 @@ import { getAvatarUrls } from "@/lib/avatars";
 import { getTeamLoad } from "@/lib/match-load";
 import { getActiveFormat } from "@/lib/format";
 import { LoadSection } from "../load-section";
+import { SrpeCard } from "../srpe-card";
+import type { TeamSrpeRow, WellnessFlag } from "@/lib/srpe";
 import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
 import { PageTitle, SectionTitle, textButton } from "@/app/ui";
 import {
@@ -39,7 +41,7 @@ export default async function MetricsPage() {
   // lectura falla, esos bloques usan iniciales y omiten el estado.
   // Formato activo: en Sevens, todas las métricas son del grupo Sevens (0046).
   const format = await getActiveFormat(user.id);
-  const [me, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, load] = await Promise.all([
+  const [me, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, load, srpeTeam, srpeFlags] = await Promise.all([
     getProfile(user.id),
     getDashSummary(supabase, format),
     getAvailabilitySeries(supabase, 12, format),
@@ -49,6 +51,13 @@ export default async function MetricsPage() {
     getRecurringPlayers(supabase, format),
     getUpcomingReturns(supabase, format),
     getTeamLoad(supabase, 4, format),
+    // Carga sRPE de la semana y bienestar bajo lo habitual (solo staff, en la base).
+    supabase
+      .rpc("team_srpe_load", { p_format: format })
+      .then(({ data, error }) => (error ? null : ((data ?? []) as TeamSrpeRow[]))),
+    supabase
+      .rpc("wellness_flags", { p_format: format })
+      .then(({ data, error }) => (error ? null : ((data ?? []) as WellnessFlag[]))),
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
@@ -121,7 +130,7 @@ export default async function MetricsPage() {
         )}
       </section>
 
-      <LoadSection result={load} />
+      <LoadSection result={load} srpe={<SrpeCard team={srpeTeam} flags={srpeFlags} />} />
 
       <section className={`mb-8 ${metricCardClass}`}>
         {series.ok ? (

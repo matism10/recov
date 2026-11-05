@@ -23,6 +23,7 @@ export function SidebarNav({
   direction,
   staff,
   evaluations,
+  wellnessConfig,
   pendingCount,
 }: {
   fullName: string;
@@ -30,12 +31,13 @@ export function SidebarNav({
   direction: boolean;
   staff: boolean;
   evaluations: boolean;
+  wellnessConfig: boolean;
   pendingCount: number;
 }) {
   const pathname = usePathname();
   if (isNavHidden(pathname)) return null;
 
-  const items = sidebarItems({ direction, staff, evaluations });
+  const items = sidebarItems({ direction, staff, evaluations, wellnessConfig });
   const profileActive = startsWith(pathname, "/perfil");
 
   const renderItem = (item: NavItem) => {

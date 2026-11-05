@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { getProfile, getSupabase } from "@/lib/session";
-import { isDirection, isStaff, type UserRole } from "@/lib/roles";
+import { canSetWellnessDays, isDirection, isStaff, type UserRole } from "@/lib/roles";
 import { canReadEvaluations } from "@/lib/evaluations";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { SidebarNav } from "./sidebar-nav";
@@ -84,6 +84,7 @@ const getNavData = cache(async () => {
     slots,
     more: allowedScreens(roles).filter((s) => !slots.includes(s)),
     headCoach: roles.includes("head_coach"),
+    wellnessConfig: canSetWellnessDays(roles),
     // Indicador de formato: solo para quien puede trabajar en Rugby 15 y en Sevens.
     format: formatCtx.canSevens ? formatCtx.format : null,
   };
@@ -101,6 +102,7 @@ export async function Sidebar() {
       direction={nav.direction}
       staff={nav.staff}
       evaluations={nav.evaluations}
+      wellnessConfig={nav.wellnessConfig}
       pendingCount={nav.pendingCount}
     />
   );
@@ -131,6 +133,7 @@ export async function MobileNav() {
       more={nav.more}
       player={nav.player}
       headCoach={nav.headCoach}
+      wellnessConfig={nav.wellnessConfig}
       pendingCount={nav.pendingCount}
     />
   );

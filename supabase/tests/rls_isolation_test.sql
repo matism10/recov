@@ -2152,4 +2152,74 @@ select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_ok($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'A1 quita su propio documento');
 select pg_temp.back();
 
+
+-- =======================================================================
+-- sRPE y check de bienestar (20261105180000): aislamiento por club y entre jugadores
+-- =======================================================================
+insert into public.events (id, club_id, type, starts_at, ends_at, created_by) values
+  ('a7000000-7777-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'entrenamiento', now() - interval '3 hours', now() - interval '90 minutes', '10000000-0000-0000-0000-00000000000a'),
+  ('b7000000-7777-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'entrenamiento', now() - interval '3 hours', now() - interval '90 minutes', '30000000-0000-0000-0000-00000000000b');
+insert into public.session_rpe (event_id, player_id, club_id, rpe) values
+  ('a7000000-7777-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 6),
+  ('a7000000-7777-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 7),
+  ('b7000000-7777-0000-0000-000000000001', 'b1000000-1111-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 5);
+insert into public.wellness_reports (club_id, player_id, report_date, fatigue, sleep, soreness, stress, mood) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', current_date, 3, 3, 3, 3, 3),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', current_date, 1, 2, 3, 4, 5),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'b1000000-1111-0000-0000-000000000001', current_date, 4, 4, 4, 4, 4);
+
+-- Jugador A1: solo lo suyo
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.session_rpe$q$, 1, 'jugador A1 ve solo su sRPE');
+select pg_temp.expect_count($q$select 1 from public.wellness_reports$q$, 1, 'jugador A1 ve solo su bienestar');
+select pg_temp.expect_fail($q$select public.event_rpe_summary('a7000000-7777-0000-0000-000000000001')$q$, 'jugador A1 ve el resumen del evento');
+select pg_temp.expect_fail($q$select public.player_weekly_load('a1000000-1111-0000-0000-000000000002')$q$, 'jugador A1 ve la carga de A2');
+select pg_temp.expect_fail($q$select * from public.wellness_flags('15')$q$, 'jugador A1 ve las marcas de bienestar');
+select pg_temp.expect_fail($q$select * from public.team_srpe_load('15')$q$, 'jugador A1 ve la carga del plantel');
+select pg_temp.expect_fail($q$select public.submit_session_rpe('b7000000-7777-0000-0000-000000000001', 5::smallint, false)$q$, 'jugador A1 responde un evento del club B');
+select pg_temp.expect_no_rows($q$update public.session_rpe set rpe = 0$q$, 'jugador A1 cambia sRPE directo');
+select pg_temp.expect_no_rows($q$update public.wellness_reports set mood = 1$q$, 'jugador A1 cambia bienestar directo');
+select pg_temp.back();
+
+-- Staff A: todo su club, nada del B
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.session_rpe$q$, 2, 'entrenador A ve el sRPE de su club');
+select pg_temp.expect_count($q$select 1 from public.wellness_reports$q$, 2, 'entrenador A ve el bienestar de su club');
+select pg_temp.expect_fail($q$select public.event_rpe_summary('b7000000-7777-0000-0000-000000000001')$q$, 'entrenador A ve el resumen de un evento del club B');
+select pg_temp.expect_fail($q$select public.player_weekly_load('b1000000-1111-0000-0000-000000000001')$q$, 'entrenador A ve la carga de B1');
+select pg_temp.expect_count($q$select 1 from public.wellness_flags('15') where player_id = 'b1000000-1111-0000-0000-000000000001'$q$, 0, 'entrenador A no ve marcas de B1');
+select pg_temp.expect_fail($q$select public.set_wellness_days(array[2]::smallint[])$q$, 'entrenador A cambia los días de bienestar');
+select pg_temp.back();
+
+-- Kine B: nada del club A
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_count($q$select 1 from public.session_rpe where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve sRPE del club A');
+select pg_temp.expect_count($q$select 1 from public.wellness_reports where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve bienestar del club A');
+select pg_temp.expect_count($q$select 1 from public.team_srpe_load('15') where player_id::text like 'a1%'$q$, 0, 'kine B no ve la carga del club A');
+select pg_temp.back();
+
+-- Jugador pendiente y anónimo
+select pg_temp.as_user('70000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.session_rpe$q$, 0, 'jugador pendiente no ve sRPE');
+select pg_temp.expect_fail($q$select public.submit_wellness(3::smallint, 3::smallint, 3::smallint, 3::smallint, 3::smallint)$q$, 'jugador pendiente responde bienestar');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select 1 from public.session_rpe$q$, 'anónimo lee session_rpe');
+select pg_temp.expect_fail($q$select 1 from public.wellness_reports$q$, 'anónimo lee wellness_reports');
+select pg_temp.expect_fail($q$select public.submit_session_rpe('a7000000-7777-0000-0000-000000000001', 5::smallint, false)$q$, 'anónimo ejecuta submit_session_rpe');
+select pg_temp.expect_fail($q$select * from public.my_pending_reports('15')$q$, 'anónimo ejecuta my_pending_reports');
+select pg_temp.back();
+
+-- Funciones: SECURITY DEFINER, search_path vacío, authenticated sí y anon no
+select pg_temp.expect_count($q$select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
+  and p.proname in ('set_wellness_days', 'submit_session_rpe', 'submit_wellness', 'my_pending_reports', 'event_rpe_summary',
+                    'player_weekly_load', 'team_srpe_load', 'wellness_flags', 'my_session_report')
+  and p.prosecdef and p.proconfig = array['search_path=""']
+  and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE')$q$, 9,
+  'sRPE y bienestar: 9 funciones solo para authenticated');
+select pg_temp.expect_count($q$select 1 from pg_proc p where p.pronamespace = 'private'::regnamespace
+  and p.proname in ('session_minutes', 'rpe_check', 'my_active_player', 'wellness_target_date', 'srpe_sessions', 'srpe_load_flag')
+  and not has_function_privilege('authenticated', p.oid, 'EXECUTE')$q$, 6,
+  'los helpers de sRPE no los ejecuta authenticated');
+
 rollback;

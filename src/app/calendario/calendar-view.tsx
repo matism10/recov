@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ClipboardList, ListChecks, MapPin, Swords, X } from "lucide-react";
+import { ChartColumn, ChevronLeft, ChevronRight, ClipboardList, ListChecks, MapPin, Swords, X } from "lucide-react";
 import { addDays } from "@/lib/injuries";
 import {
   EVENT_TYPE_LABEL,
@@ -799,6 +799,31 @@ function EventPanel({
                 )}
                 {event.past && listSaved && (
                   <p className="text-xs text-muted">Lista guardada. Puedes corregirla.</p>
+                )}
+              </div>
+            )}
+
+            {/* Reportes de esfuerzo y bienestar: todo el staff, desde que el evento empieza. */}
+            {staff && !event.cancelled && (
+              <div className="mt-6 space-y-2 border-t border-line pt-4">
+                {event.past ? (
+                  <Link
+                    href={`/calendario/${event.id}/reportes`}
+                    className={`w-full text-sm lg:w-auto ${buttonSecondary}`}
+                  >
+                    <ChartColumn aria-hidden="true" className="size-4" />
+                    Reportes
+                  </Link>
+                ) : (
+                  <>
+                    <button type="button" disabled className={`w-full text-sm lg:w-auto ${buttonSecondary}`}>
+                      <ChartColumn aria-hidden="true" className="size-4" />
+                      Reportes
+                    </button>
+                    <p className="text-xs text-muted">
+                      Se habilita cuando empiece {event.type === "competencia" ? "el partido" : "el entrenamiento"}.
+                    </p>
+                  </>
                 )}
               </div>
             )}
