@@ -1,4 +1,4 @@
--- Recov · Test del calendario de eventos (migración 0022)
+-- Recov · Test del calendario de eventos (migración 0022) y asistencia a entrenamientos (20261105120000)
 -- Correr DESPUÉS de las migraciones 0001 a 0022. Autónomo: crea sus propios datos y termina en ROLLBACK.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -347,5 +347,150 @@ select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.
   where n.nspname = 'private' and p.proname in ('events_actor_club', 'events_staff_club')
     and not has_function_privilege('authenticated', p.oid, 'EXECUTE')$q$, 2,
   'los helpers internos no los ejecuta authenticated');
+
+-- =======================================================================
+-- 8. Asistencia a entrenamientos (20261105120000)
+-- =======================================================================
+-- Datos propios: otro jugador con cuenta (A2, para el grupo Sevens), fichas con y sin cuenta,
+-- una inactiva y una pendiente, y entrenamientos pasados, futuro, cancelado y Sevens.
+insert into auth.users (id, email) values ('61000000-0000-0000-0000-00000000000a', 'jugador-a2@test.cl');
+insert into public.profiles (id, full_name) values ('61000000-0000-0000-0000-00000000000a', 'Jugador A2');
+insert into public.club_members (user_id, club_id, roles, status)
+values ('61000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}', 'confirmado');
+
+insert into public.players (id, club_id, full_name, status, availability, user_id, active) values
+  ('a2000000-2222-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Asist Uno',   'confirmado', 'disponible', '60000000-0000-0000-0000-00000000000a', true),
+  ('a2000000-2222-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'Asist Dos',   'confirmado', 'disponible', '61000000-0000-0000-0000-00000000000a', true),
+  ('a2000000-2222-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'Asist Tres',  'confirmado', 'disponible', null, true),
+  ('a2000000-2222-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', 'Asist Baja',  'confirmado', 'disponible', null, false),
+  ('a2000000-2222-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000001', 'Asist Pend',  'pendiente',  'disponible', null, true);
+
+-- Plantel del club A para pasar lista: P1–P5 y Asist Uno, Dos y Tres (8). Sevens: solo A2.
+update public.clubs set has_sevens = true where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+insert into public.sevens_group (club_id, member_id)
+values ('aaaaaaaa-0000-0000-0000-000000000001', '61000000-0000-0000-0000-00000000000a');
+
+insert into public.events (id, club_id, type, starts_at, ends_at, created_by, cancelled_at, format)
+select x.id::uuid, x.club::uuid, x.type, ((d.today + x.dd) + time '19:00') at time zone 'America/Santiago',
+       ((d.today + x.dd) + time '20:30') at time zone 'America/Santiago', x.by::uuid, x.cancelled, x.fmt
+  from d, (values
+  ('ea000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'entrenamiento',  -3, '10000000-0000-0000-0000-00000000000a', null::timestamptz, '15'),
+  ('ea000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'entrenamiento', -10, '10000000-0000-0000-0000-00000000000a', null, '15'),
+  ('ea000000-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'entrenamiento',  -5, '10000000-0000-0000-0000-00000000000a', now(), '15'),
+  ('ea000000-0000-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001', 'entrenamiento',   2, '10000000-0000-0000-0000-00000000000a', null, '15'),
+  ('ea000000-0000-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000001', 'competencia',    -4, '10000000-0000-0000-0000-00000000000a', null, '15'),
+  ('ea000000-0000-0000-0000-000000000006', 'aaaaaaaa-0000-0000-0000-000000000001', 'entrenamiento',  -7, '10000000-0000-0000-0000-00000000000a', null, '15'),
+  ('ea000000-0000-0000-0000-000000000007', 'aaaaaaaa-0000-0000-0000-000000000001', 'entrenamiento',  -2, '10000000-0000-0000-0000-00000000000a', null, '7'),
+  ('eb000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'entrenamiento',  -3, '10000000-0000-0000-0000-00000000000b', null, '15')
+  ) x(id, club, type, dd, by, cancelled, fmt);
+
+-- Quién puede pasar lista
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000001', '{}')$q$,
+  'forbidden', 'un jugador no pasa lista');
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000001', '{}')$q$,
+  'forbidden', 'staff pendiente no pasa lista');
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000001', '{}')$q$,
+  'not_found', 'staff del club B no pasa lista en un entrenamiento del club A');
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000001', '{}')$q$,
+  'anon no pasa lista');
+
+-- Cualquier staff confirmado pasa lista (nutricionista)
+select pg_temp.as_user('50000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000001',
+  array['a2000000-2222-0000-0000-000000000002']::uuid[])$q$, 'nutricionista pasa lista');
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000003', '{}')$q$,
+  'Solo se pasa lista en entrenamientos no cancelados', 'entrenamiento cancelado');
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000005', '{}')$q$,
+  'Solo se pasa lista en entrenamientos no cancelados', 'competencia');
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000004', '{}')$q$,
+  'El entrenamiento todavía no empieza', 'entrenamiento futuro');
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000001',
+  array['a2000000-2222-0000-0000-000000000004']::uuid[])$q$, 'Jugador inválido', 'ausente inactivo');
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000001',
+  array['a2000000-2222-0000-0000-000000000005']::uuid[])$q$, 'Jugador inválido', 'ausente pendiente');
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000001',
+  array['b1000000-1111-0000-0000-000000000001']::uuid[])$q$, 'Jugador inválido', 'ausente de otro club');
+select pg_temp.expect_fail($q$insert into public.event_attendance (event_id, player_id, club_id, present, recorded_by)
+  values ('ea000000-0000-0000-0000-000000000001', 'a2000000-2222-0000-0000-000000000003',
+          'aaaaaaaa-0000-0000-0000-000000000001', false, '50000000-0000-0000-0000-00000000000a')$q$,
+  'sin escritura directa en event_attendance');
+select pg_temp.back();
+
+select pg_temp.expect_count($q$select 1 from public.event_attendance where event_id = 'ea000000-0000-0000-0000-000000000001'$q$, 8,
+  'una fila por jugador confirmado y activo (sin inactivos ni pendientes)');
+select pg_temp.expect_count($q$select 1 from public.event_attendance where event_id = 'ea000000-0000-0000-0000-000000000001'
+  and not present and player_id = 'a2000000-2222-0000-0000-000000000002'$q$, 1, 'el ausente queda ausente');
+
+-- Reguardar actualiza (entrenador): ahora faltan Uno y Tres; Dos pasa a presente
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000001',
+  array['a2000000-2222-0000-0000-000000000001', 'a2000000-2222-0000-0000-000000000003']::uuid[])$q$, 'entrenador reguarda');
+select pg_temp.expect_ok($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000002', null)$q$,
+  'lista con todos presentes (null)');
+-- Sevens: la lista es solo el grupo
+select pg_temp.expect_error($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000007',
+  array['a2000000-2222-0000-0000-000000000001']::uuid[])$q$, 'Jugador inválido', 'Sevens: ausente fuera del grupo');
+select pg_temp.expect_ok($q$select public.set_event_attendance('ea000000-0000-0000-0000-000000000007', '{}')$q$,
+  'Sevens: pasa lista del grupo');
+select pg_temp.back();
+
+select pg_temp.expect_count($q$select 1 from public.event_attendance where event_id = 'ea000000-0000-0000-0000-000000000001'$q$, 8,
+  'reguardar no duplica');
+select pg_temp.expect_count($q$select 1 from public.event_attendance where event_id = 'ea000000-0000-0000-0000-000000000001'
+  and not present$q$, 2, 'reguardar actualiza los ausentes');
+select pg_temp.expect_count($q$select 1 from public.event_attendance where event_id = 'ea000000-0000-0000-0000-000000000001'
+  and recorded_by = '40000000-0000-0000-0000-00000000000a'$q$, 8, 'reguardar actualiza quién la registró');
+select pg_temp.expect_count($q$select 1 from public.event_attendance where event_id = 'ea000000-0000-0000-0000-000000000007'$q$, 1,
+  'Sevens: una fila, solo el grupo');
+
+-- Fila en un entrenamiento que después se canceló (como postgres): no debe contar en el ranking.
+insert into public.event_attendance (event_id, player_id, club_id, present, recorded_by)
+values ('ea000000-0000-0000-0000-000000000003', 'a2000000-2222-0000-0000-000000000002',
+        'aaaaaaaa-0000-0000-0000-000000000001', false, '10000000-0000-0000-0000-00000000000a');
+
+-- Lectura de la tabla
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.event_attendance$q$, 2, 'el jugador lee solo sus filas (T1 y T2)');
+select pg_temp.expect_count($q$select 1 from public.event_attendance
+  where player_id <> 'a2000000-2222-0000-0000-000000000001'$q$, 0, 'el jugador no lee filas de otros');
+select pg_temp.as_user('50000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.event_attendance$q$, 18, 'el staff lee todas las filas del club');
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_count($q$select 1 from public.event_attendance$q$, 0, 'el club B no lee la asistencia del club A');
+select pg_temp.expect_count($q$select * from public.attendance_ranking((now() at time zone 'America/Santiago')::date - 30, (now() at time zone 'America/Santiago')::date)$q$, 0,
+  'ranking del club B: sin filas del club A');
+
+-- Ranking: el jugador ve el de todo el plantel
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select * from public.attendance_ranking((now() at time zone 'America/Santiago')::date - 30, (now() at time zone 'America/Santiago')::date)$q$, 8,
+  'el jugador ve el ranking completo');
+select pg_temp.expect_count($q$select * from public.attendance_ranking((now() at time zone 'America/Santiago')::date - 30, (now() at time zone 'America/Santiago')::date)
+  where player_id = 'a2000000-2222-0000-0000-000000000001' and attended = 1 and total = 2$q$, 1,
+  'solo cuentan entrenamientos con lista guardada (T6 sin lista no suma)');
+select pg_temp.expect_count($q$select * from public.attendance_ranking((now() at time zone 'America/Santiago')::date - 30, (now() at time zone 'America/Santiago')::date)
+  where player_id = 'a2000000-2222-0000-0000-000000000002' and attended = 3 and total = 3$q$, 1,
+  'excluye cancelados (T3) y suma Sevens');
+select pg_temp.expect_count($q$select * from public.attendance_ranking((now() at time zone 'America/Santiago')::date - 5, (now() at time zone 'America/Santiago')::date)
+  where player_id = 'a2000000-2222-0000-0000-000000000002' and total = 2$q$, 1, 'respeta el rango de fechas');
+select pg_temp.expect_count($q$select * from (select row_number() over () n, r.* from public.attendance_ranking((now() at time zone 'America/Santiago')::date - 30, (now() at time zone 'America/Santiago')::date) r) s
+  where n = 1 and player_id = 'a2000000-2222-0000-0000-000000000002'$q$, 1, 'ordena por porcentaje');
+select pg_temp.back();
+
+-- Catálogo de métricas: 'asistencia' se puede elegir
+select pg_temp.as_user('10000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.set_dashboard_metrics(array['disponibles', 'asistencia'])$q$,
+  'head coach elige la métrica asistencia');
+select pg_temp.back();
+
+select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname in ('set_event_attendance', 'attendance_ranking')
+    and not has_function_privilege('anon', p.oid, 'EXECUTE')
+    and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+    and p.proconfig = array['search_path=""']$q$, 2,
+  'asistencia: solo authenticated y search_path vacío');
 
 rollback;

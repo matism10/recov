@@ -12,6 +12,8 @@ import {
   getUpcomingReturns,
 } from "@/lib/metrics";
 import { getAvatarUrls } from "@/lib/avatars";
+import { getAttendanceRanking } from "@/lib/attendance";
+import { AttendanceCard } from "@/app/attendance-ranking";
 import { DASHBOARD_METRICS, type DashboardMetric } from "@/lib/dashboard-metrics";
 import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
 import {
@@ -39,12 +41,13 @@ const SPAN: Record<DashboardMetric, string> = {
   posicion: "sm:col-span-2",
   recurrentes: "sm:col-span-2",
   proximas_altas: "sm:col-span-2 lg:col-span-4",
+  asistencia: "sm:col-span-2",
 };
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
 // Dónde se ve cada métrica: en los dos, solo en computador (lg+) o solo en celular.
-function visibilityOf(m: DashboardMetric, desktop: DashboardMetric[], mobile: DashboardMetric[]) {
+export function visibilityOf(m: DashboardMetric, desktop: DashboardMetric[], mobile: DashboardMetric[]) {
   return desktop.includes(m) && mobile.includes(m) ? "" : desktop.includes(m) ? "hidden lg:block" : "lg:hidden";
 }
 
@@ -99,7 +102,7 @@ export async function loadMetricsStrip(
     has(m as DashboardMetric),
   );
 
-  const [summary, series, byWeek, byPlace, byPosition, recurring, upcoming] = await Promise.all([
+  const [summary, series, byWeek, byPlace, byPosition, recurring, upcoming, attendance] = await Promise.all([
     needsSummary ? getDashSummary(supabase, format) : null,
     has("disponibilidad") ? getAvailabilitySeries(supabase, 12, format) : null,
     has("lesiones_semana") ? getInjuriesByWeek(supabase, 12, format) : null,
@@ -107,6 +110,7 @@ export async function loadMetricsStrip(
     has("posicion") ? getInjuriesByPosition(supabase, format) : null,
     has("recurrentes") ? getRecurringPlayers(supabase, format) : null,
     has("proximas_altas") ? getUpcomingReturns(supabase, format) : null,
+    has("asistencia") ? getAttendanceRanking(supabase, "mes") : null,
   ]);
 
   // Estado y foto solo de los jugadores de "Jugadores recurrentes" y "Próximas altas".
@@ -122,7 +126,41 @@ export async function loadMetricsStrip(
     ? await getAvatarUrls(supabase, [...status.values()].map((p) => p.user_id))
     : new Map<string, string>();
 
-  return { metrics, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, status, avatarUrls };
+  return {
+    metrics,
+    summary,
+    series,
+    byWeek,
+    byPlace,
+    byPosition,
+    recurring,
+    upcoming,
+    attendance,
+    status,
+    avatarUrls,
+  };
+}
+
+// Quien no es staff (el jugador) ve de la franja solo "Asistencia a entrenamientos",
+// si el head coach la eligió (attendance_ranking la puede llamar cualquier confirmado).
+export async function PlayerMetrics({
+  data,
+  desktop,
+  mobile,
+}: {
+  data: Promise<Awaited<ReturnType<typeof getAttendanceRanking>> | null>;
+  desktop: DashboardMetric[];
+  mobile: DashboardMetric[];
+}) {
+  const attendance = await data;
+  if (!attendance) return null;
+  return (
+    <div className={`mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 ${visibilityOf("asistencia", desktop, mobile)}`}>
+      <div className={`min-w-0 *:h-full ${SPAN.asistencia}`}>
+        <AttendanceCard result={attendance} />
+      </div>
+    </div>
+  );
 }
 
 // Franja de métricas del Resumen, solo para el staff: las que eligió el head coach
@@ -141,8 +179,19 @@ export async function MetricsStrip({
 }) {
   const loaded = await data;
   if (!loaded) return null;
-  const { metrics, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, status, avatarUrls } =
-    loaded;
+  const {
+    metrics,
+    summary,
+    series,
+    byWeek,
+    byPlace,
+    byPosition,
+    recurring,
+    upcoming,
+    attendance,
+    status,
+    avatarUrls,
+  } = loaded;
   const visibility = (m: DashboardMetric) => visibilityOf(m, desktop, mobile);
 
   const card = (node: ReactNode) => (summary?.ok ? node : <MetricsError />);
@@ -212,6 +261,7 @@ export async function MetricsStrip({
       ),
     proximas_altas: () =>
       upcoming && <UpcomingReturnsBlock result={upcoming} status={status} avatarUrls={avatarUrls} />,
+    asistencia: () => attendance && <AttendanceCard result={attendance} />,
   };
 
   return (
