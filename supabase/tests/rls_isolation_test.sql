@@ -296,20 +296,20 @@ select pg_temp.expect_fail($q$insert into public.documents (club_id, player_id, 
 select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name) values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf')$q$,
   'jugador A1 sube su archivo');
 -- archivo que no existe en storage
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 6, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 6, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/noexiste.pdf","name":"x.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta con archivo inexistente');
 -- ruta de otro jugador
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 6, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 6, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000002/ajeno.pdf","name":"x.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta con ruta de otro jugador');
 -- duración inválida y fecha futura
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 0, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 0, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta duración 0');
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 3, 'años', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 3, 'años', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta unidad inválida');
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date + 5, 3, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date + 5, 3, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta fecha futura');
 -- el reporte válido
-select pg_temp.expect_ok($q$select public.report_injury('Esguince de tobillo', current_date - 2, 8, 'semanas', 'Me torcí en el entrenamiento',
+select pg_temp.expect_ok($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 8, 'semanas', 'Me torcí en el entrenamiento',
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$, 'jugador A1 registra su lesión');
 select pg_temp.expect_count($q$select 1 from public.injuries$q$, 2, 'jugador A1 ve su lesión nueva');
 select pg_temp.expect_count($q$select 1 from public.injuries where reported_by_player and severity is null
@@ -588,9 +588,9 @@ select pg_temp.back();
 -- 15. report_injury con lugar obligatorio (0018)
 -- =======================================================================
 select pg_temp.as_anon();
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 6, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 6, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$,
-  'anónimo ejecuta report_injury (7 argumentos)');
+  'anónimo ejecuta report_injury');
 select pg_temp.back();
 
 -- =======================================================================
@@ -1685,15 +1685,15 @@ select pg_temp.back_h();
 select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001');
 select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
   values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf')$q$, 'Y sube su archivo en A');
-select pg_temp.expect_ok($q$select public.report_injury('Lesión de Y en A', current_date - 1, 2, 'semanas', null,
+select pg_temp.expect_ok($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 2, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header A reporta una lesión');
 select pg_temp.back_h();
 select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
 select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
   values ('medical-docs', 'bbbbbbbb-0000-0000-0000-000000000002/fc000000-0000-0000-0000-000000000003/yb.pdf')$q$, 'Y sube su archivo en B');
-select pg_temp.expect_ok($q$select public.report_injury('Lesión de Y en B', current_date - 1, 2, 'semanas', null,
+select pg_temp.expect_ok($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 2, 'semanas', null,
   '[{"path":"bbbbbbbb-0000-0000-0000-000000000002/fc000000-0000-0000-0000-000000000003/yb.pdf","name":"yb.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header B reporta una lesión');
-select pg_temp.expect_fail($q$select public.report_injury('Lesión cruzada', current_date - 1, 2, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 2, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header B no usa un archivo de su ficha de A');
 select pg_temp.back_h();
 select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Lesión de Y en A'
@@ -1711,19 +1711,19 @@ create temp table ids_0041 as select
   (select id from public.injuries where player_id = 'fc000000-0000-0000-0000-000000000003' and status = 'en_evaluacion') ib;
 grant select on ids_0041 to authenticated;
 select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001');
-select pg_temp.expect_fail($q$select public.complete_injury_report((select ib from ids_0041), 'Esguince', 2, 'semanas', null,
+select pg_temp.expect_fail($q$select public.complete_injury_report((select ib from ids_0041), 'rodilla'::public.body_zone, 'derecha'::public.injury_laterality, 2, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb)$q$, 'Y con header A no completa la lesión de B');
-select pg_temp.expect_ok($q$select public.complete_injury_report((select ia from ids_0041), 'Esguince en A', 2, 'semanas', null,
+select pg_temp.expect_ok($q$select public.complete_injury_report((select ia from ids_0041), 'rodilla'::public.body_zone, 'derecha'::public.injury_laterality, 2, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb)$q$, 'Y con header A completa la lesión de A');
 select pg_temp.expect_ok($q$select public.set_my_phone('+56911110000')$q$, 'Y con header A guarda su teléfono');
 select pg_temp.back_h();
 select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
-select pg_temp.expect_ok($q$select public.complete_injury_report((select ib from ids_0041), 'Esguince en B', 2, 'semanas', null,
+select pg_temp.expect_ok($q$select public.complete_injury_report((select ib from ids_0041), 'rodilla'::public.body_zone, 'derecha'::public.injury_laterality, 2, 'semanas', null,
   '[{"path":"bbbbbbbb-0000-0000-0000-000000000002/fc000000-0000-0000-0000-000000000003/yb.pdf","name":"yb.pdf"}]'::jsonb)$q$, 'Y con header B completa la lesión de B');
 select pg_temp.expect_ok($q$select public.set_my_phone('+56922220000')$q$, 'Y con header B guarda su teléfono');
 select pg_temp.back_h();
 select pg_temp.expect_count($q$select 1 from public.injuries where (id, type, status) in
-  (((select ia from ids_0041), 'Esguince en A', 'activa'), ((select ib from ids_0041), 'Esguince en B', 'activa'))$q$, 2, 'cada lesión quedó completada en su plantel');
+  (((select ia from ids_0041), 'Rodilla derecha', 'activa'), ((select ib from ids_0041), 'Rodilla derecha', 'activa'))$q$, 2, 'cada lesión quedó completada en su plantel');
 select pg_temp.expect_count($q$select 1 from public.player_contacts where (player_id, club_id, phone) in
   (('fc000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', '+56911110000'),
    ('fc000000-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002', '+56922220000'))$q$, 2, 'cada teléfono quedó en la ficha de su plantel, sin pisar la otra');
@@ -2140,6 +2140,12 @@ select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body
 select pg_temp.back();
 
 select pg_temp.expect_count($q$select 1 from public.documents where id = 'a4000000-4444-0000-0000-000000000099'$q$, 1, 'el documento de A1 sigue ahí');
+
+-- Versiones anteriores (tipo libre) sin permisos tras el deploy (20261104233000).
+select pg_temp.expect_count($q$select 1 where not has_function_privilege('authenticated', 'public.report_injury(text, date, integer, text, text, jsonb, text)', 'execute')
+  and not has_function_privilege('anon', 'public.report_injury(text, date, integer, text, text, jsonb, text)', 'execute')
+  and not has_function_privilege('authenticated', 'public.complete_injury_report(uuid, text, integer, text, text, jsonb)', 'execute')$q$, 1,
+  'las versiones viejas de report_injury y complete_injury_report no se pueden ejecutar');
 
 -- Control: A1 sí puede (lo de arriba falló por aislamiento, no por otra razón).
 select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
