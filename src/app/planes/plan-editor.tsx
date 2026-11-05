@@ -3,30 +3,65 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronRight, Minus, Plus, Trash2, TriangleAlert, X } from "lucide-react";
+import { Check, ChevronRight, Link2, Minus, Plus, Trash2, TriangleAlert, Unlink2, X } from "lucide-react";
 import {
   GYM_LIMITS,
   INTENSITY_OPTIONS,
   RUGBY_BACKS,
   RUGBY_FORWARDS,
+  blockRuns,
+  durationLabel,
+  exerciseCodes,
+  exerciseDose,
   intensityLabel,
+  parseDuration,
   parseRest,
   playerIntensity,
   restLabel,
   roundKg,
-  setsReps,
+  sameSuperset,
+  supersetsFromLinks,
   type DraftExercise,
   type DraftPlan,
   type DraftSession,
   type IntensityType,
   type PlanTarget,
 } from "@/lib/gym";
-import { WEEKDAYS } from "@/lib/srpe";
+import { WEEKDAYS, isoWeekday } from "@/lib/srpe";
+import { addDays, formatDate } from "@/lib/injuries";
 import { ErrorMessage, SuccessMessage, buttonPrimary, buttonSecondary, fieldClass, labelClass, textButton } from "@/app/ui";
 import type { EditorData, EditorPlayer } from "./editor-data";
 import { archivePlan, savePlan } from "./actions";
 
 const DAY_LETTERS = ["L", "M", "X", "J", "V", "S", "D"];
+
+// Tipo de planificación. Solo cambia cómo se arma el plan en el editor: en la base todo
+// plan es una vigencia (desde–hasta) con sesiones por día de la semana.
+//   Diaria: un entrenamiento, un día (desde = hasta, una sesión con el nombre del plan).
+//   Semanal: 7 días, varias sesiones, cada una en su día.
+//   Mensual: varias semanas; las sesiones de la semana se repiten cada semana.
+type Mode = "diaria" | "semanal" | "mensual";
+const MODES: { id: Mode; label: string; hint: string; placeholder: string }[] = [
+  { id: "diaria", label: "Diaria", hint: "Un entrenamiento para un día.", placeholder: "Nombre del entrenamiento (ej.: Fuerza tren inferior)" },
+  {
+    id: "semanal",
+    label: "Semanal",
+    hint: "Varias sesiones en una semana, cada una en su día.",
+    placeholder: "Nombre del plan (ej.: Fuerza pretemporada · Semana 3)",
+  },
+  {
+    id: "mensual",
+    label: "Mensual",
+    hint: "Armas una semana tipo y se repite cada semana hasta la fecha de término.",
+    placeholder: "Nombre del plan (ej.: Pretemporada · Noviembre)",
+  },
+];
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
+function inferMode(p: DraftPlan): Mode {
+  if (!p.id) return "diaria";
+  if (p.starts_on === p.ends_on && p.sessions.length <= 1) return "diaria";
+  return daysBetween(p.starts_on, p.ends_on) <= 6 ? "semanal" : "mensual";
+}
 const LETTERS = "ABCDEFGHIJKLMN";
 let keySeq = 0;
 const newKey = () => `nuevo-${++keySeq}`;
@@ -42,8 +77,11 @@ function newExercise(): DraftExercise {
     test_id: null,
     rpe: null,
     kg: null,
+    seconds: null,
     rest_seconds: 90,
     note: "",
+    block: null,
+    superset: null,
   };
 }
 
@@ -71,8 +109,11 @@ const smallField = "min-h-10 w-full rounded-lg border border-line bg-white px-2 
 export function PlanEditor({ data, saved }: { data: EditorData; saved: string | null }) {
   const router = useRouter();
   const [plan, setPlan] = useState<DraftPlan>(() =>
-    data.plan.sessions.length > 0 ? data.plan : { ...data.plan, sessions: [newSession([])] },
+    data.plan.sessions.length > 0
+      ? data.plan
+      : { ...data.plan, sessions: [{ ...newSession([]), weekday: isoWeekday(data.plan.starts_on) }] },
   );
+  const [mode, setMode] = useState<Mode>(() => inferMode(data.plan));
   const [active, setActive] = useState(0);
   const [picker, setPicker] = useState<"none" | "positions" | "players">("none");
   const [showDiscard, setShowDiscard] = useState(false);
@@ -141,6 +182,49 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   };
 
   // ------------------------------------------------------------------
+  // Tipo de planificación y fechas
+  // ------------------------------------------------------------------
+  const changeMode = (next: Mode) => {
+    if (next === mode) return;
+    if (next === "diaria") {
+      const first = plan.sessions[Math.min(active, plan.sessions.length - 1)];
+      if (
+        plan.sessions.length > 1 &&
+        !window.confirm(`La planificación diaria tiene un solo entrenamiento. Se queda «${first.label}» y se quitan las otras sesiones. ¿Seguir?`)
+      )
+        return;
+      setPlan((p) => ({ ...p, ends_on: p.starts_on, sessions: [{ ...first, weekday: isoWeekday(p.starts_on) }] }));
+      setActive(0);
+    } else {
+      setPlan((p) => ({ ...p, ends_on: addDays(p.starts_on, next === "semanal" ? 6 : 27) }));
+    }
+    setMode(next);
+  };
+  // Diaria: la fecha fija el día de la única sesión.
+  const setDay = (date: string) =>
+    setPlan((p) => ({
+      ...p,
+      starts_on: date,
+      ends_on: date,
+      sessions: p.sessions.map((s) => ({ ...s, weekday: date ? isoWeekday(date) : s.weekday })),
+    }));
+  // Semanal: el término es siempre 6 días después del inicio.
+  const setWeekStart = (date: string) => setPlan((p) => ({ ...p, starts_on: date, ends_on: date ? addDays(date, 6) : "" }));
+  // Lo que se guarda: en la diaria, una sesión con el nombre del plan.
+  const toSave = (): DraftPlan =>
+    mode === "diaria"
+      ? {
+          ...plan,
+          ends_on: plan.starts_on,
+          sessions: plan.sessions.slice(0, 1).map((s) => ({
+            ...s,
+            label: plan.name.trim().slice(0, GYM_LIMITS.labelMax),
+            weekday: plan.starts_on ? isoWeekday(plan.starts_on) : s.weekday,
+          })),
+        }
+      : plan;
+
+  // ------------------------------------------------------------------
   // Sesiones y ejercicios
   // ------------------------------------------------------------------
   const updateSession = (key: string, patch: Partial<DraftSession>) =>
@@ -152,14 +236,45 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
         s.key === sKey ? { ...s, exercises: s.exercises.map((e) => (e.key === eKey ? { ...e, ...patch } : e)) } : s,
       ),
     }));
-  const addExercise = (sKey: string) => {
+  const updateList = (sKey: string, fn: (list: DraftExercise[]) => DraftExercise[]) =>
+    setPlan((p) => ({ ...p, sessions: p.sessions.map((s) => (s.key === sKey ? { ...s, exercises: fn(s.exercises) } : s)) }));
+  // Agrega un ejercicio al final (en el último bloque) o al final del bloque que empieza en
+  // `start` y tiene `len` ejercicios.
+  const addExercise = (sKey: string, at?: { start: number; len: number }) => {
     const ex = newExercise();
-    setPlan((p) => ({
-      ...p,
-      sessions: p.sessions.map((s) => (s.key === sKey ? { ...s, exercises: [...s.exercises, ex] } : s)),
-    }));
+    updateList(sKey, (list) => {
+      const pos = at ? at.start + at.len : list.length;
+      const block = (at ? list[at.start]?.block : list.at(-1)?.block) ?? null;
+      return [...list.slice(0, pos), { ...ex, block }, ...list.slice(pos)];
+    });
     return ex.key;
   };
+  // Bloque nuevo con un ejercicio. Si aún no hay bloques, los ejercicios que ya están
+  // pasan a "Bloque 1".
+  const addBlock = (sKey: string) => {
+    const ex = newExercise();
+    updateList(sKey, (list) => {
+      const named = list.some((e) => e.block !== null);
+      const base = named || list.length === 0 ? list : list.map((e) => ({ ...e, block: "Bloque 1" }));
+      const n = blockRuns(base).filter((r) => r.block !== null).length + 1;
+      return [...base, { ...ex, block: `Bloque ${n}` }];
+    });
+    return ex.key;
+  };
+  const renameBlock = (sKey: string, start: number, len: number, name: string) =>
+    updateList(sKey, (list) => list.map((e, i) => (i >= start && i < start + len ? { ...e, block: name } : e)));
+  const removeBlock = (sKey: string, start: number, len: number) => {
+    const named = session?.exercises.slice(start, start + len).some((e) => e.name.trim()) ?? false;
+    if (named && !window.confirm("Se quita el bloque con sus ejercicios. ¿Seguir?")) return;
+    updateList(sKey, (list) => list.filter((_, i) => i < start || i >= start + len));
+  };
+  // Une (o separa) el ejercicio i con el siguiente en una superserie.
+  const toggleSuperset = (sKey: string, i: number) =>
+    updateList(sKey, (list) => {
+      const linked = list.map((e, j) => sameSuperset(e, list[j + 1]));
+      linked[i] = !linked[i];
+      return supersetsFromLinks(list, linked);
+    });
   const removeExercise = (sKey: string, eKey: string) =>
     setPlan((p) => ({
       ...p,
@@ -181,6 +296,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
       test_id: type === "pct" ? (e.test_id ?? data.tests[0]?.id ?? null) : null,
       rpe: type === "rpe" ? (e.rpe ?? 7) : null,
       kg: type === "kg" ? (e.kg ?? 20) : null,
+      seconds: type === "tiempo" ? (e.seconds ?? 60) : null,
     });
 
   // ------------------------------------------------------------------
@@ -211,15 +327,19 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   // ------------------------------------------------------------------
   // Guardar
   // ------------------------------------------------------------------
-  const validate = (publish: boolean) => {
+  const validate = (plan: DraftPlan, publish: boolean) => {
     const name = plan.name.trim();
-    if (name.length < GYM_LIMITS.nameMin || name.length > GYM_LIMITS.nameMax) return "Ponle un nombre al plan (2 a 80 caracteres).";
-    if (!plan.starts_on || !plan.ends_on || plan.ends_on < plan.starts_on) return "Revisa la vigencia: el término va después del inicio.";
+    if (name.length < GYM_LIMITS.nameMin || name.length > GYM_LIMITS.nameMax)
+      return `Ponle un nombre al ${mode === "diaria" ? "entrenamiento" : "plan"} (2 a 80 caracteres).`;
+    if (!plan.starts_on) return mode === "diaria" ? "Elige la fecha del entrenamiento." : "Elige desde cuándo va el plan.";
+    if (!plan.ends_on || plan.ends_on < plan.starts_on) return "Revisa las fechas: el término va después del inicio.";
     for (const s of plan.sessions) {
       if (!s.label.trim()) return "Cada sesión necesita un nombre.";
       for (const e of s.exercises) {
         if (e.name.trim().length < 2) return `Escribe el nombre de cada ejercicio (${s.label}).`;
-        if (!e.reps.trim()) return `Escribe las repeticiones de ${e.name.trim()}.`;
+        if (e.intensity_type !== "tiempo" && !e.reps.trim()) return `Escribe las repeticiones de ${e.name.trim()}.`;
+        if (e.intensity_type === "tiempo" && !e.seconds) return `Escribe el tiempo de ${e.name.trim()}.`;
+        if (e.block !== null && !e.block.trim()) return `Ponle nombre a cada bloque (${s.label}).`;
         if (e.intensity_type === "pct" && !e.test_id) return `Elige el test de ${e.name.trim()}.`;
       }
     }
@@ -229,7 +349,8 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   };
 
   const save = (publish: boolean) => {
-    const invalid = validate(publish);
+    const plan = toSave();
+    const invalid = validate(plan, publish);
     setMessage(null);
     if (invalid) {
       setError(invalid);
@@ -259,6 +380,9 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
     });
 
   const sheetExercise = session?.exercises.find((e) => e.key === sheet) ?? null;
+  const runs = session ? blockRuns(session.exercises) : [];
+  const codes = session ? exerciseCodes(session.exercises) : [];
+  const sheetIndex = sheetExercise && session ? session.exercises.indexOf(sheetExercise) : -1;
   const daysUsed = new Set(plan.sessions.map((s) => s.weekday));
   const players = data.players.filter((p) => p.name.toLowerCase().includes(playerQuery.trim().toLowerCase()));
 
@@ -299,7 +423,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
             value={plan.name}
             onChange={(e) => setPlan((p) => ({ ...p, name: e.target.value }))}
             maxLength={GYM_LIMITS.nameMax}
-            placeholder="Nombre del plan (ej.: Fuerza pretemporada · Semana 3)"
+            placeholder={MODES.find((m) => m.id === mode)!.placeholder}
             disabled={readOnly}
             className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-1 font-display text-2xl font-bold text-ink outline-none placeholder:text-muted/70 hover:border-line focus:border-brand-strong lg:text-[30px]"
           />
@@ -320,7 +444,31 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
       <fieldset disabled={readOnly || pending} className="min-w-0">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div className="min-w-0 space-y-5">
-            {/* Asignar a, vigencia y días */}
+            {/* Tipo de planificación */}
+            <section className="rounded-xl border border-line bg-white p-4 lg:p-5">
+              <p id="plan-mode" className={labelClass}>
+                ¿Qué vas a planificar?
+              </p>
+              <div role="radiogroup" aria-labelledby="plan-mode" className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-mist p-1 sm:max-w-md">
+                {MODES.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={m.id === mode}
+                    onClick={() => changeMode(m.id)}
+                    className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition ${
+                      m.id === mode ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-sm text-muted">{MODES.find((m) => m.id === mode)!.hint}</p>
+            </section>
+
+            {/* Asignar a, fechas y días */}
             <section className="space-y-4 rounded-xl border border-line bg-white p-4 lg:p-5">
               <div>
                 <p className={labelClass}>Asignar a</p>
@@ -413,56 +561,96 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <div>
-                  <p className={labelClass}>Vigencia</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <input
-                      type="date"
-                      aria-label="Desde"
-                      value={plan.starts_on}
-                      onChange={(e) => setPlan((p) => ({ ...p, starts_on: e.target.value }))}
-                      className={`${fieldClass} w-auto`}
-                    />
-                    <span aria-hidden="true" className="text-muted">
-                      →
-                    </span>
-                    <input
-                      type="date"
-                      aria-label="Hasta"
-                      value={plan.ends_on}
-                      min={plan.starts_on}
-                      onChange={(e) => setPlan((p) => ({ ...p, ends_on: e.target.value }))}
-                      className={`${fieldClass} w-auto`}
-                    />
+              {mode === "diaria" ? (
+                <label className="block">
+                  <span className={labelClass}>Fecha</span>
+                  <input
+                    type="date"
+                    value={plan.starts_on}
+                    onChange={(e) => setDay(e.target.value)}
+                    className={`${fieldClass} mt-1 w-auto`}
+                  />
+                  {plan.starts_on && (
+                    <span className="mt-1 block text-sm text-muted">{WEEKDAYS[isoWeekday(plan.starts_on) - 1].label}</span>
+                  )}
+                </label>
+              ) : (
+                <div className="flex flex-wrap gap-x-10 gap-y-4">
+                  <div className="min-w-0">
+                    {mode === "semanal" ? (
+                      <label className="block">
+                        <span className={labelClass}>Empieza el</span>
+                        <input
+                          type="date"
+                          value={plan.starts_on}
+                          onChange={(e) => setWeekStart(e.target.value)}
+                          className={`${fieldClass} mt-1 w-auto`}
+                        />
+                      </label>
+                    ) : (
+                      <>
+                        <p className={labelClass}>Desde y hasta</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <input
+                            type="date"
+                            aria-label="Desde"
+                            value={plan.starts_on}
+                            onChange={(e) => setPlan((p) => ({ ...p, starts_on: e.target.value }))}
+                            className={`${fieldClass} w-auto`}
+                          />
+                          <span aria-hidden="true" className="text-muted">
+                            →
+                          </span>
+                          <input
+                            type="date"
+                            aria-label="Hasta"
+                            value={plan.ends_on}
+                            min={plan.starts_on}
+                            onChange={(e) => setPlan((p) => ({ ...p, ends_on: e.target.value }))}
+                            className={`${fieldClass} w-auto`}
+                          />
+                        </div>
+                      </>
+                    )}
+                    {plan.starts_on && plan.ends_on && plan.ends_on >= plan.starts_on && (
+                      <p className="mt-1 text-sm text-muted">
+                        {mode === "semanal"
+                          ? `Hasta el ${formatDate(plan.ends_on)}.`
+                          : `${Math.ceil((daysBetween(plan.starts_on, plan.ends_on) + 1) / 7)} semanas: las sesiones se repiten cada semana.`}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <p className={labelClass}>Días con sesión</p>
+                    <ul className="mt-1 flex gap-1" aria-label="Días con sesión">
+                      {DAY_LETTERS.map((l, i) => {
+                        const on = daysUsed.has(i + 1);
+                        return (
+                          <li
+                            key={l}
+                            className={`flex size-10 items-center justify-center rounded-lg text-sm font-semibold ${
+                              on ? "bg-brand text-ink" : "border border-line bg-white text-muted"
+                            }`}
+                          >
+                            <span aria-hidden="true">{l}</span>
+                            <span className="sr-only">
+                              {WEEKDAYS[i].label}: {on ? "con sesión" : "sin sesión"}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <p className="mt-1 text-xs text-muted">Se marcan al agregar sesiones abajo.</p>
                   </div>
                 </div>
-                <div>
-                  <p className={labelClass}>Días</p>
-                  <ul className="mt-1 flex gap-1" aria-label="Días con sesión">
-                    {DAY_LETTERS.map((l, i) => {
-                      const on = daysUsed.has(i + 1);
-                      return (
-                        <li
-                          key={l}
-                          className={`flex size-10 items-center justify-center rounded-lg text-sm font-semibold ${
-                            on ? "bg-brand text-ink" : "border border-line bg-white text-muted"
-                          }`}
-                        >
-                          <span aria-hidden="true">{l}</span>
-                          <span className="sr-only">
-                            {WEEKDAYS[i].label}: {on ? "con sesión" : "sin sesión"}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              </div>
+              )}
             </section>
 
             {/* Sesiones */}
             <section className="rounded-xl border border-line bg-white">
+              {mode === "diaria" ? (
+                <h2 className="border-b border-line px-4 py-3 font-semibold text-ink lg:px-5">Entrenamiento</h2>
+              ) : (
               <div role="tablist" aria-label="Sesiones" className="flex gap-1 overflow-x-auto border-b border-line p-2">
                 {plan.sessions.map((s, i) => {
                   const on = s.key === session?.key;
@@ -492,11 +680,26 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                   </button>
                 )}
               </div>
+              )}
 
               {session ? (
                 <div className="space-y-4 p-4 lg:p-5">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_10rem_9rem_auto] sm:items-end">
-                    <label className="col-span-2 block sm:col-span-1">
+                  {mode === "diaria" ? (
+                    <label className="block w-44">
+                      <span className="text-xs font-medium text-muted">Duración estimada (min)</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={GYM_LIMITS.minutesMin}
+                        max={GYM_LIMITS.minutesMax}
+                        value={session.est_minutes}
+                        onChange={(e) => updateSession(session.key, { est_minutes: Number(e.target.value) || 0 })}
+                        className={smallField}
+                      />
+                    </label>
+                  ) : (
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(0,1fr)_10rem_9rem_auto] xl:items-end">
+                    <label className="col-span-2 block xl:col-span-1">
                       <span className="text-xs font-medium text-muted">Nombre</span>
                       <input
                         value={session.label}
@@ -537,6 +740,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                       </button>
                     )}
                   </div>
+                  )}
 
                   <datalist id="exercise-names">
                     {data.exerciseNames.map((n) => (
@@ -544,133 +748,222 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                     ))}
                   </datalist>
 
-                  {/* Escritorio: tabla editable */}
+                  {/* Escritorio: tabla editable, por bloques */}
                   <div className="hidden overflow-x-auto lg:block">
                     <table className="w-full min-w-[56rem] text-left text-sm">
                       <thead className="text-xs text-muted">
                         <tr>
-                          <th className="w-8 py-2 font-medium">#</th>
+                          <th className="w-10 py-2 font-medium">#</th>
                           <th className="py-2 font-medium">Ejercicio</th>
                           <th className="w-20 py-2 font-medium">Series</th>
                           <th className="w-24 py-2 font-medium">Reps</th>
                           <th className="w-72 py-2 font-medium">Intensidad</th>
                           <th className="w-24 py-2 font-medium">Descanso</th>
                           <th className="py-2 font-medium">Nota</th>
-                          <td className="w-10" />
+                          <td className="w-20" />
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-line">
-                        {session.exercises.map((e, i) => (
-                          <tr key={e.key} className="align-top">
-                            <td className="py-2 pt-4 text-muted tabular-nums">{i + 1}</td>
-                            <td className="py-2 pr-2">
-                              <input
-                                aria-label={`Ejercicio ${i + 1}`}
-                                list="exercise-names"
-                                value={e.name}
-                                maxLength={GYM_LIMITS.exerciseMax}
-                                placeholder="Ej.: Sentadilla trasera"
-                                onChange={(ev) => updateExercise(session.key, e.key, { name: ev.target.value })}
-                                className={smallField}
-                              />
-                            </td>
-                            <td className="py-2 pr-2">
-                              <input
-                                aria-label="Series"
-                                type="number"
-                                min={GYM_LIMITS.setsMin}
-                                max={GYM_LIMITS.setsMax}
-                                value={e.sets}
-                                onChange={(ev) => updateExercise(session.key, e.key, { sets: Number(ev.target.value) || 1 })}
-                                className={smallField}
-                              />
-                            </td>
-                            <td className="py-2 pr-2">
-                              <input
-                                aria-label="Repeticiones"
-                                value={e.reps}
-                                maxLength={GYM_LIMITS.repsMax}
-                                placeholder="5, máx, 20 s"
-                                onChange={(ev) => updateExercise(session.key, e.key, { reps: ev.target.value })}
-                                className={smallField}
-                              />
-                            </td>
-                            <td className="py-2 pr-2">
-                              <IntensityFields
-                                exercise={e}
-                                tests={data.tests}
-                                onType={(t) => setIntensity(session.key, e, t)}
-                                onChange={(patch) => updateExercise(session.key, e.key, patch)}
-                              />
-                            </td>
-                            <td className="py-2 pr-2">
-                              <RestInput
-                                value={e.rest_seconds}
-                                onChange={(v) => updateExercise(session.key, e.key, { rest_seconds: v })}
-                              />
-                            </td>
-                            <td className="py-2 pr-2">
-                              <input
-                                aria-label="Nota"
-                                value={e.note}
-                                maxLength={GYM_LIMITS.noteMax}
-                                onChange={(ev) => updateExercise(session.key, e.key, { note: ev.target.value })}
-                                className={smallField}
-                              />
-                            </td>
-                            <td className="py-2">
-                              <button
-                                type="button"
-                                aria-label={`Quitar ${e.name || `ejercicio ${i + 1}`}`}
-                                onClick={() => removeExercise(session.key, e.key)}
-                                className="flex size-10 items-center justify-center rounded-lg text-muted hover:bg-mist hover:text-danger"
-                              >
-                                <Trash2 aria-hidden="true" className="size-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
+                      {runs.map((run) => (
+                        <tbody key={`${run.start}-${run.items[0].key}`} className="divide-y divide-line border-t border-line">
+                          {run.block !== null && (
+                            <tr>
+                              <td colSpan={8} className="bg-mist/60 px-2 py-2">
+                                <div className="sticky left-2 max-w-[40rem]">
+                                <BlockHeader
+                                  name={run.block}
+                                  onRename={(v) => renameBlock(session.key, run.start, run.items.length, v)}
+                                  onAdd={() => addExercise(session.key, { start: run.start, len: run.items.length })}
+                                  onRemove={() => removeBlock(session.key, run.start, run.items.length)}
+                                  canAdd={session.exercises.length < GYM_LIMITS.exercisesMax}
+                                />
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          {run.items.map((e, k) => {
+                            const i = run.start + k;
+                            const inSet = sameSuperset(session.exercises[i - 1], e) || sameSuperset(e, session.exercises[i + 1]);
+                            const canLink = k < run.items.length - 1;
+                            const linked = sameSuperset(e, session.exercises[i + 1]);
+                            return (
+                              <tr key={e.key} className="align-top">
+                                <td className={`py-2 pt-4 pl-2 font-semibold tabular-nums ${inSet ? "text-brand-text shadow-[inset_3px_0_0_#38BDF8]" : "text-muted"}`}>
+                                  {codes[i]}
+                                </td>
+                                <td className="py-2 pr-2">
+                                  <input
+                                    aria-label={`Ejercicio ${codes[i]}`}
+                                    list="exercise-names"
+                                    value={e.name}
+                                    maxLength={GYM_LIMITS.exerciseMax}
+                                    placeholder="Ej.: Sentadilla trasera"
+                                    onChange={(ev) => updateExercise(session.key, e.key, { name: ev.target.value })}
+                                    className={smallField}
+                                  />
+                                </td>
+                                <td className="py-2 pr-2">
+                                  <input
+                                    aria-label="Series"
+                                    type="number"
+                                    min={GYM_LIMITS.setsMin}
+                                    max={GYM_LIMITS.setsMax}
+                                    value={e.sets}
+                                    onChange={(ev) => updateExercise(session.key, e.key, { sets: Number(ev.target.value) || 1 })}
+                                    className={smallField}
+                                  />
+                                </td>
+                                <td className="py-2 pr-2">
+                                  {e.intensity_type === "tiempo" ? (
+                                    <p className="pt-2.5 text-xs text-muted">Por tiempo</p>
+                                  ) : (
+                                    <input
+                                      aria-label="Repeticiones"
+                                      value={e.reps}
+                                      maxLength={GYM_LIMITS.repsMax}
+                                      placeholder="5, máx"
+                                      onChange={(ev) => updateExercise(session.key, e.key, { reps: ev.target.value })}
+                                      className={smallField}
+                                    />
+                                  )}
+                                </td>
+                                <td className="py-2 pr-2">
+                                  <IntensityFields
+                                    exercise={e}
+                                    tests={data.tests}
+                                    onType={(t) => setIntensity(session.key, e, t)}
+                                    onChange={(patch) => updateExercise(session.key, e.key, patch)}
+                                  />
+                                </td>
+                                <td className="py-2 pr-2">
+                                  <TimeInput
+                                    label="Descanso (m:ss)"
+                                    placeholder="1:30"
+                                    value={e.rest_seconds}
+                                    parse={parseRest}
+                                    onChange={(v) => updateExercise(session.key, e.key, { rest_seconds: v })}
+                                  />
+                                </td>
+                                <td className="py-2 pr-2">
+                                  <input
+                                    aria-label="Nota"
+                                    value={e.note}
+                                    maxLength={GYM_LIMITS.noteMax}
+                                    onChange={(ev) => updateExercise(session.key, e.key, { note: ev.target.value })}
+                                    className={smallField}
+                                  />
+                                </td>
+                                <td className="py-2">
+                                  <div className="flex">
+                                    {canLink && (
+                                      <button
+                                        type="button"
+                                        aria-pressed={linked}
+                                        title={linked ? "Separar de la superserie" : "Hacer superserie con el siguiente"}
+                                        aria-label={linked ? `Separar ${codes[i]} y ${codes[i + 1]}` : `Superserie de ${codes[i]} con el siguiente`}
+                                        onClick={() => toggleSuperset(session.key, i)}
+                                        className={`flex size-10 items-center justify-center rounded-lg hover:bg-mist ${linked ? "text-brand-text" : "text-muted"}`}
+                                      >
+                                        {linked ? <Unlink2 aria-hidden="true" className="size-4" /> : <Link2 aria-hidden="true" className="size-4" />}
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      aria-label={`Quitar ${e.name || `ejercicio ${codes[i]}`}`}
+                                      onClick={() => removeExercise(session.key, e.key)}
+                                      className="ml-auto flex size-10 items-center justify-center rounded-lg text-muted hover:bg-mist hover:text-danger"
+                                    >
+                                      <Trash2 aria-hidden="true" className="size-4" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      ))}
                     </table>
                   </div>
 
-                  {/* Celular: tarjetas por ejercicio */}
-                  <ul className="space-y-2 lg:hidden">
-                    {session.exercises.map((e, i) => (
-                      <li key={e.key}>
-                        <button
-                          type="button"
-                          onClick={() => setSheet(e.key)}
-                          className="flex w-full items-center gap-3 rounded-2xl border border-line px-3.5 py-3 text-left"
-                        >
-                          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-mist text-xs font-semibold text-ink">
-                            {i + 1}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-semibold text-ink">{e.name.trim() || "Ejercicio sin nombre"}</span>
-                            <span className="block text-sm text-muted">
-                              {setsReps(e.sets, e.reps || "?")} · {intensityLabel(e, e.test_id ? testName.get(e.test_id) : null)}
-                              {e.rest_seconds !== null && ` · ${restLabel(e.rest_seconds)}`}
-                            </span>
-                          </span>
-                          <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
-                        </button>
-                      </li>
+                  {/* Celular: tarjetas por ejercicio, por bloques */}
+                  <div className="space-y-4 lg:hidden">
+                    {runs.map((run) => (
+                      <div key={`${run.start}-${run.items[0].key}`} className="space-y-2">
+                        {run.block !== null && (
+                          <BlockHeader
+                            name={run.block}
+                            onRename={(v) => renameBlock(session.key, run.start, run.items.length, v)}
+                            onAdd={() => setSheet(addExercise(session.key, { start: run.start, len: run.items.length }))}
+                            onRemove={() => removeBlock(session.key, run.start, run.items.length)}
+                            canAdd={session.exercises.length < GYM_LIMITS.exercisesMax}
+                          />
+                        )}
+                        <ul className="space-y-2">
+                          {run.items.map((e, k) => {
+                            const i = run.start + k;
+                            const withPrev = sameSuperset(session.exercises[i - 1], e);
+                            const withNext = sameSuperset(e, session.exercises[i + 1]);
+                            return (
+                              <li key={e.key} className={withPrev ? "-mt-2" : undefined}>
+                                <button
+                                  type="button"
+                                  onClick={() => setSheet(e.key)}
+                                  className={`flex w-full items-center gap-3 border px-3.5 py-3 text-left ${
+                                    withPrev || withNext ? "border-[#BAE6FD] bg-[#F0F9FF]" : "border-line"
+                                  } ${withPrev ? "rounded-b-2xl border-t-0" : "rounded-t-2xl"} ${withNext ? "" : "rounded-b-2xl"}`}
+                                >
+                                  <span
+                                    className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-lg px-1 text-xs font-semibold ${
+                                      withPrev || withNext ? "bg-brand text-[#082F49]" : "bg-mist text-ink"
+                                    }`}
+                                  >
+                                    {codes[i]}
+                                  </span>
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block font-semibold text-ink">{e.name.trim() || "Ejercicio sin nombre"}</span>
+                                    <span className="block text-sm text-muted">
+                                      {exerciseDose(e)} · {intensityLabel(e, e.test_id ? testName.get(e.test_id) : null)}
+                                      {e.rest_seconds !== null && ` · ${restLabel(e.rest_seconds)}`}
+                                    </span>
+                                  </span>
+                                  <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
 
                   {session.exercises.length < GYM_LIMITS.exercisesMax && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const key = addExercise(session.key);
-                        if (window.matchMedia("(max-width: 1023px)").matches) setSheet(key);
-                      }}
-                      className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-muted/60 text-sm font-semibold text-brand-text lg:w-auto lg:px-4"
-                    >
-                      + Agregar ejercicio
-                    </button>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const key = addExercise(session.key);
+                          if (window.matchMedia("(max-width: 1023px)").matches) setSheet(key);
+                        }}
+                        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-muted/60 text-sm font-semibold text-brand-text sm:w-auto sm:px-4"
+                      >
+                        + Agregar ejercicio
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const key = addBlock(session.key);
+                          if (window.matchMedia("(max-width: 1023px)").matches) setSheet(key);
+                        }}
+                        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-muted/60 text-sm font-semibold text-brand-text sm:w-auto sm:px-4"
+                      >
+                        + Bloque
+                      </button>
+                    </div>
                   )}
+                  <p className="text-xs text-muted">
+                    Bloques: agrupan ejercicios (ej.: Calentamiento, Principal). Superserie: con{" "}
+                    <Link2 aria-label="el ícono de cadena" className="inline size-3.5 align-[-2px]" /> unes un ejercicio con el
+                    siguiente para hacerlos seguidos (A1, A2).
+                  </p>
                 </div>
               ) : (
                 <p className="p-5 text-sm text-muted">Agrega una sesión para empezar.</p>
@@ -704,12 +997,13 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
               </div>
               {previewPlayer && session && (
                 <ul className="divide-y divide-line">
-                  {session.exercises.map((e) => {
+                  {session.exercises.map((e, i) => {
                     const v = preview(e);
                     return (
                       <li key={e.key} className="flex items-center justify-between gap-3 py-2 text-sm">
                         <span className="min-w-0 text-ink">
-                          {e.name.trim() || "Ejercicio"} {setsReps(e.sets, e.reps)}
+                          <span className="mr-1.5 text-xs font-semibold text-muted">{codes[i]}</span>
+                          {e.name.trim() || "Ejercicio"} {exerciseDose(e)}
                         </span>
                         <span className="shrink-0 text-right">
                           <span className="block font-display font-bold text-ink">{v.main}</span>
@@ -821,6 +1115,14 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
           onClose={() => setSheet(null)}
           onChange={(patch) => updateExercise(session.key, sheetExercise.key, patch)}
           onType={(t) => setIntensity(session.key, sheetExercise, t)}
+          code={codes[sheetIndex]}
+          superset={
+            sheetIndex >= 0 &&
+            sheetIndex < session.exercises.length - 1 &&
+            (sheetExercise.block ?? "") === (session.exercises[sheetIndex + 1].block ?? "")
+              ? { linked: sameSuperset(sheetExercise, session.exercises[sheetIndex + 1]), toggle: () => toggleSuperset(session.key, sheetIndex) }
+              : null
+          }
           onRemove={() => {
             removeExercise(session.key, sheetExercise.key);
             setSheet(null);
@@ -833,6 +1135,47 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
 
 function okText(ok: string) {
   return ok === "publicado" ? "Plan publicado: los jugadores ya lo ven." : ok === "guardado" ? "Cambios guardados." : "Borrador guardado.";
+}
+
+// Encabezado de un bloque: nombre editable, agregar ejercicio al bloque y quitarlo.
+function BlockHeader({
+  name,
+  onRename,
+  onAdd,
+  onRemove,
+  canAdd,
+}: {
+  name: string;
+  onRename: (v: string) => void;
+  onAdd: () => void;
+  onRemove: () => void;
+  canAdd: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        aria-label="Nombre del bloque"
+        value={name}
+        maxLength={GYM_LIMITS.blockMax}
+        placeholder="Nombre del bloque"
+        onChange={(ev) => onRename(ev.target.value)}
+        className="min-h-10 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1.5 text-sm font-bold tracking-wide text-ink uppercase outline-none hover:border-line focus:border-brand-strong focus:bg-white"
+      />
+      {canAdd && (
+        <button type="button" onClick={onAdd} className="min-h-10 shrink-0 rounded-lg px-2 text-sm font-semibold text-brand-text hover:bg-white">
+          + Ejercicio
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Quitar bloque ${name}`}
+        className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-white hover:text-danger"
+      >
+        <Trash2 aria-hidden="true" className="size-4" />
+      </button>
+    </div>
+  );
 }
 
 function CheckRow({
@@ -869,8 +1212,20 @@ function CheckRow({
   );
 }
 
-// Descanso en "m:ss" (o segundos). Se interpreta al salir del campo.
-function RestInput({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+// Tiempo en "m:ss" (o segundos): descanso o tiempo por serie. Se interpreta al salir del campo.
+function TimeInput({
+  value,
+  onChange,
+  parse,
+  label,
+  placeholder,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  parse: (v: string) => number | null | undefined;
+  label: string;
+  placeholder: string;
+}) {
   const [text, setText] = useState(restLabel(value));
   const [prev, setPrev] = useState(value);
   if (prev !== value) {
@@ -879,13 +1234,13 @@ function RestInput({ value, onChange }: { value: number | null; onChange: (v: nu
   }
   return (
     <input
-      aria-label="Descanso (m:ss)"
+      aria-label={label}
       value={text}
-      placeholder="1:30"
+      placeholder={placeholder}
       inputMode="numeric"
       onChange={(e) => setText(e.target.value)}
       onBlur={() => {
-        const v = parseRest(text);
+        const v = parse(text);
         if (v === undefined) setText(restLabel(value));
         else onChange(v);
       }}
@@ -956,6 +1311,17 @@ function IntensityFields({
           className={`${smallField} w-16`}
         />
       )}
+      {e.intensity_type === "tiempo" && (
+        <div className="w-24">
+          <TimeInput
+            label="Tiempo por serie (m:ss)"
+            placeholder="1:00"
+            value={e.seconds}
+            parse={parseDuration}
+            onChange={(v) => onChange({ seconds: v })}
+          />
+        </div>
+      )}
       {e.intensity_type === "kg" && (
         <input
           aria-label="Kilos"
@@ -971,8 +1337,9 @@ function IntensityFields({
   );
 }
 
-// Hoja del celular para editar un ejercicio: series y reps con +/−, intensidad en 4
-// opciones y, con % del máximo, el porcentaje de a 5 y el test, con un cálculo de ejemplo.
+// Hoja del celular para editar un ejercicio: series y reps (o tiempo) con +/−, intensidad
+// en 5 opciones y, con % del máximo, el porcentaje de a 5 y el test, con un cálculo de
+// ejemplo. Abajo, unir con el siguiente en superserie.
 function ExerciseSheet({
   exercise: e,
   tests,
@@ -981,6 +1348,8 @@ function ExerciseSheet({
   onChange,
   onType,
   onRemove,
+  code,
+  superset,
 }: {
   exercise: DraftExercise;
   tests: EditorData["tests"];
@@ -989,8 +1358,12 @@ function ExerciseSheet({
   onChange: (patch: Partial<DraftExercise>) => void;
   onType: (t: IntensityType) => void;
   onRemove: () => void;
+  code: string | undefined;
+  superset: { linked: boolean; toggle: () => void } | null;
 }) {
   const repsNum = /^\d+$/.test(e.reps.trim()) ? Number(e.reps) : null;
+  const time = e.intensity_type === "tiempo";
+  const secs = e.seconds ?? 60;
   return (
     <div className="fixed inset-0 z-40 flex items-end bg-ink/50 lg:hidden" onClick={onClose}>
       <div
@@ -1002,6 +1375,11 @@ function ExerciseSheet({
       >
         <div aria-hidden="true" className="mx-auto h-1 w-10 rounded-full bg-line" />
         <div className="flex items-center justify-between gap-3">
+          {code && (
+            <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-mist px-1.5 text-sm font-semibold text-ink">
+              {code}
+            </span>
+          )}
           <input
             aria-label="Nombre del ejercicio"
             list="exercise-names"
@@ -1023,26 +1401,37 @@ function ExerciseSheet({
             onMinus={() => onChange({ sets: Math.max(GYM_LIMITS.setsMin, e.sets - 1) })}
             onPlus={() => onChange({ sets: Math.min(GYM_LIMITS.setsMax, e.sets + 1) })}
           />
-          <Stepper
-            label="Repeticiones"
-            value={e.reps || "?"}
-            onMinus={() => onChange({ reps: String(Math.max(1, (repsNum ?? 2) - 1)) })}
-            onPlus={() => onChange({ reps: String(Math.min(99, (repsNum ?? 0) + 1)) })}
-          />
+          {time ? (
+            <Stepper
+              label="Tiempo por serie"
+              value={durationLabel(secs)}
+              onMinus={() => onChange({ seconds: Math.max(GYM_LIMITS.secondsMin, secs - (secs > 60 ? 15 : 5)) })}
+              onPlus={() => onChange({ seconds: Math.min(GYM_LIMITS.secondsMax, secs + (secs >= 60 ? 15 : 5)) })}
+            />
+          ) : (
+            <Stepper
+              label="Repeticiones"
+              value={e.reps || "?"}
+              onMinus={() => onChange({ reps: String(Math.max(1, (repsNum ?? 2) - 1)) })}
+              onPlus={() => onChange({ reps: String(Math.min(99, (repsNum ?? 0) + 1)) })}
+            />
+          )}
         </div>
-        <label className="block">
-          <span className="text-xs font-semibold text-muted">Repeticiones en texto (ej.: máx, 20 s)</span>
-          <input
-            value={e.reps}
-            maxLength={GYM_LIMITS.repsMax}
-            onChange={(ev) => onChange({ reps: ev.target.value })}
-            className={smallField}
-          />
-        </label>
+        {!time && (
+          <label className="block">
+            <span className="text-xs font-semibold text-muted">Repeticiones en texto (ej.: máx)</span>
+            <input
+              value={e.reps}
+              maxLength={GYM_LIMITS.repsMax}
+              onChange={(ev) => onChange({ reps: ev.target.value })}
+              className={smallField}
+            />
+          </label>
+        )}
 
         <div>
           <p className="text-xs font-semibold text-muted">Intensidad</p>
-          <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
             {INTENSITY_OPTIONS.map((o) => {
               const on = e.intensity_type === o.value;
               return (
@@ -1130,11 +1519,36 @@ function ExerciseSheet({
           </label>
         )}
         {e.intensity_type === "bw" && <p className="rounded-2xl bg-[#F0F9FF] p-3.5 text-sm text-ink">Peso corporal, sin kilos.</p>}
+        {time && (
+          <p className="rounded-2xl bg-[#F0F9FF] p-3.5 text-sm text-ink">
+            {e.sets} {e.sets === 1 ? "serie" : "series"} de {durationLabel(secs)} (ej.: plancha). Sin repeticiones.
+          </p>
+        )}
+
+        {superset && (
+          <button
+            type="button"
+            aria-pressed={superset.linked}
+            onClick={superset.toggle}
+            className={`flex min-h-11 w-full items-center gap-2 rounded-xl border px-3 text-left text-sm font-semibold ${
+              superset.linked ? "border-brand bg-brand-soft text-brand-text" : "border-line text-ink"
+            }`}
+          >
+            {superset.linked ? <Unlink2 aria-hidden="true" className="size-4" /> : <Link2 aria-hidden="true" className="size-4" />}
+            {superset.linked ? "En superserie con el siguiente · Separar" : "Hacer superserie con el siguiente"}
+          </button>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <span className="text-xs font-semibold text-muted">Descanso (m:ss)</span>
-            <RestInput value={e.rest_seconds} onChange={(v) => onChange({ rest_seconds: v })} />
+            <TimeInput
+              label="Descanso (m:ss)"
+              placeholder="1:30"
+              value={e.rest_seconds}
+              parse={parseRest}
+              onChange={(v) => onChange({ rest_seconds: v })}
+            />
           </label>
           <label className="block">
             <span className="text-xs font-semibold text-muted">Nota</span>

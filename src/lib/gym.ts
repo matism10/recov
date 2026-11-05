@@ -1,23 +1,26 @@
-// Plan de gimnasio (20261105200000 y 201000): tipos, textos y lecturas compartidas.
+// Plan de gimnasio (20261105200000, 201000 y 210000): tipos, textos y lecturas compartidas.
 // La base calcula kilos, plazos, asignaciones y cumplimiento; aquí solo se presentan.
 // El gimnasio no tiene formato: cuenta igual en Rugby 15 y en Sevens.
 import type { createClient } from "@/lib/supabase/server";
 import { addDays, todayInChile } from "@/lib/injuries";
 import { compactDayLabel, weekStart } from "@/lib/events";
 export { canPlanGym } from "@/lib/gym-roles";
+export { blockRuns, exerciseCodes, normalizeSupersets, sameSuperset, supersetsFromLinks } from "@/lib/gym-groups";
+import { normalizeSupersets } from "@/lib/gym-groups";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
 // ---------------------------------------------------------------------------
 // Intensidad
 // ---------------------------------------------------------------------------
-export type IntensityType = "pct" | "rpe" | "kg" | "bw";
+export type IntensityType = "pct" | "rpe" | "kg" | "bw" | "tiempo";
 
 export const INTENSITY_OPTIONS: { value: IntensityType; label: string }[] = [
   { value: "pct", label: "% máx" },
   { value: "rpe", label: "Esfuerzo" },
   { value: "kg", label: "Kilos" },
   { value: "bw", label: "Corporal" },
+  { value: "tiempo", label: "Tiempo" },
 ];
 
 // Rangos (iguales a los checks de la base).
@@ -40,6 +43,10 @@ export const GYM_LIMITS = {
   sessionsMax: 14,
   exercisesMax: 30,
   labelMax: 40,
+  secondsMin: 5,
+  secondsMax: 3600,
+  blockMax: 40,
+  supersetMax: 30,
 };
 
 const kgFormat = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1 });
@@ -75,14 +82,37 @@ export function parseRest(value: string): number | null | undefined {
   return Number.isInteger(n) && n >= 0 && n <= GYM_LIMITS.restMax ? n : undefined;
 }
 
+// Duración de un ejercicio por tiempo: "30 s", "1 min", "1 min 30 s".
+export function durationLabel(seconds: number | null | undefined) {
+  if (!seconds) return "";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m === 0) return `${s} s`;
+  return s === 0 ? `${m} min` : `${m} min ${s} s`;
+}
+
+// "1:30" o "45" (segundos) → segundos; "" → null; fuera de 5 s a 60 min → undefined.
+export function parseDuration(value: string): number | null | undefined {
+  const v = value.trim();
+  if (v === "") return null;
+  const mmss = /^(\d{1,2}):([0-5]\d)$/.exec(v);
+  const n = mmss ? Number(mmss[1]) * 60 + Number(mmss[2]) : /^\d{1,4}$/.test(v) ? Number(v) : NaN;
+  return Number.isInteger(n) && n >= GYM_LIMITS.secondsMin && n <= GYM_LIMITS.secondsMax ? n : undefined;
+}
+
 // "4 × 5"
 export const setsReps = (sets: number, reps: string) => `${sets} × ${reps}`;
+
+// Series y repeticiones, o series y tiempo: "4 × 5", "3 × 1 min".
+export const exerciseDose = (e: { sets: number; reps: string | null; intensity_type: IntensityType; seconds: number | null }) =>
+  setsReps(e.sets, e.intensity_type === "tiempo" ? durationLabel(e.seconds) || "?" : e.reps || "?");
 
 export type ExerciseLike = {
   intensity_type: IntensityType;
   pct: number | null;
   rpe: number | null;
   kg: number | null;
+  seconds: number | null;
 };
 
 // Intensidad para el staff: "80 % · Sentadilla 1RM", "Esfuerzo 7/10", "60 kg", "Peso corporal".
@@ -94,6 +124,8 @@ export function intensityLabel(e: ExerciseLike, testName?: string | null) {
       return `Esfuerzo ${e.rpe}/10`;
     case "kg":
       return e.kg !== null ? formatKg(Number(e.kg)) : "Kilos";
+    case "tiempo":
+      return "Por tiempo";
     default:
       return "Peso corporal";
   }
@@ -111,6 +143,8 @@ export function playerIntensity(e: ExerciseLike & { calc_kg: number | null; max:
       return { main: `${e.rpe}/10`, sub: "esfuerzo" };
     case "kg":
       return { main: e.kg !== null ? formatKg(Number(e.kg)) : "—", sub: "" };
+    case "tiempo":
+      return { main: durationLabel(e.seconds) || "—", sub: "por serie" };
     default:
       return { main: "Corporal", sub: "" };
   }
@@ -148,8 +182,11 @@ export type DraftExercise = {
   test_id: string | null;
   rpe: number | null;
   kg: number | null;
+  seconds: number | null;
   rest_seconds: number | null;
   note: string;
+  block: string | null; // bloque (ej.: "Calentamiento"); null = sin bloque
+  superset: number | null; // ejercicios seguidos con el mismo número = superserie
 };
 
 export type DraftSession = {
@@ -185,12 +222,15 @@ export function planPayload(plan: DraftPlan) {
       label: s.label.trim(),
       weekday: s.weekday,
       est_minutes: s.est_minutes,
-      exercises: s.exercises.map((e) => ({
+      exercises: normalizeSupersets(s.exercises).map((e) => ({
         id: e.id,
         name: e.name.trim(),
         sets: e.sets,
-        reps: e.reps.trim(),
+        reps: e.intensity_type === "tiempo" ? "" : e.reps.trim(),
         intensity_type: e.intensity_type,
+        seconds: e.intensity_type === "tiempo" ? e.seconds : null,
+        block: e.block?.trim() || null,
+        superset: e.superset,
         pct: e.intensity_type === "pct" ? e.pct : null,
         test_id: e.intensity_type === "pct" ? e.test_id : null,
         rpe: e.intensity_type === "rpe" ? e.rpe : null,
@@ -221,7 +261,9 @@ export type GymExercise = ExerciseLike & {
   sort: number;
   name: string;
   sets: number;
-  reps: string;
+  reps: string | null;
+  block: string | null;
+  superset: number | null;
   rest_seconds: number | null;
   note: string | null;
   test_id: string | null;
