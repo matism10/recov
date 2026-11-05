@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorMessage, buttonPrimary, textButton } from "@/app/ui";
-import { RPE_LABELS, RPE_VALUES, formatLoad } from "@/lib/srpe";
+import { formatLoad } from "@/lib/srpe";
+import { RpeScale } from "@/app/rpe-scale";
 import { submitRpe } from "./actions";
 
 // Escala vertical de 0 a 10 (6, 8 y 9 sin texto), la carga calculada en vivo y los
@@ -47,36 +48,14 @@ export function RpeForm({
         <p className="text-sm text-muted">Ya respondiste: puedes corregirlo hasta 48 horas después.</p>
       )}
 
-      <div role="radiogroup" aria-label="Esfuerzo de 0 a 10" className="space-y-1">
-        {RPE_VALUES.map((n) => {
-          const selected = picked === n;
-          return (
-            <button
-              key={n}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              disabled={pending}
-              onClick={() => {
-                setPicked(n);
-                setError(null);
-              }}
-              className={`flex min-h-11 w-full items-center gap-3.5 rounded-xl border px-3 text-left transition disabled:opacity-60 ${
-                selected ? "border-brand bg-brand-soft" : "border-transparent hover:bg-mist"
-              }`}
-            >
-              <span
-                className={`flex size-8 shrink-0 items-center justify-center rounded-lg font-display font-bold tabular-nums ${
-                  selected ? "bg-brand text-ink" : "bg-mist text-ink"
-                }`}
-              >
-                {n}
-              </span>
-              <span className="font-medium text-ink">{RPE_LABELS[n] ?? ""}</span>
-            </button>
-          );
-        })}
-      </div>
+      <RpeScale
+        value={picked}
+        disabled={pending}
+        onChange={(n) => {
+          setPicked(n);
+          setError(null);
+        }}
+      />
 
       <div className="space-y-3 border-t border-line pt-4">
         <div className="flex items-baseline justify-between gap-4" aria-live="polite">

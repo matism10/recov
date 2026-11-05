@@ -103,10 +103,13 @@ export type PendingReport =
       minutes: number;
       estimated: boolean;
     }
-  | { kind: "wellness"; report_date: string };
+  | { kind: "wellness"; report_date: string }
+  // Sesión de gimnasio sin esfuerzo (20261105201000): log_id, nombre de la sesión (null
+  // si fue por su cuenta), su día y su duración.
+  | { kind: "gym"; log_id: string; label: string | null; report_date: string; minutes: number };
 
 type PendingRow = {
-  kind: "session" | "wellness";
+  kind: "session" | "wellness" | "gym";
   event_id: string | null;
   event_type: EventType | null;
   starts_at: string | null;
@@ -123,10 +126,13 @@ type PendingRow = {
 export async function getMyPendingReports(supabase: Client, format: Format): Promise<PendingReport[]> {
   const { data, error } = await supabase.rpc("my_pending_reports", { p_format: format });
   if (error || !data) return [];
-  return (data as PendingRow[]).map((r) =>
+  return (data as PendingRow[]).map((r): PendingReport =>
     r.kind === "wellness"
       ? { kind: "wellness", report_date: r.report_date! }
-      : {
+      : r.kind === "gym"
+        ? // En las filas de gimnasio, event_id es el registro y location el nombre de la sesión.
+          { kind: "gym", log_id: r.event_id!, label: r.location, report_date: r.report_date!, minutes: r.minutes ?? 0 }
+        : {
           kind: "session",
           event_id: r.event_id!,
           event_type: r.event_type!,
@@ -157,10 +163,21 @@ export type SessionReport = {
   reason: string | null;
 };
 
-export type WeekLoad = { week_start: string; load: number; sessions: number; estimated: boolean };
+// Desde 20261105201000 la carga suma el gimnasio y trae el desglose por tipo.
+export type WeekLoad = {
+  week_start: string;
+  load: number;
+  sessions: number;
+  estimated: boolean;
+  cancha: number;
+  gimnasio: number;
+  partido: number;
+};
 export type WeekSession = {
-  event_id: string;
-  type: EventType;
+  event_id: string; // evento o registro de gimnasio
+  kind: "cancha" | "gimnasio" | "partido";
+  label: string;
+  type: EventType | "gimnasio";
   starts_at: string;
   rpe: number;
   minutes: number;

@@ -1,5 +1,5 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0048.
+-- Correr DESPUÉS de las migraciones 0001 a 0048 y las de fecha y hora hasta 20261105201000.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -2221,5 +2221,62 @@ select pg_temp.expect_count($q$select 1 from pg_proc p where p.pronamespace = 'p
   and p.proname in ('session_minutes', 'rpe_check', 'my_active_player', 'wellness_target_date', 'srpe_sessions', 'srpe_load_flag')
   and not has_function_privilege('authenticated', p.oid, 'EXECUTE')$q$, 6,
   'los helpers de sRPE no los ejecuta authenticated');
+
+-- =======================================================================
+-- Plan de gimnasio (20261105200000): aislamiento por club, entre jugadores y sin escritura directa
+-- =======================================================================
+insert into public.gym_plans (id, club_id, name, starts_on, ends_on, status, created_by, published_at) values
+  ('a9000000-9999-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Fuerza A', current_date - 7, current_date + 7, 'publicado', '10000000-0000-0000-0000-00000000000a', now()),
+  ('b9000000-9999-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'Fuerza B', current_date - 7, current_date + 7, 'publicado', '30000000-0000-0000-0000-00000000000b', now());
+insert into public.gym_plan_sessions (id, club_id, plan_id, label, weekday, est_minutes) values
+  ('a9100000-9999-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'a9000000-9999-0000-0000-000000000001', 'Sesión A', 1, 60),
+  ('b9100000-9999-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'b9000000-9999-0000-0000-000000000001', 'Sesión B', 1, 60);
+insert into public.gym_plan_targets (club_id, plan_id, kind) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a9000000-9999-0000-0000-000000000001', 'plantel'),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'b9000000-9999-0000-0000-000000000001', 'plantel');
+insert into public.gym_session_logs (club_id, player_id, plan_session_id, performed_on, minutes, rpe) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'a9100000-9999-0000-0000-000000000001', current_date, 60, 6),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', null, current_date, 40, 5),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'b1000000-1111-0000-0000-000000000001', 'b9100000-9999-0000-0000-000000000001', current_date, 60, 7);
+
+-- Jugador A1: no lee planes directo y solo ve sus registros
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.gym_plans$q$, 0, 'jugador A1 lee los planes directo');
+select pg_temp.expect_count($q$select 1 from public.gym_plan_sessions$q$, 0, 'jugador A1 lee las sesiones directo');
+select pg_temp.expect_count($q$select 1 from public.gym_session_logs$q$, 1, 'jugador A1 ve solo su registro de gimnasio');
+select pg_temp.expect_fail($q$select public.save_gym_plan('{"name":"Plan","starts_on":"2026-11-01","ends_on":"2026-11-30"}'::jsonb)$q$, 'jugador A1 crea un plan');
+select pg_temp.expect_fail($q$select public.player_gym_summary('a1000000-1111-0000-0000-000000000002')$q$, 'jugador A1 ve el gimnasio de A2');
+select pg_temp.expect_fail($q$insert into public.gym_session_logs (club_id, player_id, performed_on, minutes) values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', current_date, 60)$q$,
+  'jugador A1 inserta un registro directo');
+select pg_temp.expect_no_rows($q$update public.gym_session_logs set rpe = 10$q$, 'jugador A1 cambia su registro directo');
+select pg_temp.expect_error($q$select public.complete_gym_session('b9100000-9999-0000-0000-000000000001', null, true)$q$, 'not_found', 'jugador A1 marca una sesión del club B');
+select pg_temp.back();
+
+-- Entrenador A: lee los planes y registros de su club, no los del B, y no crea planes
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.gym_plans$q$, 1, 'entrenador A ve los planes de su club');
+select pg_temp.expect_count($q$select 1 from public.gym_session_logs$q$, 2, 'entrenador A ve los registros de su club');
+select pg_temp.expect_fail($q$select public.save_gym_plan('{"name":"Plan","starts_on":"2026-11-01","ends_on":"2026-11-30"}'::jsonb)$q$, 'entrenador A crea un plan');
+select pg_temp.expect_fail($q$select public.player_gym_summary('b1000000-1111-0000-0000-000000000001')$q$, 'entrenador A ve el gimnasio de B1');
+select pg_temp.expect_no_rows($q$update public.gym_plans set name = 'x'$q$, 'entrenador A cambia un plan directo');
+select pg_temp.back();
+
+-- Kine B: nada del club A
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_count($q$select 1 from public.gym_plans where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve planes del club A');
+select pg_temp.expect_count($q$select 1 from public.gym_session_logs where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve registros del club A');
+select pg_temp.expect_count($q$select 1 from public.team_load_breakdown('15') where player_id::text like 'a1%'$q$, 0, 'kine B no ve el desglose del club A');
+select pg_temp.back();
+
+-- Pendiente y anónimo
+select pg_temp.as_user('70000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.gym_session_logs$q$, 0, 'jugador pendiente no ve registros de gimnasio');
+select pg_temp.expect_fail($q$select public.my_gym_today()$q$, 'jugador pendiente lee su plan de hoy');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select 1 from public.gym_plans$q$, 'anónimo lee gym_plans');
+select pg_temp.expect_fail($q$select 1 from public.gym_session_logs$q$, 'anónimo lee gym_session_logs');
+select pg_temp.expect_fail($q$select public.my_gym_today()$q$, 'anónimo ejecuta my_gym_today');
+select pg_temp.back();
 
 rollback;

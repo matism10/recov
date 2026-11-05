@@ -1,10 +1,12 @@
-// Carga semanal sRPE (ficha del jugador, staff): 6 semanas en barras, la actual en
-// naranjo si es "Carga alta", línea punteada con el promedio de las 4 semanas
-// anteriores y las sesiones de la semana. También el bienestar reciente del jugador.
+// Carga semanal sRPE (ficha del jugador, staff): 6 semanas en barras apiladas por tipo
+// (Cancha, Gimnasio, Partido), línea punteada con el promedio de las 4 semanas
+// anteriores, el peso del gimnasio en la carga y las sesiones de la semana. La semana
+// actual lleva la etiqueta "Carga alta" si corresponde. También el bienestar reciente.
 // Solo presentación: los cálculos vienen de player_weekly_load.
 import { CircleAlert } from "lucide-react";
 import { EVENT_TYPE_LABEL, chileDateTime, WEEKDAY_LABELS } from "@/lib/events";
 import { cardClass } from "@/app/ui";
+import { LOAD_KINDS, LOAD_KIND_COLOR, LOAD_KIND_LABEL } from "@/lib/gym";
 import {
   WELLNESS_ITEMS,
   dayLabel,
@@ -25,6 +27,9 @@ export function SrpeLoad({ data }: { data: WeeklyLoad | null }) {
   const max = Math.max(1, ...weeks.map((w) => w.load), data.baseline ?? 0);
   const comparable = data.prior_weeks >= 3 && data.baseline !== null && data.baseline > 0;
   const pct = data.pct_over;
+  const total = weeks.reduce((n, w) => n + w.load, 0);
+  const gym = weeks.reduce((n, w) => n + (w.gimnasio ?? 0), 0);
+  const gymShare = total > 0 && gym > 0 ? Math.round((gym / total) * 100) : null;
 
   return (
     <div className={`space-y-4 p-5 ${cardClass}`}>
@@ -78,16 +83,24 @@ export function SrpeLoad({ data }: { data: WeeklyLoad | null }) {
                 <li key={w.week_start} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
                   <span className="sr-only">
                     {current ? "Semana actual" : `Semana del ${dayLabel(w.week_start)}`}: {formatLoad(w.load)} en{" "}
-                    {w.sessions} {w.sessions === 1 ? "sesión" : "sesiones"}
+                    {w.sessions} {w.sessions === 1 ? "sesión" : "sesiones"} (cancha {formatLoad(w.cancha)}, gimnasio{" "}
+                    {formatLoad(w.gimnasio)}, partido {formatLoad(w.partido)})
                   </span>
                   <div
                     aria-hidden="true"
-                    className={`w-full rounded-md ${
-                      current ? (data.high_load ? "bg-alerta" : "bg-brand") : "bg-[#cbd5e1]"
-                    }`}
+                    className={`flex w-full flex-col-reverse gap-px overflow-hidden rounded-md ${
+                      current && data.high_load ? "ring-2 ring-alerta ring-offset-1" : ""
+                    } ${w.load === 0 ? "bg-[#cbd5e1]" : ""}`}
                     style={{ height: h }}
                     title={`${formatLoad(w.load)}${w.estimated ? " (estimada)" : ""}`}
-                  />
+                  >
+                    {w.load > 0 &&
+                      LOAD_KINDS.map((k) =>
+                        w[k] > 0 ? (
+                          <div key={k} style={{ height: `${(w[k] / w.load) * 100}%`, background: LOAD_KIND_COLOR[k] }} />
+                        ) : null,
+                      )}
+                  </div>
                   <span aria-hidden="true" className="text-[11px] text-muted">
                     {label}
                   </span>
@@ -100,6 +113,23 @@ export function SrpeLoad({ data }: { data: WeeklyLoad | null }) {
         <p className="text-sm text-muted">Aún no responde el esfuerzo de ninguna sesión.</p>
       )}
 
+      {hasData && (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink" aria-label="Tipos de carga">
+          {LOAD_KINDS.map((k) => (
+            <li key={k} className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="size-2.5 rounded-[3px]" style={{ background: LOAD_KIND_COLOR[k] }} />
+              {LOAD_KIND_LABEL[k]}
+            </li>
+          ))}
+        </ul>
+      )}
+      {gymShare !== null && (
+        <div className="rounded-xl bg-[#F0F9FF] px-4 py-3">
+          <p className="text-sm font-semibold text-brand-text">El gimnasio es el {gymShare} % de su carga</p>
+          <p className="text-[13px] text-ink/80">En las últimas {weeks.length} semanas, contando cancha, gimnasio y partidos.</p>
+        </div>
+      )}
+
       <div>
         <h3 className="mb-1 font-semibold text-ink">Sesiones de la semana</h3>
         {data.current_sessions.length === 0 ? (
@@ -108,11 +138,18 @@ export function SrpeLoad({ data }: { data: WeeklyLoad | null }) {
           <ul className="divide-y divide-line">
             {data.current_sessions.map((s) => (
               <li key={s.event_id} className="flex items-center gap-3 py-2.5">
+                <span
+                  aria-hidden="true"
+                  className="size-2.5 shrink-0 rounded-[3px]"
+                  style={{ background: LOAD_KIND_COLOR[s.kind] ?? LOAD_KIND_COLOR.cancha }}
+                />
                 <span className="w-9 text-[13px] text-muted">
                   {WEEKDAY_LABELS[isoWeekday(chileDateTime(s.starts_at).date) - 1]}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block font-medium text-ink">{EVENT_TYPE_LABEL[s.type]}</span>
+                  <span className="block font-medium text-ink">
+                    {s.type === "gimnasio" ? `Gimnasio · ${s.label}` : EVENT_TYPE_LABEL[s.type]}
+                  </span>
                   <span className="block text-xs text-muted">
                     Esfuerzo {s.rpe} × {s.minutes} min{s.estimated ? " (estimado)" : ""}
                   </span>

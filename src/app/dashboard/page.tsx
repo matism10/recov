@@ -49,6 +49,10 @@ import { getFormatContext, inFormat, withActiveFormat } from "@/lib/format";
 import { FormatSwitch, SevensPositionBanner } from "@/app/sevens-ui";
 import { getMyPendingReports } from "@/lib/srpe";
 import { MyWellness, PendingReports } from "./pending-reports";
+import { getMyGymToday } from "@/lib/gym";
+import { GymTodayCard } from "./gym-today";
+import { MyWeek } from "./my-week";
+import { getWeekData } from "./week-data";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
 const RESUMEN_AVAILABLE = 10;
@@ -115,7 +119,7 @@ export default async function DashboardPage() {
     // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
     // Solo decide qué se muestra; las funciones de la base validan el permiso real.
     const canManage = canManageInjuries(roles, user.id, profile.club?.kine_delegate_id);
-    const [myLoad, open, myInjuries, toReview, myPending, myReports, myWellness] = await Promise.all([
+    const [myLoad, open, myInjuries, toReview, myPending, myReports, myWellness, myGym, week] = await Promise.all([
       // Jugador: su carga de partidos y sus convocatorias del formato activo (solo datos propios).
       isPlayer ? withActiveFormat(user.id, (format) => getMyLoad(supabase, format)) : null,
       // "Lesiones activas" (staff): lesiones abiertas del club (RLS); abajo se toman
@@ -179,8 +183,14 @@ export default async function DashboardPage() {
             .maybeSingle()
             .then(({ data }) => (data ? { report_date: data.report_date as string, total: data.total as number } : null))
         : null,
+      // Plan de gimnasio de hoy (jugador; el gimnasio no tiene formato).
+      isPlayer ? getMyGymToday(supabase) : null,
+      // "Mi semana" (todos): eventos del formato activo y sesiones de gimnasio.
+      withActiveFormat(user.id, (format) =>
+        getWeekData(supabase, profile.club_id!, format, { player: isPlayer, staff }),
+      ),
     ]);
-    return { myLoad, open, myInjuries, toReview, myPending, myReports, myWellness };
+    return { myLoad, open, myInjuries, toReview, myPending, myReports, myWellness, myGym, week };
   });
 
   // Franja de métricas (staff): sus datos salen ya, en paralelo con el resto, y la
@@ -386,6 +396,9 @@ export default async function DashboardPage() {
       )}
       {/* Jugador: sesiones y check de bienestar por responder (solo si hay). */}
       {me && <PendingReports items={byRole.myReports} />}
+      {/* Jugador: "Hoy toca gimnasio" y el registro de una sesión por su cuenta. */}
+      {me && <GymTodayCard data={byRole.myGym} />}
+      <MyWeek data={byRole.week} />
 
       {!staff && (metricsDesktop.includes("asistencia") || metricsMobile.includes("asistencia")) && (
         <Suspense fallback={<Block className="mb-8 min-h-56" />}>

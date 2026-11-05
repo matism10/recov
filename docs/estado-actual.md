@@ -5,11 +5,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #88, 5 nov).
-- Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000 y 20261105190000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
-- 36 pantallas (rutas de página en `src/app`).
+- Todo está mergeado en `main` (último: PR #90, 5 nov). En curso: plan de gimnasio (`feat/plan-gimnasio`).
+- Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000, 20261105190000 y 20261105200000 a 20261105202000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
+- 43 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
-- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones), `sevens_test.sql` (Rugby Sevens) y `load_wellness_test.sql` (sRPE y bienestar). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
+- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones), `sevens_test.sql` (Rugby Sevens), `load_wellness_test.sql` (sRPE y bienestar) y `gym_plan_test.sql` (plan de gimnasio). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
 - 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel. 0029: nómina por puestos (titulares y banca). 0030: teléfono opcional del jugador (solo base de datos, sin UI).
 - CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones.
 - Migraciones desde el 21 oct:
@@ -34,9 +34,13 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 20261105120000: asistencia a entrenamientos. Tabla `event_attendance` (`event_id`, `player_id`, `club_id`, `present`, `recorded_by`, `recorded_at`; PK evento + jugador; RLS: el staff confirmado lee las del club y el jugador solo sus filas; sin escritura directa). `set_event_attendance(event_id, ausentes[])` (cualquier staff; solo entrenamientos no cancelados y ya empezados; inserta o actualiza una fila por jugador confirmado y activo, y en un entrenamiento Sevens solo el grupo). `attendance_ranking(desde, hasta)` (todo confirmado: asistidos/total por jugador activo; solo eventos con lista y no cancelados; fechas en hora de Chile). `private.dashboard_metric_keys()` suma `'asistencia'` (no cambia las métricas de ningún club).
   - 20261105180000: sRPE y check de bienestar. `clubs.wellness_days` (días ISO, por defecto lunes) y `set_wellness_days` (head coach, manager o preparador físico). Tablas `session_rpe` (esfuerzo 0–10 o "no fui" por evento y jugador) y `wellness_reports` (5 ítems 1–5 y total sobre 25 por fecha); RLS: staff confirmado ve todo el club y el jugador solo lo suyo; sin escritura directa. `submit_session_rpe` y `submit_wellness` (jugador), `my_pending_reports`, `event_rpe_summary`, `player_weekly_load`, `team_srpe_load` y `wellness_flags`; minutos calculados al leer con `private.session_minutes`.
   - 20261105190000: `my_session_report(event_id)`: una sesión del propio jugador (minutos, respuesta guardada y si aún puede responder), para corregir la respuesta en `/reportar/[eventId]`.
+  - 20261105200000: plan de gimnasio. Tablas `gym_plans` (nombre, vigencia, `borrador` | `publicado` | `archivado`), `gym_plan_sessions` (día ISO, minutos estimados), `gym_plan_exercises` (series, reps en texto, intensidad `pct` con test en kilos, `rpe`, `kg` o `bw`, descanso, nota), `gym_plan_targets` (`plantel`, `posicion`, `jugador`, `sevens`) y `gym_plan_exclusions`; lo quitado se marca con `archived_at` y lo que sigue conserva su id. `gym_session_logs` (sesión del plan o por su cuenta, día, minutos, esfuerzo, ejercicios marcados). RLS: planes solo para el staff; registros, staff del club o el propio jugador; sin escritura directa. `save_gym_plan`, `publish_gym_plan` y `archive_gym_plan` (head coach o preparador físico), `complete_gym_session`, `log_own_gym_session` y `submit_gym_rpe` (jugador, el día de la sesión o hasta 2 días después), `my_gym_today`, `my_gym_week` y `my_gym_log_summary`. Helpers `private.gym_plan_players` (destinatarios menos exclusiones; los lesionados lo reciben) y `private.gym_assignments` (sesiones asignadas por día, desde que se publicó).
+  - 20261105201000: el gimnasio suma a la carga (`private.load_sessions`; un registro sin esfuerzo no suma; sin formato). `srpe_load_flag`, `player_weekly_load` (con `cancha`, `gimnasio` y `partido` por semana) y `my_pending_reports` (filas `gym`) se reemplazan sin cambiar firma; `team_srpe_load` ya suma el gimnasio y el desglose va en `team_load_breakdown`. `gym_adherence(desde, hasta)` y `player_gym_summary(player)`. Barra: `planes` y `mi_plan` en `nav_screen_keys` y `nav_allowed_screens`.
+  - 20261105202000: `gym_plan_progress()`: por plan, jugadores que lo reciben y sesiones asignadas, que ya tocaban y hechas (lista `/planes`).
   - 0048: Nóminas en lectura para el jugador: `event_callups_select` pasa a todo confirmado del club (antes staff o la fila propia; aprobado por Mati). `event_participations` no cambia. La barra ofrece Nóminas también al jugador.
 
 ## Historial
+- 5 nov · #91 · Plan de gimnasio (20261105200000–202000): `/planes` y el editor (escritorio y celular), "Hoy toca gimnasio" y "Mi semana" en el Resumen, `/mi-plan` con kilos calculados, pantalla de felicitaciones, sesión por su cuenta, esfuerzo del gimnasio en Pendientes, carga apilada por tipo y "Gimnasio" en la ficha, y carga por jugador con el plan en Métricas.
 - 5 nov · #89 · sRPE y check de bienestar (20261105180000, 20261105190000): "Pendientes" y "Mi bienestar" en el Resumen del jugador, `/reportar/[eventId]`, `/bienestar`, "Reportes" en el detalle del evento, carga semanal y bienestar en la ficha, tarjeta "Carga sRPE" en Métricas y la sección "Check de bienestar" en Configuración.
 - 5 nov · #88 · Asistencia a entrenamientos (20261105120000): "Pasar lista" en el detalle del entrenamiento, etiqueta "Asistencia sin registrar", métrica opcional "Asistencia a entrenamientos" en el Resumen y pantalla `/asistencia`.
 - 4 nov · #87 · Versiones anteriores de `report_injury` y `complete_injury_report` sin permisos (20261104233000); los tests usan las versiones con zona.
@@ -129,6 +133,14 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - **Avisos (provisorios):** "Carga alta" = semana actual (lunes a domingo, Chile) > 1,3 × promedio de las 4 semanas anteriores con datos, con al menos 3. "Bajo lo habitual" = último check de los últimos 7 días ≤ promedio de sus 4 anteriores − 4 (con al menos 3) o algún ítem en 1; los ítems con 1 o 2 se nombran.
 - Todo sigue el formato activo (Rugby 15 o Sevens).
 
+**7d. Plan de gimnasio** (20261105200000–202000). El gimnasio no tiene formato: cuenta en Rugby 15 y en Sevens.
+- **Planes** (head coach y preparador físico; "Planes de gimnasio" en la sidebar y en "Más"): `/planes` lista borradores, publicados y archivados con vigencia, días, a quién va, cuántos lo reciben y % cumplido. `/planes/nuevo` y `/planes/[id]`: nombre, "Asignar a" (Todo el plantel, Delanteros y Backs en rugby como atajos de sus posiciones, Posiciones…, Jugadores… y Sevens si aplica; la posición es la principal del jugador), vigencia, días, sesiones en pestañas ("+ Sesión") con su tabla de ejercicios (#, Ejercicio con autocompletado de los ya usados, Series, Reps, Intensidad, Descanso, Nota) y, a la derecha, "Vista previa: así lo ve [jugador]" con kilos, "Lesionados (N)" (por defecto reciben el plan; "Descartar a todos" y "Descartar a…") y el aviso "N sin test de [test]". En el celular, tarjetas por ejercicio y una hoja con series y reps (+/−), intensidad en 4 opciones y, con % máx, porcentaje de a 5, test y un cálculo de ejemplo. Un plan publicado se edita ("Guardar cambios") y se puede archivar.
+- **Intensidad:** % del máximo de un test en kilos de Evaluaciones (kilos = último resultado no anulado × % redondeado a 2,5 kg; sin test, "80 % de tu máximo"), esfuerzo 1–10, kilos fijos o peso corporal.
+- **Jugador:** en el Resumen, tarjeta celeste "Hoy toca gimnasio" si tiene una sesión sin hacer hoy y el link "¿Fuiste al gimnasio por tu cuenta? Regístralo". `/mi-plan` ("Mi plan" en la barra): barra "N de M ejercicios hechos", tarjetas que se marcan al tocarlas con los kilos a la derecha, "Terminar sesión" y "Hice la sesión completa"; si hay sesiones pendientes de los 2 días anteriores, chips para elegirlas; sin sesión, la próxima. Al terminar, `/mi-plan/listo/[logId]` a pantalla completa (celeste): "¡Felicidades, [nombre]!", ejercicios, sesiones de la semana y semanas seguidas cumpliendo, con "¿Qué tan dura fue la sesión?" (`/mi-plan/esfuerzo/[logId]`, la escala de `/reportar`) y "Volver al inicio". `/mi-plan/propia`: fecha (hoy, ayer o anteayer), duración, esfuerzo opcional y nota. Las sesiones sin esfuerzo aparecen en "Pendientes".
+- **Plazo:** marcar la sesión y responder el esfuerzo, el día de la sesión y hasta 2 días después; se corrige en ese plazo. Minutos de una sesión del plan = su duración estimada.
+- **Mi semana** (Resumen, todos los confirmados): 7 días L a D con G, E o P (letras juntas si hay varias; "·" si nada), hoy en #082F49, leyenda y detalle al tocar un día. Jugador: eventos del formato activo y sus sesiones del plan; staff: eventos del club y los días con algún plan publicado.
+- **Staff:** ficha → "Carga" con barras apiladas (Cancha #7DD3FC, Gimnasio #0369A1, Partido #F97316), leyenda y "El gimnasio es el X % de su carga" (6 semanas); ficha → "Gimnasio": plan asignado, cumplimiento de 6 semanas y últimas sesiones. Métricas → "Carga del plantel": "Carga por jugador" con barra apilada, total, vs su promedio y "Plan de gimnasio" ("2 de 2"; incompleto en gris), y "Plan de gimnasio cumplido: X %" (hechas / las que ya tocaban esta semana).
+
 **8. Evaluaciones físicas** (0044)
 - **Evaluaciones** (staff menos el manager; sidebar y "Más"): "Cargar resultados" (test, fecha no futura, valor anterior por jugador, "Guardar N resultados"; un resultado del día se anula y se vuelve a cargar) y "Comparar plantel" (ranking por test con barra y cambio con flecha y texto "mejor" o "peor").
 - Catálogo por plantel: "Agregar tests sugeridos" (7 tests; Bronco en mm:ss guardado en segundos) y tests propios que se pueden archivar.
@@ -150,7 +162,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **10. Navegación móvil** (solo celular; en escritorio sigue la sidebar)
 - Barra inferior: 4 pestañas configurables y "Más" fijo a la derecha. El jugador tiene 3 y, al centro, el botón fijo "Registrar lesión" (`src/app/mobile-nav.tsx`).
 - Pantallas que se pueden elegir según el rol (`src/lib/nav-slots.ts`, la misma regla que `set_nav_slots`): Resumen, Calendario y Plantel (todos); Nóminas (todos, desde 0048); Lesiones y Métricas (staff); Evaluaciones (quienes ven resultados); Registros y Staff (dirección); Mis lesiones y Mis evaluaciones (jugador).
-- Por defecto: head coach Resumen, Calendario, Plantel, Lesiones; manager Resumen, Calendario, Plantel, Nóminas; kine, delegado y entrenador Resumen, Calendario, Lesiones, Plantel; preparador físico y nutricionista Resumen, Calendario, Evaluaciones, Plantel; jugador Resumen, Calendario, Mis lesiones.
+- Por defecto: head coach Resumen, Calendario, Plantel, Lesiones; manager Resumen, Calendario, Plantel, Nóminas; kine, delegado y entrenador Resumen, Calendario, Lesiones, Plantel; preparador físico y nutricionista Resumen, Calendario, Evaluaciones, Plantel; jugador Resumen, Calendario, Mi plan ("Mis lesiones" pasó a "Más"; a quien ya guardó su barra no se le cambia).
 - "Más": hoja flotante con las pantallas del rol que no están en la barra (grilla de 3), punto rojo en Registros si hay pendientes, Configuración para el head coach, el manager y el preparador físico, y abajo "Perfil" y "Cerrar sesión".
 - Perfil → "Barra principal" (solo celular): elegir las pestañas, "Guardar" y "Restablecer" (vuelve al valor por defecto del rol). Si cambian los roles y lo guardado ya no vale, se usa el valor por defecto.
 
@@ -202,6 +214,10 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Todo el staff confirmado: ver los reportes de cada evento, la carga semanal y el bienestar en la ficha, y la tarjeta "Carga sRPE" de Métricas.
 - Elegir los días del check de bienestar: head coach, manager y preparador físico, en Configuración. El preparador físico entra a Configuración solo para eso (ve solo esa sección).
 
+**Plan de gimnasio**
+- Crear, editar, publicar y archivar planes: head coach y preparador físico. El resto del staff ve la carga con el gimnasio, la ficha → "Gimnasio" y el cumplimiento en Métricas.
+- Jugador: ve solo su plan (por funciones, sin leer las tablas de planes), marca sus sesiones, registra las propias y su esfuerzo; ve solo sus registros.
+
 **Entrenador, nutricionista y preparador físico** (staff)
 - Ver "Lesiones activas" y la ficha de cada jugador.
 - Pasar lista en los entrenamientos (como todo el staff).
@@ -242,7 +258,15 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
   - sin botón "Recordar" ni notificaciones a quienes no respondieron;
   - la carga de partido es estimada (duración completa del partido) en modos rango y jugó / no jugó, y cuando no hay participación cargada;
   - la semana actual (aún en curso) se compara con semanas completas: a comienzo de semana la carga parte baja;
-  - "Mi carga" del jugador sigue siendo de minutos en partidos; aún no ve su carga sRPE semanal.
+  - "Mi carga" del jugador sigue siendo de minutos en partidos; aún no ve su carga sRPE semanal (con gimnasio).
+- **Plan de gimnasio:**
+  - el autocompletado de ejercicios usa los nombres ya escritos en el plantel: no hay biblioteca de ejercicios;
+  - el gimnasio no tiene formato: en Sevens cuenta igual y el % cumplido de Métricas incluye a todo el plantel;
+  - "Delanteros" y "Backs" solo existen en rugby y miran la posición principal (no la secundaria);
+  - en el editor, los destinatarios por posición se guardan por posición: un jugador que cambia de posición entra o sale del plan;
+  - un plan editado cambia las asignaciones de días ya pasados (el cumplimiento se recalcula con el plan actual);
+  - la ficha muestra "Gimnasio" como una sección más (la ficha no tiene pestañas);
+  - sin aviso ni notificación al publicar un plan.
 - **Limpieza:** borrar las ramas viejas ya mergeadas, en local y en GitHub.
 - **Funciones aún sin pantalla:**
   - Que el kine registre una lesión desde cero, sin marcarla primero.
