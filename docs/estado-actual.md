@@ -5,11 +5,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #87, 4 nov).
-- Migraciones 0001 a 0048, 20261104230000 a 20261104233000 y 20261105120000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
-- 33 pantallas (rutas de página en `src/app`).
+- Todo está mergeado en `main` (último: PR #88, 5 nov).
+- Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000 y 20261105190000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
+- 37 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
-- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones) y `sevens_test.sql` (Rugby Sevens). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
+- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones), `sevens_test.sql` (Rugby Sevens) y `load_wellness_test.sql` (sRPE y bienestar). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
 - 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel. 0029: nómina por puestos (titulares y banca). 0030: teléfono opcional del jugador (solo base de datos, sin UI).
 - CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones.
 - Migraciones desde el 21 oct:
@@ -32,9 +32,12 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
     - 230200: `report_injury` y `complete_injury_report` nuevas (con `p_body_zone`, `p_laterality` y 0 a 5 documentos; `injuries.type` = "<Zona> <lado>" con `private.injury_zone_type`), `add_own_injury_document` (agregar o reemplazar antes de la revisión, máximo 5) y `private.check_player_files`.
     - 233000: tras el deploy de #86, las versiones anteriores de `report_injury` (tipo libre) y `complete_injury_report` quedan sin permisos (no se borran).
   - 20261105120000: asistencia a entrenamientos. Tabla `event_attendance` (`event_id`, `player_id`, `club_id`, `present`, `recorded_by`, `recorded_at`; PK evento + jugador; RLS: el staff confirmado lee las del club y el jugador solo sus filas; sin escritura directa). `set_event_attendance(event_id, ausentes[])` (cualquier staff; solo entrenamientos no cancelados y ya empezados; inserta o actualiza una fila por jugador confirmado y activo, y en un entrenamiento Sevens solo el grupo). `attendance_ranking(desde, hasta)` (todo confirmado: asistidos/total por jugador activo; solo eventos con lista y no cancelados; fechas en hora de Chile). `private.dashboard_metric_keys()` suma `'asistencia'` (no cambia las métricas de ningún club).
+  - 20261105180000: sRPE y check de bienestar. `clubs.wellness_days` (días ISO, por defecto lunes) y `set_wellness_days` (head coach, manager o preparador físico). Tablas `session_rpe` (esfuerzo 0–10 o "no fui" por evento y jugador) y `wellness_reports` (5 ítems 1–5 y total sobre 25 por fecha); RLS: staff confirmado ve todo el club y el jugador solo lo suyo; sin escritura directa. `submit_session_rpe` y `submit_wellness` (jugador), `my_pending_reports`, `event_rpe_summary`, `player_weekly_load`, `team_srpe_load` y `wellness_flags`; minutos calculados al leer con `private.session_minutes`.
+  - 20261105190000: `my_session_report(event_id)`: una sesión del propio jugador (minutos, respuesta guardada y si aún puede responder), para corregir la respuesta en `/reportar/[eventId]`.
   - 0048: Nóminas en lectura para el jugador: `event_callups_select` pasa a todo confirmado del club (antes staff o la fila propia; aprobado por Mati). `event_participations` no cambia. La barra ofrece Nóminas también al jugador.
 
 ## Historial
+- 5 nov · #89 · sRPE y check de bienestar (20261105180000, 20261105190000): "Pendientes" y "Mi bienestar" en el Resumen del jugador, `/reportar/[eventId]`, `/bienestar`, "Reportes" en el detalle del evento, carga semanal y bienestar en la ficha, tarjeta "Carga sRPE" en Métricas y `/configuracion/bienestar`.
 - 5 nov · #88 · Asistencia a entrenamientos (20261105120000): "Pasar lista" en el detalle del entrenamiento, etiqueta "Asistencia sin registrar", métrica opcional "Asistencia a entrenamientos" en el Resumen y pantalla `/asistencia`.
 - 4 nov · #87 · Versiones anteriores de `report_injury` y `complete_injury_report` sin permisos (20261104233000); los tests usan las versiones con zona.
 - 4 nov · #86 · Registro de lesión v2: el jugador elige la zona en un mapa del cuerpo (Frente/Espalda, o lista) y el lado (sugerido según dónde tocó), el documento médico es opcional con Reemplazar/Eliminar hasta la revisión, el kine ve "Sin documento", zona y lado, y el Resumen del staff tiene el mapa "Zonas lesionadas".
@@ -117,6 +120,15 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - **Resumen → "Asistencia a entrenamientos"** (métrica opcional `asistencia`; el head coach la activa en Configuración, computador o celular): top 5 del último mes con puesto, barra, % y asistidos/total, y "Ver asistencia completa". La ven todos los confirmados, también los jugadores.
 - **`/asistencia`** (todos los confirmados; no está en el menú ni en la barra): ranking del plantel con "Último mes" (30 días) / "Temporada" (desde el 1 de enero); barra verde desde 85 %, ámbar 70–84 % y roja bajo 70 %; el jugador ve su fila resaltada. Solo cuentan entrenamientos con lista guardada.
 
+**7c. sRPE y check de bienestar** (20261105180000, 20261105190000). En la interfaz nunca "riesgo de lesión": "Carga alta" y "Bajo lo habitual".
+- **sRPE:** después de cada entrenamiento o partido, el jugador responde "¿Qué tan duro fue?" (0–10; 0 Reposo, 1 Muy, muy fácil, 2 Fácil, 3 Moderado, 4 Algo duro, 5 Duro, 7 Muy duro, 10 Máximo). Carga = esfuerzo × minutos. Se responde desde que empieza hasta 48 h después del término y se puede corregir en ese plazo. No aparece si el evento está cancelado, si figura ausente en la lista, si no fue convocado al partido o (en Sevens) si no está en el grupo. "No fui a este entrenamiento" / "No jugué este partido" queda como respuesta sin esfuerzo.
+- **Minutos** (se calculan al leer, no se guardan): entrenamiento = término − inicio; partido en minutos exactos = los cargados; no jugó = 0; rango, jugó / no jugó o sin participación cargada = la duración del partido del formato, marcada "estimada".
+- **Check de bienestar:** fatiga, calidad del sueño, dolor muscular, estrés y ánimo, de 1 a 5 (5 = mejor siempre), total sobre 25. Se responde los días que eligen el head coach, el manager o el preparador físico en `/configuracion/bienestar` (por defecto, lunes) o al día siguiente; se corrige el mismo día.
+- **Jugador:** en el Resumen, bloque "Pendientes" arriba (tarjetas "¿Qué tan duro fue el entrenamiento/partido?" con fecha, hora y duración, y "Check de bienestar"; sin pendientes no aparece) y "Mi bienestar" (último total / 25) junto a "Mi carga". Pantallas `/reportar/[eventId]` (escala vertical, carga en vivo "7 × 90 min = 630") y `/bienestar` (chips 1–5, "N de 5 respondidas", total y "Enviar").
+- **Staff:** en el detalle del evento, botón "Reportes" desde que empieza → `/calendario/[id]/reportes`: respondieron X de Y con barra, esfuerzo y carga promedio, "Sin responder (N)", "Dijo que no fue" y "Bienestar bajo lo habitual" (solo jugadores de ese evento). Ficha del jugador: "Carga" (6 semanas en barras, la actual en naranjo si es "Carga alta", línea punteada del promedio de 4 semanas, "+X % sobre su promedio" y sesiones de la semana) y "Bienestar" (últimos 6 checks con los 5 ítems); los minutos de partidos siguen debajo ("Minutos en partidos"). Métricas → "Carga del plantel": tarjeta "Carga sRPE" con cuántos tienen "Carga alta" esta semana y cuántos están "Bajo lo habitual", con link a cada ficha.
+- **Avisos (provisorios):** "Carga alta" = semana actual (lunes a domingo, Chile) > 1,3 × promedio de las 4 semanas anteriores con datos, con al menos 3. "Bajo lo habitual" = último check de los últimos 7 días ≤ promedio de sus 4 anteriores − 4 (con al menos 3) o algún ítem en 1; los ítems con 1 o 2 se nombran.
+- Todo sigue el formato activo (Rugby 15 o Sevens).
+
 **8. Evaluaciones físicas** (0044)
 - **Evaluaciones** (staff menos el manager; sidebar y "Más"): "Cargar resultados" (test, fecha no futura, valor anterior por jugador, "Guardar N resultados"; un resultado del día se anula y se vuelve a cargar) y "Comparar plantel" (ranking por test con barra y cambio con flecha y texto "mejor" o "peor").
 - Catálogo por plantel: "Agregar tests sugeridos" (7 tests; Bronco en mm:ss guardado en segundos) y tests propios que se pueden archivar.
@@ -152,6 +164,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Ver el ranking de asistencia a entrenamientos (`/asistencia`) y, si el head coach la activó, su tarjeta en el Resumen.
 
 **Jugador**
+- Responder el esfuerzo de cada entrenamiento o partido (hasta 48 h después) y el check de bienestar; ver "Mi bienestar" y solo sus propios reportes.
 - Registrar su propia lesión por zona y lado, con documentos opcionales.
 - Completar el diagnóstico de una lesión en evaluación.
 - Reemplazar o eliminar sus documentos mientras el kine no revisa la lesión.
@@ -184,6 +197,10 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Nóminas** (head coach, manager y el delegado de nóminas que la dirección asigna en `/staff`)
 - Armar la convocatoria de cada partido y cargar la participación de los convocados.
 - El resto del staff ve la carga del plantel; el jugador solo la suya. Todos los confirmados ven las nóminas (0048).
+
+**sRPE y bienestar**
+- Todo el staff confirmado: ver los reportes de cada evento, la carga semanal y el bienestar en la ficha, y la tarjeta "Carga sRPE" de Métricas.
+- Elegir los días del check de bienestar: head coach, manager y preparador físico (`/configuracion/bienestar`, en la sidebar y en "Más").
 
 **Entrenador, nutricionista y preparador físico** (staff)
 - Ver "Lesiones activas" y la ficha de cada jugador.
@@ -220,6 +237,12 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
   - fuera de este PR: motivo de ausencia, auto-registro del jugador y carga acumulada combinada (asistencia + partidos);
   - el ranking no separa formatos: en Sevens muestra todo el plantel y suma entrenamientos de 15 y de 7;
   - "Temporada" = desde el 1 de enero del año en curso (confirmar si el club usa otra definición).
+- **sRPE y bienestar:**
+  - umbrales provisorios: "Carga alta" con 1,3 × el promedio de 4 semanas (`private.srpe_high_load_ratio()`) y "Bajo lo habitual" con −4 puntos (`private.wellness_drop()`); ajustarlos con datos reales;
+  - sin botón "Recordar" ni notificaciones a quienes no respondieron;
+  - la carga de partido es estimada (duración completa del partido) en modos rango y jugó / no jugó, y cuando no hay participación cargada;
+  - la semana actual (aún en curso) se compara con semanas completas: a comienzo de semana la carga parte baja;
+  - "Mi carga" del jugador sigue siendo de minutos en partidos; aún no ve su carga sRPE semanal.
 - **Limpieza:** borrar las ramas viejas ya mergeadas, en local y en GitHub.
 - **Funciones aún sin pantalla:**
   - Que el kine registre una lesión desde cero, sin marcarla primero.

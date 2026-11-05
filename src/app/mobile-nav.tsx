@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef } from "react";
 import { CirclePlus, Ellipsis, LogOut, X } from "lucide-react";
 import {
+  BIENESTAR_CONFIG,
   CONFIGURACION,
   NAV_SCREEN_ITEM,
   PERFIL,
@@ -56,20 +57,27 @@ export function MobileNavBar({
   more,
   player,
   headCoach,
+  wellnessConfig,
   pendingCount,
 }: {
   slots: NavScreen[];
   more: NavScreen[];
   player: boolean;
   headCoach: boolean;
+  wellnessConfig: boolean;
   pendingCount: number;
 }) {
   const pathname = usePathname();
   if (isNavHidden(pathname)) return null;
 
   const barItems = slots.map((s) => NAV_SCREEN_ITEM[s]);
-  // Configuración va en "Más" solo para el head coach.
-  const moreItems = [...more.map((s) => NAV_SCREEN_ITEM[s]), ...(headCoach ? [CONFIGURACION] : [])];
+  // Configuración va en "Más" solo para el head coach; el check de bienestar, también
+  // para el manager y el preparador físico.
+  const moreItems = [
+    ...more.map((s) => NAV_SCREEN_ITEM[s]),
+    ...(headCoach ? [CONFIGURACION] : []),
+    ...(wellnessConfig ? [BIENESTAR_CONFIG] : []),
+  ];
   const current = activeHref([...barItems, ...moreItems, PERFIL], pathname);
   // El botón del jugador va al centro: después del segundo slot.
   const centerAfter = player ? 1 : -1;

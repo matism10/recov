@@ -47,6 +47,8 @@ import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dash
 import { Block } from "@/app/skeleton";
 import { getFormatContext, inFormat, withActiveFormat } from "@/lib/format";
 import { FormatSwitch, SevensPositionBanner } from "@/app/sevens-ui";
+import { getMyPendingReports } from "@/lib/srpe";
+import { MyWellness, PendingReports } from "./pending-reports";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
 const RESUMEN_AVAILABLE = 10;
@@ -113,7 +115,7 @@ export default async function DashboardPage() {
     // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
     // Solo decide qué se muestra; las funciones de la base validan el permiso real.
     const canManage = canManageInjuries(roles, user.id, profile.club?.kine_delegate_id);
-    const [myLoad, open, myInjuries, toReview, myPending] = await Promise.all([
+    const [myLoad, open, myInjuries, toReview, myPending, myReports, myWellness] = await Promise.all([
       // Jugador: su carga de partidos y sus convocatorias del formato activo (solo datos propios).
       isPlayer ? withActiveFormat(user.id, (format) => getMyLoad(supabase, format)) : null,
       // "Lesiones activas" (staff): lesiones abiertas del club (RLS); abajo se toman
@@ -163,8 +165,22 @@ export default async function DashboardPage() {
             .maybeSingle()
             .then(({ data }) => data as { id: string } | null)
         : null,
+      // Pendientes del jugador (sRPE y bienestar) en el formato activo.
+      isPlayer ? withActiveFormat(user.id, (format) => getMyPendingReports(supabase, format)) : [],
+      // "Mi bienestar": su último check. RLS: el jugador ve solo los suyos.
+      isPlayer
+        ? supabase
+            .from("wellness_reports")
+            .select("report_date, total, players!inner(user_id)")
+            .eq("club_id", profile.club_id!)
+            .eq("players.user_id", user.id)
+            .order("report_date", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+            .then(({ data }) => (data ? { report_date: data.report_date as string, total: data.total as number } : null))
+        : null,
     ]);
-    return { myLoad, open, myInjuries, toReview, myPending };
+    return { myLoad, open, myInjuries, toReview, myPending, myReports, myWellness };
   });
 
   // Franja de métricas (staff): sus datos salen ya, en paralelo con el resto, y la
@@ -368,6 +384,9 @@ export default async function DashboardPage() {
           <MetricsStrip data={metricsPromise} desktop={metricsDesktop} mobile={metricsMobile} />
         </Suspense>
       )}
+      {/* Jugador: sesiones y check de bienestar por responder (solo si hay). */}
+      {me && <PendingReports items={byRole.myReports} />}
+
       {!staff && (metricsDesktop.includes("asistencia") || metricsMobile.includes("asistencia")) && (
         <Suspense fallback={<Block className="mb-8 min-h-56" />}>
           <PlayerMetrics data={playerMetricsPromise} desktop={metricsDesktop} mobile={metricsMobile} />
@@ -671,13 +690,14 @@ export default async function DashboardPage() {
 
       {me && myLoad && (
         <>
-          <div className="mb-8">
+          <div className="mb-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6">
             <LoadBlock
               title="Mi carga"
               load={myLoad.ok ? myLoad.data : null}
               player={myLoad.ok ? myLoad.data.player : null}
               error={!myLoad.ok}
             />
+            <MyWellness last={byRole.myWellness} />
           </div>
           {myLoad.ok && (
             <MyMatches

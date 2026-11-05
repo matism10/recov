@@ -4,6 +4,7 @@
 import {
   Activity,
   CalendarDays,
+  CalendarHeart,
   CircleUserRound,
   ChartColumn,
   ClipboardList,
@@ -79,7 +80,15 @@ export const CONFIGURACION: NavItem = {
   href: "/configuracion",
   label: "Configuración",
   Icon: Settings,
-  isActive: (p) => startsWith(p, "/configuracion"),
+  // /configuracion/bienestar tiene su propio ítem.
+  isActive: (p) => startsWith(p, "/configuracion") && !startsWith(p, "/configuracion/bienestar"),
+};
+// Días del check de bienestar: head coach, manager y preparador físico.
+export const BIENESTAR_CONFIG: NavItem = {
+  href: "/configuracion/bienestar",
+  label: "Check de bienestar",
+  Icon: CalendarHeart,
+  isActive: (p) => startsWith(p, "/configuracion/bienestar"),
 };
 export const METRICAS: NavItem = {
   href: "/metricas",
@@ -106,14 +115,17 @@ export const NOMINAS: NavItem = {
 // el staff) y la administración del club (Registros, Staff y Configuración, solo
 // la dirección: head coach y manager).
 // Evaluaciones: el staff que ve resultados (todos menos el manager).
+// Check de bienestar: head coach, manager y preparador físico (en Gestión).
 export function sidebarItems({
   direction,
   staff,
   evaluations = false,
+  wellnessConfig = false,
 }: {
   direction: boolean;
   staff: boolean;
   evaluations?: boolean;
+  wellnessConfig?: boolean;
 }): {
   main: NavItem[];
   admin: NavItem[];
@@ -123,7 +135,9 @@ export function sidebarItems({
   // Nóminas: todos los confirmados (0048); el jugador la ve en lectura.
   main.push(NOMINAS);
   if (evaluations) main.push(EVALUACIONES);
-  return { main, admin: direction ? [REGISTROS, STAFF, CONFIGURACION] : [] };
+  const admin = direction ? [REGISTROS, STAFF, CONFIGURACION] : [];
+  if (wellnessConfig) admin.push(BIENESTAR_CONFIG);
+  return { main, admin };
 }
 
 // Pantallas propias del jugador (barra móvil y hoja "Más"). "Mis lesiones" es la

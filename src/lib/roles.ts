@@ -15,6 +15,11 @@ export function isDirection(roles: readonly UserRole[]) {
   return DIRECTION_ROLES.some((r) => roles.includes(r));
 }
 
+// Días del check de bienestar (set_wellness_days): head coach, manager y preparador físico.
+export function canSetWellnessDays(roles: readonly UserRole[]) {
+  return roles.some((r) => r === "head_coach" || r === "manager" || r === "preparador_fisico");
+}
+
 // Staff del club: ve lesiones y fases. Igual que private.staff_roles() en la base.
 export const STAFF_ROLES = [
   "head_coach",

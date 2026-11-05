@@ -26,6 +26,8 @@ import { PlayerEvaluations } from "@/app/evaluaciones/player-evaluations";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import { WhatsAppButton } from "@/app/whatsapp-button";
+import { SrpeLoad, WellnessHistory } from "@/app/srpe-load";
+import { WELLNESS_COLUMNS, getPlayerWeeklyLoad, type WeeklyLoad, type WellnessReport } from "@/lib/srpe";
 import {
   AvailabilityBadge,
   InjuryStatusBadge,
@@ -78,7 +80,8 @@ export default async function PlayerPage({
     .order("started_on", { ascending: false })
     .then(({ data }) => data ?? []);
 
-  const [me, staff, player, all, loadResult, phases, avatarUrl, phone] = await Promise.all([
+  const formatPromise = getActiveFormat(user.id);
+  const [me, staff, player, all, loadResult, phases, avatarUrl, phone, weekly, wellness] = await Promise.all([
     profilePromise,
     staffPromise,
     playerPromise,
@@ -86,7 +89,7 @@ export default async function PlayerPage({
     // Carga de los últimos 6 partidos: el staff la toma de la carga del plantel;
     // el jugador, de su propia función (sin datos de otros).
     // Del formato activo (Rugby 15 o Sevens).
-    Promise.all([staffPromise, getActiveFormat(user.id)]).then(
+    Promise.all([staffPromise, formatPromise]).then(
       ([isStaffUser, format]): Promise<LoadResult<TeamLoad> | LoadResult<MyLoad>> =>
         isStaffUser ? getTeamLoad(supabase, 6, format) : getMyLoad(supabase, format),
     ),
@@ -113,6 +116,23 @@ export default async function PlayerPage({
     staffPromise.then((isStaffUser) =>
       isStaffUser
         ? supabase.rpc("get_player_phone", { p_player_id: id }).then(({ data }) => data as string | null)
+        : null,
+    ),
+    // Carga semanal sRPE (staff), del formato activo.
+    Promise.all([staffPromise, formatPromise]).then(
+      ([isStaffUser, format]): Promise<WeeklyLoad | null> | null =>
+        isStaffUser ? getPlayerWeeklyLoad(supabase, id, format) : null,
+    ),
+    // Últimos checks de bienestar (staff; RLS: el staff confirmado ve los del club).
+    staffPromise.then((isStaffUser) =>
+      isStaffUser
+        ? supabase
+            .from("wellness_reports")
+            .select(WELLNESS_COLUMNS)
+            .eq("player_id", id)
+            .order("report_date", { ascending: false })
+            .limit(6)
+            .then(({ data, error }) => (error ? null : ((data ?? []) as WellnessReport[])))
         : null,
     ),
   ]);
@@ -287,9 +307,23 @@ export default async function PlayerPage({
         </section>
       </div>
 
+      {/* Staff: carga semanal sRPE y bienestar, lado a lado en escritorio. */}
+      {staff && (
+        <div className="mt-8 space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
+          <section>
+            <SectionTitle className="mb-3">Carga</SectionTitle>
+            <SrpeLoad data={weekly} />
+          </section>
+          <section>
+            <SectionTitle className="mb-3">Bienestar</SectionTitle>
+            <WellnessHistory reports={wellness} />
+          </section>
+        </div>
+      )}
+
       <div className="mt-8">
         <LoadBlock
-          title={staff ? "Carga" : "Mi carga"}
+          title={staff ? "Minutos en partidos" : "Mi carga"}
           load={load}
           player={playerLoad}
           error={!loadResult.ok}
