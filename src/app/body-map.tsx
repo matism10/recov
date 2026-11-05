@@ -1,5 +1,5 @@
-// Mapa del cuerpo (Frente o Espalda): figura anatómica en SVG, oscura sobre un
-// panel oscuro, con las zonas resaltadas. Cada región lleva data-zone con el valor
+// Mapa del cuerpo (Frente o Espalda): figura anatómica oscura en SVG, con las
+// zonas resaltadas. Cada región lleva data-zone con el valor
 // exacto del enum body_zone y data-side con el lado de la pantalla. La misma zona
 // aparece en los dos lados y en las dos vistas, por eso no se usa el atributo id
 // (debe ser único en la página).
@@ -26,10 +26,10 @@ const WIDTH = 200;
 const HEIGHT = 430;
 const MIRROR = `translate(${WIDTH} 0) scale(-1 1)`;
 
-// Colores de la figura (panel oscuro, como las láminas anatómicas).
-export const BODY_PANEL_CLASS = "rounded-2xl bg-[#141a24] p-4";
+// Colores de la figura (sin panel de fondo: va sobre la tarjeta de la pantalla).
+export const BODY_PANEL_CLASS = "";
 export const BODY_CAPTION_CLASS =
-  "mt-2 text-center text-xs font-medium tracking-wide text-white/60 uppercase";
+  "mt-2 text-center text-xs font-medium tracking-wide text-muted uppercase";
 const BASE = "#3a4352";
 const LINE = "#141a24";
 const DETAIL = "#2a313d";
@@ -241,7 +241,7 @@ export function BodyMap({
                 onPick(region.zone, region.side);
               }
             }}
-            className="cursor-pointer outline-none [&>path]:transition-[fill] hover:[&>path]:brightness-125 focus-visible:[&>path]:stroke-white focus-visible:[&>path]:[stroke-width:2.5]"
+            className="cursor-pointer outline-none [&>path]:transition-[fill] hover:[&>path]:brightness-125 focus-visible:[&>path]:stroke-[#0284c7] focus-visible:[&>path]:[stroke-width:2.5]"
           >
             <title>{label}</title>
             {paths}
@@ -268,7 +268,7 @@ export function zoneName(zone: BodyZone) {
 // Leyenda de colores del mapa de solo lectura.
 export function HeatLegend({ className = "" }: { className?: string }) {
   return (
-    <ul className={`flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-white/70 ${className}`}>
+    <ul className={`flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-muted ${className}`}>
       {["1 lesión", "2", "3 o más"].map((label, i) => (
         <li key={label} className="flex items-center gap-1.5">
           <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: HEAT_COLORS[i] }} />
@@ -279,7 +279,7 @@ export function HeatLegend({ className = "" }: { className?: string }) {
   );
 }
 
-// Frente y Espalda lado a lado en el panel oscuro, solo lectura (ficha de la
+// Frente y Espalda lado a lado, solo lectura (ficha de la
 // lesión y Resumen). Con legend, muestra qué significa cada color.
 export function BodyMapPair({
   heat,
