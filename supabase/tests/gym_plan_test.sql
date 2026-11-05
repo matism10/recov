@@ -1,4 +1,4 @@
--- Recov · Test del plan de gimnasio (20261105200000, 20261105201000 y 20261105202000)
+-- Recov · Test del plan de gimnasio (20261105200000, 20261105201000, 20261105202000 y 20261105210000)
 -- Autónomo: crea sus propios datos y termina en ROLLBACK. Si algo falla, lanza un error que empieza con "FAIL".
 -- Las sesiones se arman según el día de hoy en Chile (t.dow*: día ISO de hoy y de hace N días).
 
@@ -429,6 +429,55 @@ select pg_temp.back();
 select pg_temp.as_user('60000000-0000-0000-0000-0000000000d1');
 select pg_temp.expect_ok($q$select public.set_nav_slots(array['resumen', 'calendario', 'mi_plan'])$q$, 'jugador pone Mi plan en su barra');
 select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'planes'])$q$, 'jugador pone planes en su barra');
+select pg_temp.back();
+
+-- =======================================================================
+-- 8. Bloques, superseries e intensidad por tiempo (20261105210000)
+-- =======================================================================
+-- P5 (Pilares, hoy): bloque Calentamiento con plancha de 60 s y bloque Principal con una
+-- superserie de dos ejercicios y uno suelto.
+select set_config('t.p5', jsonb_build_object(
+  'name', 'Bloques', 'starts_on', current_setting('t.from'), 'ends_on', current_setting('t.to'),
+  'targets', jsonb_build_array(jsonb_build_object('kind', 'posicion', 'position_id', current_setting('t.pilar'))),
+  'exclusions', '[]'::jsonb,
+  'sessions', jsonb_build_array(
+    jsonb_build_object('label', 'Sesión T', 'weekday', current_setting('t.dow0')::int, 'est_minutes', 50, 'exercises', jsonb_build_array(
+      jsonb_build_object('name', 'Plancha', 'sets', 3, 'reps', '10', 'intensity_type', 'tiempo', 'seconds', 60, 'block', ' Calentamiento '),
+      jsonb_build_object('name', 'Press banca', 'sets', 4, 'reps', '6', 'intensity_type', 'kg', 'kg', 60, 'block', 'Principal', 'superset', 1),
+      jsonb_build_object('name', 'Remo con barra', 'sets', 4, 'reps', '8', 'intensity_type', 'bw', 'block', 'Principal', 'superset', 1),
+      jsonb_build_object('name', 'Sentadilla búlgara', 'sets', 3, 'reps', '10', 'intensity_type', 'rpe', 'rpe', 7, 'block', 'Principal'))))
+)::text, true);
+select pg_temp.as_user('10000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect_ok($q$select set_config('t.p5id', public.save_gym_plan(current_setting('t.p5')::jsonb)::text, true)$q$, 'guarda un plan con bloques, superserie y tiempo');
+select pg_temp.expect_error($q$select public.save_gym_plan(jsonb_set(current_setting('t.p5')::jsonb, '{sessions,0,exercises,0,seconds}', 'null'))$q$,
+  'El tiempo va de 5 segundos a 60 minutos (Plancha)', 'tiempo sin segundos');
+select pg_temp.expect_error($q$select public.save_gym_plan(jsonb_set(current_setting('t.p5')::jsonb, '{sessions,0,exercises,0,seconds}', '4'))$q$,
+  'El tiempo va de 5 segundos a 60 minutos (Plancha)', 'tiempo bajo 5 s');
+select pg_temp.expect_error($q$select public.save_gym_plan(jsonb_set(current_setting('t.p5')::jsonb, '{sessions,0,exercises,2,reps}', '""'))$q$,
+  'Revisa las repeticiones (Remo con barra)', 'sin reps fuera de tiempo');
+select pg_temp.expect_error($q$select public.save_gym_plan(jsonb_set(current_setting('t.p5')::jsonb, '{sessions,0,exercises,1,superset}', '31'))$q$,
+  'Revisa la superserie (Press banca)', 'superserie fuera de rango');
+select pg_temp.expect_fail($q$select public.save_gym_plan(jsonb_set(current_setting('t.p5')::jsonb, '{sessions,0,exercises,1,block}', to_jsonb(repeat('x', 41))))$q$,
+  'bloque de más de 40 caracteres');
+select pg_temp.expect_ok($q$select public.publish_gym_plan(current_setting('t.p5id')::uuid)$q$, 'publica P5');
+select pg_temp.back();
+select pg_temp.expect_eq($q$select string_agg(concat_ws('|', e.name, e.intensity_type, coalesce(e.reps, '-'), coalesce(e.seconds::text, '-'), coalesce(e.block, '-'), coalesce(e.superset::text, '-')), ';' order by e.sort)
+  from public.gym_plan_exercises e join public.gym_plan_sessions gs on gs.id = e.session_id
+ where gs.plan_id = current_setting('t.p5id')::uuid and e.archived_at is null$q$,
+  'Plancha|tiempo|-|60|Calentamiento|-;Press banca|kg|6|-|Principal|1;Remo con barra|bw|8|-|Principal|1;Sentadilla búlgara|rpe|10|-|Principal|-',
+  'P5 guarda bloque, superserie y tiempo (sin reps en la plancha)');
+select pg_temp.expect_fail($q$insert into public.gym_plan_exercises (club_id, session_id, name, sets, reps, intensity_type)
+  select gs.club_id, gs.id, 'Sin tiempo', 3, null, 'tiempo' from public.gym_plan_sessions gs where gs.plan_id = current_setting('t.p5id')::uuid limit 1$q$,
+  'check: tiempo exige segundos');
+select pg_temp.expect_fail($q$insert into public.gym_plan_exercises (club_id, session_id, name, sets, reps, intensity_type)
+  select gs.club_id, gs.id, 'Sin reps', 3, null, 'bw' from public.gym_plan_sessions gs where gs.plan_id = current_setting('t.p5id')::uuid limit 1$q$,
+  'check: reps obligatorias fuera de tiempo');
+-- El jugador recibe bloque, superserie y segundos.
+select pg_temp.as_user('60000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect_eq($q$select string_agg(concat_ws('|', x->>'name', coalesce(x->>'seconds', '-'), coalesce(x->>'block', '-'), coalesce(x->>'superset', '-')), ';' order by (x->>'sort')::int)
+  from jsonb_array_elements(public.my_gym_today()->'sessions') s, jsonb_array_elements(s->'exercises') x where s->>'label' = 'Sesión T'$q$,
+  'Plancha|60|Calentamiento|-;Press banca|-|Principal|1;Remo con barra|-|Principal|1;Sentadilla búlgara|-|Principal|-',
+  'my_gym_today trae bloque, superserie y segundos');
 select pg_temp.back();
 
 -- Funciones: SECURITY DEFINER, search_path vacío, authenticated sí y anon no

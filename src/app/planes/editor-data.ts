@@ -158,7 +158,7 @@ async function loadPlan(supabase: Supabase, clubId: string, planId: string) {
     supabase
       .from("gym_plan_sessions")
       .select(
-        "id, label, weekday, est_minutes, sort, gym_plan_exercises(id, sort, name, sets, reps, intensity_type, pct, test_id, rpe, kg, rest_seconds, note, archived_at)",
+        "id, label, weekday, est_minutes, sort, gym_plan_exercises(id, sort, name, sets, reps, intensity_type, pct, test_id, rpe, kg, seconds, rest_seconds, note, block, superset, archived_at)",
       )
       .eq("plan_id", planId)
       .is("archived_at", null)
@@ -172,14 +172,17 @@ async function loadPlan(supabase: Supabase, clubId: string, planId: string) {
     sort: number;
     name: string;
     sets: number;
-    reps: string;
+    reps: string | null;
     intensity_type: IntensityType;
     pct: number | null;
     test_id: string | null;
     rpe: number | null;
     kg: number | null;
+    seconds: number | null;
     rest_seconds: number | null;
     note: string | null;
+    block: string | null;
+    superset: number | null;
     archived_at: string | null;
   };
   const draft: DraftPlan = {
@@ -201,14 +204,17 @@ async function loadPlan(supabase: Supabase, clubId: string, planId: string) {
           id: e.id,
           name: e.name,
           sets: e.sets,
-          reps: e.reps,
+          reps: e.reps ?? "",
           intensity_type: e.intensity_type,
           pct: e.pct,
           test_id: e.test_id,
           rpe: e.rpe,
           kg: e.kg === null ? null : Number(e.kg),
+          seconds: e.seconds,
           rest_seconds: e.rest_seconds,
           note: e.note ?? "",
+          block: e.block,
+          superset: e.superset,
         })),
     })),
     targets: (targets ?? []).map((t) => ({
