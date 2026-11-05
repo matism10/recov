@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Check } from "lucide-react";
 import { ErrorMessage, SuccessMessage, buttonPrimary } from "@/app/ui";
 import { WEEKDAYS } from "@/lib/srpe";
-import { saveWellnessDays, type WellnessDaysState } from "./actions";
+import { saveWellnessDays, type WellnessDaysState } from "./wellness-actions";
 
 // Casillas de lunes a domingo y "Guardar". Al menos un día.
 export function WellnessDaysForm({ initial }: { initial: number[] }) {
