@@ -672,4 +672,97 @@ select pg_temp.expect_count($q$select 1 from public.dash_availability_series(5)
     and disponible + en_revision + lesionado + reintegro = 0$q$, 1, 'antes de su primera fila no cuenta');
 select pg_temp.back();
 
+-- =======================================================================
+-- 10. Registro de lesión v2 (20261104230000–20261104230200): zona, lateralidad
+--     y documento opcional que el jugador puede quitar o reemplazar antes de la revisión
+-- =======================================================================
+insert into auth.users (id, email) values ('61000000-0000-0000-0000-00000000000a', 'j-v2@test.cl');
+insert into public.profiles (id, full_name) values ('61000000-0000-0000-0000-00000000000a', 'Jugador V2');
+insert into public.club_members (user_id, club_id, roles, status) values
+  ('61000000-0000-0000-0000-00000000000a', 'aaaaaaaa-0000-0000-0000-000000000001', '{jugador}', 'confirmado');
+insert into public.players (id, club_id, full_name, first_name, last_name, position, status, user_id) values
+  ('a1000000-1111-0000-0000-000000000020', 'aaaaaaaa-0000-0000-0000-000000000001', 'Jugador V2', 'Jugador', 'V2', 'Pilar', 'confirmado', '61000000-0000-0000-0000-00000000000a');
+-- Archivos ya subidos a Storage por V2 (el jugador sube a su carpeta; 0004).
+insert into storage.objects (bucket_id, name) values
+  ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000020/d1.pdf'),
+  ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000020/d2.pdf'),
+  ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000020/d3.pdf');
+
+-- 10.1 Texto de injuries.type
+select pg_temp.expect_count($q$select 1 where private.injury_zone_type('isquiotibial', 'derecha') = 'Isquiotibial derecho'
+  and private.injury_zone_type('rodilla', 'izquierda') = 'Rodilla izquierda'
+  and private.injury_zone_type('tobillo_pie', 'bilateral') = 'Tobillo y pie bilateral'
+  and private.injury_zone_type('lumbar', 'no_aplica') = 'Zona lumbar'$q$, 1, 'injury_zone_type arma "<Zona> <lado>" con género');
+
+-- 10.2 Registrar sin adjunto
+select pg_temp.as_user('61000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.report_injury('isquiotibial'::public.body_zone, null::public.injury_laterality, current_date - 1, 3, 'semanas', null, null, 'entrenamiento')$q$, 'reporta sin lateralidad');
+select pg_temp.expect_fail($q$select public.report_injury(null::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 3, 'semanas', null, null, 'entrenamiento')$q$, 'reporta sin zona');
+select pg_temp.expect_fail($q$select public.report_injury('isquiotibial'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 3, 'semanas', null,
+  '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/x.pdf","name":"x.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta con archivo de otro jugador');
+select pg_temp.expect_ok($q$select public.report_injury('isquiotibial'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 3, 'semanas', 'Tirón al correr', null, 'entrenamiento')$q$, 'V2 registra sin documento');
+select pg_temp.expect_count($q$select 1 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000020'
+  and type = 'Isquiotibial derecho' and body_zone = 'isquiotibial' and laterality = 'derecha' and description = 'Tirón al correr'
+  and status = 'activa' and reported_by_player and reviewed_at is null$q$, 1, 'la lesión queda con zona, lado y type armado');
+select pg_temp.expect_count($q$select 1 from public.documents where player_id = 'a1000000-1111-0000-0000-000000000020'$q$, 0, 'sin documentos');
+select pg_temp.back();
+create temp table v2 as select id as injury_id from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000020';
+grant select on v2 to authenticated;
+
+-- 10.3 Agregar, eliminar y reemplazar antes de la revisión
+select pg_temp.as_user('61000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.add_own_injury_document((select injury_id from v2),
+  'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000020/d1.pdf', 'orden.pdf')$q$, 'V2 agrega un documento');
+select pg_temp.expect_fail($q$select public.add_own_injury_document((select injury_id from v2),
+  'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000020/noexiste.pdf', 'x.pdf')$q$, 'agrega un archivo que no existe');
+select pg_temp.expect_count($q$select 1 from public.documents where storage_path like '%/d1.pdf' and status = 'borrador'$q$, 1, 'V2 ve su documento en borrador');
+select pg_temp.expect_count($q$select 1 where public.delete_own_draft_document((select id from public.documents where storage_path like '%/d1.pdf'))
+  = 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000020/d1.pdf'$q$, 1, 'eliminar devuelve el storage_path');
+select pg_temp.expect_count($q$select 1 from public.documents where player_id = 'a1000000-1111-0000-0000-000000000020'$q$, 0, 'el documento se quitó');
+-- Reemplazar = eliminar + subir nuevo
+select pg_temp.expect_ok($q$select public.add_own_injury_document((select injury_id from v2),
+  'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000020/d2.pdf', 'examen.pdf')$q$, 'V2 sube otro');
+select pg_temp.expect_ok($q$select public.delete_own_draft_document((select id from public.documents where storage_path like '%/d2.pdf'))$q$, 'reemplazar: elimina el anterior');
+select pg_temp.expect_ok($q$select public.add_own_injury_document((select injury_id from v2),
+  'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000020/d3.pdf', 'examen-nuevo.pdf')$q$, 'reemplazar: sube el nuevo');
+select pg_temp.expect_count($q$select 1 from public.documents where player_id = 'a1000000-1111-0000-0000-000000000020' and file_name = 'examen-nuevo.pdf'$q$, 1, 'queda solo el nuevo');
+select pg_temp.expect_count($q$select 1 from public.documents where player_id = 'a1000000-1111-0000-0000-000000000020'$q$, 1, 'un documento en total');
+select pg_temp.back();
+
+-- Otro jugador del mismo club no puede quitar el documento de V2.
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.delete_own_draft_document((select id from public.documents where storage_path like '%a1000000-1111-0000-0000-000000000020/d3.pdf'))$q$, 'A1 quita un documento de V2');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.documents where storage_path like '%/d3.pdf'$q$, 1, 'el documento de V2 sigue');
+
+-- Un documento ya revisado no se puede quitar aunque la lesión no esté revisada.
+update public.documents set status = 'revisado' where storage_path like '%/d3.pdf';
+select pg_temp.as_user('61000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.delete_own_draft_document((select id from public.documents where storage_path like '%/d3.pdf'))$q$, 'quita un documento revisado');
+select pg_temp.back();
+update public.documents set status = 'borrador' where storage_path like '%/d3.pdf';
+
+-- 10.4 Bloqueo tras la revisión del kine
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.review_injury((select injury_id from v2), 'confirmar', 'leve', current_date + 20, 'lesionado')$q$, 'kine A confirma la lesión de V2');
+select pg_temp.back();
+select pg_temp.as_user('61000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.delete_own_draft_document((select id from public.documents where storage_path like '%/d3.pdf'))$q$, 'quita un documento tras la revisión');
+select pg_temp.expect_fail($q$select public.add_own_injury_document((select injury_id from v2),
+  'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000020/d1.pdf', 'orden.pdf')$q$, 'agrega un documento tras la revisión');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.documents where player_id = 'a1000000-1111-0000-0000-000000000020'$q$, 1, 'el documento sigue tras la revisión');
+
+-- 10.5 Completar una lesión en evaluación por zona y sin documento
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.mark_player_injured('a1000000-1111-0000-0000-000000000020', 'competencia', 'Golpe en la rodilla')$q$, 'kine A marca a V2');
+select pg_temp.back();
+select pg_temp.as_user('61000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.complete_injury_report(
+  (select id from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000020' and status = 'en_evaluacion'),
+  'rodilla'::public.body_zone, 'izquierda'::public.injury_laterality, 2, 'semanas', null, '[]'::jsonb)$q$, 'V2 completa sin documento');
+select pg_temp.expect_count($q$select 1 from public.injuries where player_id = 'a1000000-1111-0000-0000-000000000020'
+  and type = 'Rodilla izquierda' and body_zone = 'rodilla' and laterality = 'izquierda' and status = 'activa'$q$, 1, 'la lesión completada queda con zona y lado');
+select pg_temp.back();
+
 rollback;

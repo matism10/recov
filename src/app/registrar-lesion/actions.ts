@@ -21,7 +21,7 @@ export async function reportInjury(
 ): Promise<ReportInjuryState> {
   const read = readReportFields(formData);
   if ("error" in read) return read;
-  const { type, durationValue, durationUnit, description, files } = read.fields;
+  const { bodyZone, laterality, durationValue, durationUnit, description, files } = read.fields;
 
   const injuryDate = String(formData.get("injury_date") ?? "");
   const today = todayInChile();
@@ -58,8 +58,10 @@ export async function reportInjury(
     return { error: "Uno de los documentos no es válido. Vuelve a adjuntarlo." };
   }
 
+  // report_injury (20261104230200) arma injuries.type con la zona y el lado.
   const { data: injuryId, error } = await supabase.rpc("report_injury", {
-    p_type: type,
+    p_body_zone: bodyZone,
+    p_laterality: laterality,
     p_injury_date: injuryDate,
     p_duration_value: durationValue,
     p_duration_unit: durationUnit,

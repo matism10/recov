@@ -2,13 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
-import { isStaff, type UserRole } from "@/lib/roles";
+import { canManageInjuries, isStaff, type UserRole } from "@/lib/roles";
+import { isBodyZone, isLaterality, zoneLabel } from "@/lib/body-zones";
 import { formatDate, type InjuryStatus } from "@/lib/injuries";
 import { getAvatarUrls } from "@/lib/avatars";
 import { formatPlayerIds } from "@/lib/format";
 import { Avatar } from "@/app/avatar";
 import { InjuryProgress } from "../injury-progress";
-import { InjuryStatusBadge, PageTitle, SectionTitle, buttonSecondary, cardClass } from "@/app/ui";
+import { InjuryStatusBadge, NoDocumentBadge, PageTitle, SectionTitle, buttonSecondary, cardClass } from "@/app/ui";
 
 const OPEN_STATUSES: InjuryStatus[] = ["en_evaluacion", "activa"];
 const PAST_STATUSES: InjuryStatus[] = ["cerrada", "descartada"];
@@ -24,8 +25,17 @@ type InjuryRow = {
   started_on: string;
   expected_return_on: string | null;
   closed_on: string | null;
+  body_zone: string | null;
+  laterality: string | null;
+  // Conteo embebido (RLS: solo cuenta para quien puede ver documentos).
+  documents: { count: number }[] | null;
   players: PlayerRef | PlayerRef[] | null;
 };
+
+// Título de la lesión: zona y lado si los tiene (registro v2); si no, el tipo libre.
+function injuryTitle(i: InjuryRow) {
+  return isBodyZone(i.body_zone) && isLaterality(i.laterality) ? zoneLabel(i.body_zone, i.laterality) : i.type;
+}
 
 type PlayerRef = { full_name: string; user_id: string | null };
 
@@ -48,7 +58,7 @@ export default async function InjuriesPage({
   // RLS: el staff ve las lesiones del club; el jugador, solo las suyas. Actuales
   // completas; del historial, las más recientes (con el total para el título).
   const columns =
-    "id, type, status, started_on, expected_return_on, closed_on, players(full_name, user_id)";
+    "id, type, status, started_on, expected_return_on, closed_on, body_zone, laterality, documents(count), players(full_name, user_id)";
   // Solo las del plantel activo (RLS trae las de todos los planteles de la cuenta).
   // En Sevens, solo las lesiones de los jugadores del grupo Sevens.
   const [clubId, sevensIds] = await Promise.all([getActiveClubId(user.id), formatPlayerIds(user.id)]);
@@ -75,6 +85,8 @@ export default async function InjuriesPage({
   if (me?.status === "pendiente") redirect("/pendiente");
   if (me?.status !== "confirmado") redirect("/dashboard");
   const staff = isStaff((me.roles ?? []) as UserRole[]);
+  // "Sin documento": solo para quien ve documentos (kine, delegado y head coach).
+  const canManage = canManageInjuries((me.roles ?? []) as UserRole[], user.id, me.club?.kine_delegate_id);
 
   const open = (openRows ?? []) as InjuryRow[];
   const past = (pastRows ?? []) as InjuryRow[];
@@ -136,9 +148,14 @@ export default async function InjuriesPage({
                           )}
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-ink">
-                              {showPlayer ? player.full_name : i.type}
+                              {showPlayer ? player.full_name : injuryTitle(i)}
                             </p>
-                            {showPlayer && <p className="text-sm text-ink">{i.type}</p>}
+                            {showPlayer && <p className="text-sm text-ink">{injuryTitle(i)}</p>}
+                            {canManage && showPlayer && (i.documents?.[0]?.count ?? 0) === 0 && (
+                              <p className="mt-1">
+                                <NoDocumentBadge />
+                              </p>
+                            )}
                             <p className="text-sm text-muted">
                               Desde el {formatDate(i.started_on)}
                               {i.closed_on && ` · hasta el ${formatDate(i.closed_on)}`}

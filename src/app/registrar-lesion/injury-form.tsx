@@ -1,30 +1,43 @@
 "use client";
 
-import { startTransition, useActionState, useRef } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   DESCRIPTION_MAX,
   DURATION_MAX,
-  FILE_NAME_MAX,
-  FILE_TYPES,
-  INJURY_TYPE_MAX,
-  MAX_FILE_BYTES,
   MAX_FILES,
   MAX_INJURY_AGE_DAYS,
-  MIN_FILES,
   addDays,
   todayInChile,
   OCCURRED_DURING,
   OCCURRED_DURING_LABEL,
 } from "@/lib/injuries";
+import {
+  BODY_ZONES,
+  BODY_ZONE_KEYS,
+  LATERALITIES,
+  LATERALITY_LABEL,
+  isBodyZone,
+  isCentralZone,
+  suggestLaterality,
+  type BodyView,
+  type BodyZone,
+  type Laterality,
+  type ScreenSide,
+} from "@/lib/body-zones";
 import { completeInjuryReport } from "@/app/lesiones/[id]/completar/actions";
+import { BodyMap } from "@/app/body-map";
 import { reportInjury, type ReportInjuryState } from "./actions";
+import { AttachmentPicker, uploadMedicalFiles } from "./attachment-picker";
 import { ErrorMessage, buttonPrimary, fieldClass, inputClass, labelClass, optionalClass } from "@/app/ui";
 
 const optional = <span className={optionalClass}>(opcional)</span>;
 
-const fileKey = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
+const VIEWS: { value: BodyView; label: string }[] = [
+  { value: "frente", label: "Frente" },
+  { value: "espalda", label: "Espalda" },
+];
 
 // Sin injuryId registra una lesión nueva (report_injury). Con injuryId completa
 // el diagnóstico de una lesión en evaluación (complete_injury_report): la fecha
@@ -40,55 +53,55 @@ export function InjuryForm({
 }) {
   const router = useRouter();
   // Archivos ya subidos en un intento anterior: si el registro falla y se
-  // reenvía, no se vuelven a subir (el jugador no puede borrar del bucket).
+  // reenvía, no se vuelven a subir.
   const uploaded = useRef(new Map<string, string>());
   const today = todayInChile();
 
+  const [zone, setZone] = useState<BodyZone | null>(null);
+  const [laterality, setLaterality] = useState<Laterality | null>(null);
+  // true mientras el lado es el que se sugirió al tocar el mapa.
+  const [suggested, setSuggested] = useState(false);
+  const [view, setView] = useState<BodyView>("frente"); // celular: una vista a la vez
+  const [files, setFiles] = useState<File[]>([]);
+
+  function pickFromMap(z: BodyZone, side: ScreenSide, v: BodyView) {
+    setZone(z);
+    setLaterality(suggestLaterality(z, v, side));
+    setSuggested(true);
+  }
+
+  function pickFromList(value: string) {
+    if (!isBodyZone(value)) {
+      setZone(null);
+      return;
+    }
+    setZone(value);
+    setSuggested(false);
+    if (isCentralZone(value)) setLaterality("no_aplica");
+    else if (laterality === "no_aplica") setLaterality(null);
+  }
+
   const [state, formAction, pending] = useActionState<ReportInjuryState, FormData>(
     async (prevState, formData) => {
-      const files = formData
-        .getAll("files")
-        .filter((f): f is File => f instanceof File && f.size > 0);
+      if (!zone) return { error: "Elige la zona del cuerpo en el mapa o en la lista." };
+      if (!laterality) return { error: "Indica el lado de la lesión." };
 
-      if (files.length < MIN_FILES || files.length > MAX_FILES) {
-        return { error: `Adjunta entre ${MIN_FILES} y ${MAX_FILES} documentos.` };
-      }
-      for (const f of files) {
-        if (!FILE_TYPES[f.type]) return { error: `"${f.name}" no es PDF, JPG ni PNG.` };
-        if (f.size > MAX_FILE_BYTES) return { error: `"${f.name}" pesa más de 10 MB.` };
-      }
+      const result = await uploadMedicalFiles(createClient(), files, clubId, playerId, uploaded.current);
+      if ("error" in result) return { error: result.error };
 
-      const supabase = createClient();
-      const results = await Promise.all(
-        files.map(async (f) => {
-          const name = f.name.slice(0, FILE_NAME_MAX);
-          const cached = uploaded.current.get(fileKey(f));
-          if (cached) return { path: cached, name };
-
-          const path = `${clubId}/${playerId}/${crypto.randomUUID()}.${FILE_TYPES[f.type]}`;
-          const { error } = await supabase.storage
-            .from("medical-docs")
-            .upload(path, f, { contentType: f.type, upsert: false });
-          if (error) return { error: `No se pudo subir "${f.name}". Intenta de nuevo.` };
-
-          uploaded.current.set(fileKey(f), path);
-          return { path, name };
-        }),
-      );
-
-      const failed = results.find((r) => "error" in r);
-      if (failed && "error" in failed) return { error: failed.error };
-
-      formData.delete("files");
-      formData.set("files", JSON.stringify(results));
-      const result = injuryId
+      formData.set("body_zone", zone);
+      formData.set("laterality", laterality);
+      formData.set("files", JSON.stringify(result.files));
+      const response = injuryId
         ? await completeInjuryReport(prevState, formData)
         : await reportInjury(prevState, formData);
-      if (result.injuryId) router.push(`/lesiones/${result.injuryId}`);
-      return result;
+      if (response.injuryId) router.push(`/lesiones/${response.injuryId}`);
+      return response;
     },
     {},
   );
+
+  const selected = zone && laterality ? { zone, laterality } : zone ? { zone, laterality: "bilateral" as const } : null;
 
   return (
     <form
@@ -97,116 +110,177 @@ export function InjuryForm({
         const formData = new FormData(e.currentTarget);
         startTransition(() => formAction(formData));
       }}
-      className="space-y-4"
+      className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-10"
     >
-      <label className={labelClass}>
-        Tipo de lesión
-        <input
-          name="type"
-          required
-          minLength={2}
-          maxLength={INJURY_TYPE_MAX}
-          placeholder="Ej.: Esguince de tobillo"
-          className={inputClass}
-        />
-      </label>
+      {/* Columna del mapa. Escritorio: Frente y Espalda lado a lado. Celular: un
+          cuerpo con cambio Frente/Espalda y la lista debajo. */}
+      <fieldset className="min-w-0 space-y-4">
+        <legend className={labelClass}>Zona del cuerpo</legend>
+        <p className="mt-1 text-sm text-muted">Toca dónde está la lesión. Una zona por lesión.</p>
 
-      {injuryId ? (
-        <input type="hidden" name="injury_id" value={injuryId} />
-      ) : (
-        <>
-          <label className={labelClass}>
-            Fecha en que ocurrió
-            <input
-              name="injury_date"
-              type="date"
-              required
-              max={today}
-              min={addDays(today, -MAX_INJURY_AGE_DAYS)}
-              className={inputClass}
-            />
-          </label>
-
-          {/* Obligatorio y sin opción preseleccionada (report_injury, 0018). */}
-          <fieldset>
-            <legend className={labelClass}>¿Dónde ocurrió?</legend>
-            <div className="mt-2 flex flex-wrap gap-x-6">
-              {OCCURRED_DURING.map((value) => (
-                <label key={value} className="flex min-h-11 items-center gap-2 text-sm text-ink">
-                  <input
-                    type="radio"
-                    name="occurred_during"
-                    value={value}
-                    required
-                    className="size-4 accent-brand-strong"
-                  />
-                  {OCCURRED_DURING_LABEL[value]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        </>
-      )}
-
-      <fieldset>
-        <legend className={labelClass}>Duración que te indicó el médico</legend>
-        <div className="mt-1 grid grid-cols-2 gap-3">
-          <input
-            name="duration_value"
-            type="number"
-            required
-            min={1}
-            max={DURATION_MAX.semanas}
-            step={1}
-            aria-label="Cantidad"
-            className={fieldClass}
-          />
-          <select
-            name="duration_unit"
-            defaultValue="semanas"
-            aria-label="Unidad"
-            className={fieldClass}
-          >
-            <option value="semanas">Semanas</option>
-            <option value="meses">Meses</option>
-          </select>
+        <div role="group" aria-label="Vista del cuerpo" className="flex rounded-xl border border-line bg-white p-1 lg:hidden">
+          {VIEWS.map((v) => (
+            <button
+              key={v.value}
+              type="button"
+              aria-pressed={view === v.value}
+              onClick={() => setView(v.value)}
+              className={`min-h-11 flex-1 rounded-lg text-sm font-medium transition ${
+                view === v.value ? "bg-brand-soft text-brand-text" : "text-muted hover:text-ink"
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
         </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {VIEWS.map((v) => (
+            <figure key={v.value} className={view === v.value ? "" : "hidden lg:block"}>
+              <BodyMap
+                view={v.value}
+                selected={selected}
+                onPick={(z, side) => pickFromMap(z, side, v.value)}
+                className="mx-auto max-w-[300px] lg:max-w-none"
+              />
+              <figcaption className="mt-1 text-center text-xs font-medium tracking-wide text-muted uppercase">
+                {v.label}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+
+        <label className={labelClass}>
+          O elígela de la lista
+          <select
+            value={zone ?? ""}
+            onChange={(e) => pickFromList(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Elige una zona…</option>
+            {BODY_ZONE_KEYS.map((z) => (
+              <option key={z} value={z}>
+                {BODY_ZONES[z].label}
+              </option>
+            ))}
+          </select>
+        </label>
       </fieldset>
 
-      <label className={labelClass}>
-        Descripción {optional}
-        <textarea
-          name="description"
-          rows={3}
-          maxLength={DESCRIPTION_MAX}
-          className={inputClass}
-        />
-      </label>
+      <div className="min-w-0 space-y-4">
+        <fieldset>
+          <legend className={labelClass}>Lado</legend>
+          <div role="radiogroup" aria-label="Lado de la lesión" className="mt-2 flex flex-wrap gap-2">
+            {LATERALITIES.map((l) => {
+              const checked = laterality === l;
+              return (
+                <button
+                  key={l}
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  onClick={() => {
+                    setLaterality(l);
+                    setSuggested(false);
+                  }}
+                  className={`min-h-11 rounded-full border px-4 text-sm font-medium transition ${
+                    checked
+                      ? "border-brand-strong bg-brand-soft text-brand-text"
+                      : "border-line bg-white text-ink hover:bg-mist"
+                  }`}
+                >
+                  {LATERALITY_LABEL[l]}
+                </button>
+              );
+            })}
+          </div>
+          {suggested && laterality && (
+            <p className="mt-2 text-sm text-muted">Sugerido según el lado que tocaste. Puedes cambiarlo.</p>
+          )}
+        </fieldset>
 
-      <label className={labelClass}>
-        Documentos médicos
-        <span className="block font-normal text-muted">
-          De {MIN_FILES} a {MAX_FILES} archivos PDF, JPG o PNG, máximo 10 MB cada uno.
-        </span>
-        <input
-          name="files"
-          type="file"
-          required
-          multiple
-          accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-          className="mt-2 block w-full text-sm text-muted file:mr-3 file:min-h-11 file:rounded-xl file:border file:border-line file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink hover:file:bg-mist"
-        />
-      </label>
+        <label className={labelClass}>
+          Detalle {optional}
+          <textarea
+            name="description"
+            rows={3}
+            maxLength={DESCRIPTION_MAX}
+            placeholder="Cómo ocurrió, qué sientes o qué te dijo el médico"
+            className={inputClass}
+          />
+        </label>
 
-      {state.error && <ErrorMessage>{state.error}</ErrorMessage>}
+        {injuryId ? (
+          <input type="hidden" name="injury_id" value={injuryId} />
+        ) : (
+          <>
+            <label className={labelClass}>
+              Fecha en que ocurrió
+              <input
+                name="injury_date"
+                type="date"
+                required
+                max={today}
+                min={addDays(today, -MAX_INJURY_AGE_DAYS)}
+                className={inputClass}
+              />
+            </label>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className={`w-full ${buttonPrimary}`}
-      >
-        {pending ? "Enviando…" : injuryId ? "Envía tu diagnóstico" : "Registra tu lesión"}
-      </button>
+            {/* Obligatorio y sin opción preseleccionada (report_injury, 0018). */}
+            <fieldset>
+              <legend className={labelClass}>¿Dónde ocurrió?</legend>
+              <div className="mt-2 flex flex-wrap gap-x-6">
+                {OCCURRED_DURING.map((value) => (
+                  <label key={value} className="flex min-h-11 items-center gap-2 text-sm text-ink">
+                    <input
+                      type="radio"
+                      name="occurred_during"
+                      value={value}
+                      required
+                      className="size-4 accent-brand-strong"
+                    />
+                    {OCCURRED_DURING_LABEL[value]}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </>
+        )}
+
+        <fieldset>
+          <legend className={labelClass}>Duración que te indicó el médico</legend>
+          <div className="mt-1 grid grid-cols-2 gap-3">
+            <input
+              name="duration_value"
+              type="number"
+              required
+              min={1}
+              max={DURATION_MAX.semanas}
+              step={1}
+              aria-label="Cantidad"
+              className={fieldClass}
+            />
+            <select
+              name="duration_unit"
+              defaultValue="semanas"
+              aria-label="Unidad"
+              className={fieldClass}
+            >
+              <option value="semanas">Semanas</option>
+              <option value="meses">Meses</option>
+            </select>
+          </div>
+        </fieldset>
+
+        <AttachmentPicker files={files} onChange={setFiles} max={MAX_FILES} />
+
+        {state.error && <ErrorMessage>{state.error}</ErrorMessage>}
+
+        <button type="submit" disabled={pending} className={`w-full ${buttonPrimary}`}>
+          {pending ? "Enviando…" : injuryId ? "Envía tu diagnóstico" : "Registra tu lesión"}
+        </button>
+      </div>
     </form>
   );
 }
+

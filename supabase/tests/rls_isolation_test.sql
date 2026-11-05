@@ -2096,4 +2096,54 @@ select pg_temp.as_user_h('60000000-0000-0000-0000-00000000000b', null);
 select pg_temp.expect_count($q$select 1 from public.event_callups where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'jugador B1 no ve nóminas del club A');
 select pg_temp.back_h();
 
+-- =======================================================================
+-- Registro de lesión v2 (20261104230000–20261104230200): aislamiento por club
+-- =======================================================================
+-- Lesión de A1 con zona, sin revisar, con un documento en borrador.
+insert into public.injuries (id, club_id, player_id, type, body_zone, laterality, status, reported_by_player) values
+  ('a2000000-2222-0000-0000-000000000099', 'aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001',
+   'Rodilla derecha', 'rodilla', 'derecha', 'activa', true);
+insert into storage.objects (bucket_id, name) values
+  ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/v2.pdf'),
+  ('medical-docs', 'bbbbbbbb-0000-0000-0000-000000000002/b1000000-1111-0000-0000-000000000001/v2b.pdf');
+insert into public.documents (id, club_id, player_id, injury_id, storage_path, file_name) values
+  ('a4000000-4444-0000-0000-000000000099', 'aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001',
+   'a2000000-2222-0000-0000-000000000099', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/v2.pdf', 'v2.pdf');
+
+select pg_temp.expect_fail($q$insert into public.injuries (club_id, player_id, type, body_zone) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', 'X', 'rodilla')$q$, 'zona sin lateralidad (check)');
+
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_count($q$select 1 from public.injuries where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'jugador B1 no ve zonas de lesiones del club A');
+select pg_temp.expect_fail($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'jugador B1 borra un documento del club A');
+select pg_temp.expect_fail($q$select public.add_own_injury_document('a2000000-2222-0000-0000-000000000099',
+  'bbbbbbbb-0000-0000-0000-000000000002/b1000000-1111-0000-0000-000000000001/v2b.pdf', 'v2b.pdf')$q$, 'jugador B1 agrega un documento a una lesión del club A');
+select pg_temp.expect_fail($q$select public.add_own_injury_document('a2000000-2222-0000-0000-000000000099',
+  'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/v2.pdf', 'v2.pdf')$q$, 'jugador B1 agrega un archivo del club A');
+select pg_temp.back();
+
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_count($q$select 1 from public.injuries where body_zone is not null$q$, 0, 'kine B no ve zonas del club A');
+select pg_temp.expect_fail($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'kine B borra un documento del club A');
+select pg_temp.back();
+
+-- Kine A tampoco usa la función del jugador (no es su documento).
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_fail($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'kine A usa delete_own_draft_document');
+select pg_temp.expect_count($q$select 1 from public.injuries where body_zone = 'rodilla'$q$, 1, 'kine A ve la zona de su club');
+select pg_temp.back();
+
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'anónimo ejecuta delete_own_draft_document');
+select pg_temp.expect_fail($q$select public.add_own_injury_document('a2000000-2222-0000-0000-000000000099', 'x', 'x')$q$, 'anónimo ejecuta add_own_injury_document');
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date, 2, 'semanas', null, null, 'entrenamiento')$q$, 'anónimo ejecuta report_injury (zona)');
+select pg_temp.back();
+
+select pg_temp.expect_count($q$select 1 from public.documents where id = 'a4000000-4444-0000-0000-000000000099'$q$, 1, 'el documento de A1 sigue ahí');
+
+-- Control: A1 sí puede (lo de arriba falló por aislamiento, no por otra razón).
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_ok($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'A1 quita su propio documento');
+select pg_temp.back();
+
 rollback;

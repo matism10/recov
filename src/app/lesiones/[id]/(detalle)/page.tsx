@@ -21,11 +21,15 @@ import {
 } from "@/lib/injuries";
 import {
   InjuryStatusBadge,
+  NoDocumentBadge,
   PageTitle,
   SectionTitle,
   buttonPrimary,
   textButton,
 } from "@/app/ui";
+import { BodyMapPair } from "@/app/body-map";
+import { LATERALITY_LABEL, isBodyZone, isLaterality, zoneLabel } from "@/lib/body-zones";
+import { OwnDocuments } from "../own-documents";
 import { PhasesPanel } from "../phases-panel";
 import { ReviewForm } from "../review-form";
 
@@ -53,14 +57,14 @@ export default async function InjuryPage({
     supabase
       .from("injuries")
       .select(
-        "id, player_id, type, severity, status, description, started_on, expected_return_on, doctor_estimate_value, doctor_estimate_unit, occurred_during, reviewed_by, reviewed_at, players(full_name, availability, user_id)",
+        "id, club_id, player_id, type, body_zone, laterality, severity, status, description, started_on, expected_return_on, doctor_estimate_value, doctor_estimate_unit, occurred_during, reviewed_by, reviewed_at, players(full_name, availability, user_id)",
       )
       .eq("id", id)
       .maybeSingle(),
     // RLS: el jugador ve los suyos; del staff, solo quien tiene acceso a documentos médicos.
     supabase
       .from("documents")
-      .select("id, file_name, storage_path, created_at")
+      .select("id, file_name, storage_path, status, created_at")
       .eq("injury_id", id)
       .order("created_at"),
     // RLS: el staff ve las fases del club; el jugador, las de sus lesiones.
@@ -135,6 +139,15 @@ export default async function InjuryPage({
     : status === "activa"
       ? `${INJURY_STATUS_LABEL[status]} · ${injury.reviewed_at ? "revisada" : "sin revisar"}`
       : INJURY_STATUS_LABEL[status];
+  // Zona y lado (registro v2). Las lesiones antiguas no tienen zona.
+  const zone =
+    isBodyZone(injury.body_zone) && isLaterality(injury.laterality)
+      ? { zone: injury.body_zone, laterality: injury.laterality }
+      : null;
+  // Kine, delegado y head coach ven si la lesión llegó sin documento (los ven por RLS).
+  const missingDocument = canManage && !isOwnInjury && (documents?.length ?? 0) === 0;
+  // El jugador puede cambiar sus documentos mientras nadie revisa la lesión.
+  const documentsEditable = isOwnInjury && status === "activa" && !injury.reviewed_at;
   const progress =
     !inEvaluation && injury.expected_return_on
       ? recoveryProgress(injury.started_on, injury.expected_return_on)
@@ -188,6 +201,7 @@ export default async function InjuryPage({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <InjuryStatusBadge status={status} />
               <p className="text-sm text-muted">{statusLine}</p>
+              {missingDocument && <NoDocumentBadge />}
             </div>
             {phone && player && (
               <WhatsAppButton phone={phone as string} name={player.full_name} />
@@ -240,6 +254,22 @@ export default async function InjuryPage({
           {/* Grilla de datos: etiqueta 13, valor 16/600. */}
           <section className={`min-w-0 space-y-4 p-5 ${blockClass}`}>
             <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+              {zone && (
+                <>
+                  <div className="min-w-0">
+                    <dt className="text-[13px] text-muted">Zona</dt>
+                    <dd className="mt-0.5 font-semibold break-words text-ink">
+                      {zoneLabel(zone.zone, "no_aplica")}
+                    </dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-[13px] text-muted">Lado</dt>
+                    <dd className="mt-0.5 font-semibold break-words text-ink">
+                      {LATERALITY_LABEL[zone.laterality]}
+                    </dd>
+                  </div>
+                </>
+              )}
               <div className="min-w-0">
                 <dt className="text-[13px] text-muted">Ocurrió</dt>
                 <dd className="mt-0.5 font-semibold break-words text-ink">{formatDate(injury.started_on)}</dd>
@@ -289,6 +319,12 @@ export default async function InjuryPage({
             )}
           </section>
 
+          {zone && (
+            <section aria-label="Zona de la lesión" className={`p-5 ${blockClass}`}>
+              <BodyMapPair heat={[zone]} className="mx-auto max-w-xs" />
+            </section>
+          )}
+
           {showReview && (
             <section className={`min-w-0 p-5 ${blockClass}`}>
               <SectionTitle className="mb-4">Revisión</SectionTitle>
@@ -326,7 +362,21 @@ export default async function InjuryPage({
 
           <section className="min-w-0">
             <SectionTitle className="mb-3">Documentos</SectionTitle>
-            {!canSeeDocuments ? (
+            {isOwnInjury ? (
+              <OwnDocuments
+                injuryId={injury.id}
+                clubId={injury.club_id}
+                playerId={injury.player_id}
+                editable={documentsEditable}
+                documents={(documents ?? []).map((d) => ({
+                  id: d.id,
+                  file_name: d.file_name,
+                  created_at: d.created_at,
+                  status: d.status,
+                  url: signedUrls.get(d.storage_path as string) ?? null,
+                }))}
+              />
+            ) : !canSeeDocuments ? (
               <p className={`p-5 text-sm text-muted ${blockClass}`}>
                 Los documentos médicos solo los ven el kinesiólogo y el head coach.
               </p>
