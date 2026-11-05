@@ -71,6 +71,19 @@ export default async function CalendarPage({
   // llamada por evento. Solo viajan al cliente los conteos y los primeros nombres.
   const availability: Record<string, EventAvailabilitySummary> = {};
   const sevensIds = await sevensIdsPromise;
+  // Staff: entrenamientos ya empezados que tienen lista guardada (los demás muestran
+  // "Asistencia sin registrar").
+  const pastTrainings = staff
+    ? events.filter((e) => e.type === "entrenamiento" && e.past && !e.cancelled).map((e) => e.id)
+    : [];
+  const attendancePromise =
+    pastTrainings.length > 0
+      ? supabase
+          .from("event_attendance")
+          .select("event_id")
+          .in("event_id", pastTrainings)
+          .then(({ data }) => [...new Set((data ?? []).map((r) => r.event_id as string))])
+      : Promise.resolve([] as string[]);
   if (staff) {
     await Promise.all(
       events
@@ -84,6 +97,7 @@ export default async function CalendarPage({
         }),
     );
   }
+  const attendanceSaved = await attendancePromise;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
@@ -108,6 +122,7 @@ export default async function CalendarPage({
         staff={staff}
         canManage={canManage}
         canNomina={canNomina}
+        attendanceSaved={attendanceSaved}
         initialSelectedId={selectedId}
       />
     </main>

@@ -36,13 +36,15 @@ import {
 } from "@/app/ui";
 import { SummarySquad } from "./squad-browser";
 import { NextMatch } from "./next-match";
-import { MetricsStrip, MetricsStripSkeleton, loadMetricsStrip } from "./metrics-strip";
+import { MetricsStrip, MetricsStripSkeleton, PlayerMetrics, loadMetricsStrip } from "./metrics-strip";
+import { getAttendanceRanking } from "@/lib/attendance";
 import { MyMatches } from "./my-matches";
 import { canManageNominas, getMyLoad } from "@/lib/match-load";
 import { ResumenCover } from "./resumen-cover";
 import { clubOptions } from "@/lib/club-options";
 import { LoadBlock } from "@/app/load-block";
 import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dashboard-metrics";
+import { Block } from "@/app/skeleton";
 import { getFormatContext, inFormat, withActiveFormat } from "@/lib/format";
 import { FormatSwitch, SevensPositionBanner } from "@/app/sevens-ui";
 
@@ -180,6 +182,15 @@ export default async function DashboardPage() {
         )
       : null,
   );
+  // Jugador (y quien no es staff): la tarjeta de asistencia si el head coach la eligió.
+  const playerMetricsPromise = confirmed.then((profile) => {
+    if (!profile || isStaff((profile.roles ?? []) as UserRole[])) return null;
+    const chosen = [
+      ...dashboardMetricsOf(profile.club?.dashboard_metrics ?? null),
+      ...dashboardMetricsOf(profile.club?.dashboard_metrics_mobile ?? null, DEFAULT_DASHBOARD_METRICS_MOBILE),
+    ];
+    return chosen.includes("asistencia") ? getAttendanceRanking(supabase, "mes") : null;
+  });
   const [profile, squad, { data: nextMatch }, byRole, formatCtx] = await Promise.all([
     profilePromise,
     // Plantel confirmado y activo, con fotos y la fase en curso de cada jugador.
@@ -355,6 +366,11 @@ export default async function DashboardPage() {
       {staff && (
         <Suspense key={formatCtx.format} fallback={<MetricsStripSkeleton desktop={metricsDesktop} mobile={metricsMobile} />}>
           <MetricsStrip data={metricsPromise} desktop={metricsDesktop} mobile={metricsMobile} />
+        </Suspense>
+      )}
+      {!staff && (metricsDesktop.includes("asistencia") || metricsMobile.includes("asistencia")) && (
+        <Suspense fallback={<Block className="mb-8 min-h-56" />}>
+          <PlayerMetrics data={playerMetricsPromise} desktop={metricsDesktop} mobile={metricsMobile} />
         </Suspense>
       )}
 

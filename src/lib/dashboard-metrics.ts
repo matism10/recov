@@ -13,6 +13,7 @@ export const DASHBOARD_METRICS = [
   "posicion",
   "recurrentes",
   "proximas_altas",
+  "asistencia",
 ] as const;
 
 export type DashboardMetric = (typeof DASHBOARD_METRICS)[number];
@@ -28,6 +29,7 @@ export const DASHBOARD_METRIC_LABEL: Record<DashboardMetric, string> = {
   posicion: "Lesiones por posición",
   recurrentes: "Jugadores recurrentes",
   proximas_altas: "Próximas altas estimadas",
+  asistencia: "Asistencia a entrenamientos",
 };
 
 // Tarjetas con un número; el resto son bloques (gráficos y listas).
@@ -38,7 +40,8 @@ export const CARD_METRICS: readonly DashboardMetric[] = [
   "reintegro",
 ];
 
-// Lo que el Resumen mostraba antes de poder elegir (columna en NULL).
+// Lo que el Resumen mostraba antes de poder elegir (columna en NULL). 'asistencia'
+// (20261105120000) es opcional: no está en las de siempre.
 export const DEFAULT_DASHBOARD_METRICS: DashboardMetric[] = [
   "disponibles",
   "lesionados",

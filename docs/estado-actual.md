@@ -1,4 +1,4 @@
-# Recov: estado actual de la plataforma (4 nov 2026)
+# Recov: estado actual de la plataforma (5 nov 2026)
 
 Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 deportes: fútbol, futsal, rugby, handball, vóleibol, básquetbol, hockey césped; cada club tiene uno, fijado al crearlo). Proyecto del Taller de Emprendimiento Tecnológico y Sostenibilidad (UAI). Interfaz en español; pruebas y demos solo con datos ficticios. Primer plantel real: Old Locks M16 (25 oct).
 
@@ -6,10 +6,10 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Estado del repositorio
 - Todo está mergeado en `main` (último: PR #85, 2 nov).
-- Migraciones 0001 a 0048 y 20261104230000 a 20261104230200 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
-- 28 pantallas (rutas de página en `src/app`).
+- Migraciones 0001 a 0048, 20261104230000 a 20261104230200 y 20261105120000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
+- 33 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
-- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones) y `sevens_test.sql` (Rugby Sevens). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
+- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones) y `sevens_test.sql` (Rugby Sevens). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
 - 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel. 0029: nómina por puestos (titulares y banca). 0030: teléfono opcional del jugador (solo base de datos, sin UI).
 - CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones.
 - Migraciones desde el 21 oct:
@@ -30,9 +30,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
     - 230000: enums `body_zone` (19 zonas) e `injury_laterality` (derecha, izquierda, bilateral, no_aplica).
     - 230100: `injuries.body_zone` y `injuries.laterality` (nulas o ambas con valor) y `delete_own_draft_document(document_id)`: el jugador quita un documento suyo en borrador si la lesión no tiene `reviewed_at`; devuelve el `storage_path` y el servidor borra el archivo con la clave de servicio.
     - 230200: `report_injury` y `complete_injury_report` nuevas (con `p_body_zone`, `p_laterality` y 0 a 5 documentos; `injuries.type` = "<Zona> <lado>" con `private.injury_zone_type`), `add_own_injury_document` (agregar o reemplazar antes de la revisión, máximo 5) y `private.check_player_files`. Las versiones anteriores siguen con permisos hasta el deploy.
+  - 20261105120000: asistencia a entrenamientos. Tabla `event_attendance` (`event_id`, `player_id`, `club_id`, `present`, `recorded_by`, `recorded_at`; PK evento + jugador; RLS: el staff confirmado lee las del club y el jugador solo sus filas; sin escritura directa). `set_event_attendance(event_id, ausentes[])` (cualquier staff; solo entrenamientos no cancelados y ya empezados; inserta o actualiza una fila por jugador confirmado y activo, y en un entrenamiento Sevens solo el grupo). `attendance_ranking(desde, hasta)` (todo confirmado: asistidos/total por jugador activo; solo eventos con lista y no cancelados; fechas en hora de Chile). `private.dashboard_metric_keys()` suma `'asistencia'` (no cambia las métricas de ningún club).
   - 0048: Nóminas en lectura para el jugador: `event_callups_select` pasa a todo confirmado del club (antes staff o la fila propia; aprobado por Mati). `event_participations` no cambia. La barra ofrece Nóminas también al jugador.
 
 ## Historial
+- 5 nov · PR pendiente · Asistencia a entrenamientos (20261105120000): "Pasar lista" en el detalle del entrenamiento, etiqueta "Asistencia sin registrar", métrica opcional "Asistencia a entrenamientos" en el Resumen y pantalla `/asistencia`.
 - 4 nov · PR pendiente · Registro de lesión v2: el jugador elige la zona en un mapa del cuerpo (Frente/Espalda, o lista) y el lado (sugerido según dónde tocó), el documento médico es opcional con Reemplazar/Eliminar hasta la revisión, el kine ve "Sin documento", zona y lado, y el Resumen del staff tiene el mapa "Zonas lesionadas".
 - 2 nov · #85 · Abrir la Web App y cambiar Rugby 15 ↔ Sevens más rápido: `start_url` a `/dashboard` y "/" redirige desde el proxy (antes armaba la página; ~0,6 s menos), el selector de formato ya no pide la página dos veces (sin `router.refresh()`), el Resumen no espera al grupo Sevens para sus consultas (`withActiveFormat`), "Por revisar" en Sevens se filtra sin consultar las fichas del grupo y la franja de métricas llega aparte con su esqueleto. Medido con `next start`: abrir la app 1,24 s → 0,72 s (head coach); cambio de formato 1,2–1,4 s → 0,7 s.
 - 2 nov · #84 · Navegación móvil: barra configurable por cuenta y plantel (0047), botón "Registrar lesión" del jugador, hoja "Más" en grilla con Perfil y Cerrar sesión, sección "Barra principal" en Perfil y Nóminas para todos (0048; el jugador en lectura en `/nominas/[eventId]`, también en la sidebar).
@@ -107,6 +109,12 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Las competencias solo piden hora de inicio; los entrenamientos, inicio y término.
 - Celular: cambiar entre Semana y Mes, y entre semanas del mes cargado, es inmediato (sin ir al servidor; la URL se actualiza con `replaceState`). Solo cambiar de mes pide datos nuevos.
 
+**7b. Asistencia a entrenamientos** (20261105120000)
+- **Pasar lista** (cualquier staff): en el detalle de un entrenamiento, botón "Pasar lista", habilitado desde que empieza y si no está cancelado. Pantalla `/calendario/[id]/asistencia`: contadores Presentes / Ausentes, todos parten presentes y se toca a quien faltó (chip Presente/Ausente), insignia "Lesionado" solo informativa y "Guardar asistencia". Si ya hay lista, se precarga y se corrige. En Sevens, la lista es el grupo.
+- Entrenamientos ya empezados sin lista: etiqueta **"Asistencia sin registrar"** en el detalle y en la lista semanal del celular (solo staff).
+- **Resumen → "Asistencia a entrenamientos"** (métrica opcional `asistencia`; el head coach la activa en Configuración, computador o celular): top 5 del último mes con puesto, barra, % y asistidos/total, y "Ver asistencia completa". La ven todos los confirmados, también los jugadores.
+- **`/asistencia`** (todos los confirmados; no está en el menú ni en la barra): ranking del plantel con "Último mes" (30 días) / "Temporada" (desde el 1 de enero); barra verde desde 85 %, ámbar 70–84 % y roja bajo 70 %; el jugador ve su fila resaltada. Solo cuentan entrenamientos con lista guardada.
+
 **8. Evaluaciones físicas** (0044)
 - **Evaluaciones** (staff menos el manager; sidebar y "Más"): "Cargar resultados" (test, fecha no futura, valor anterior por jugador, "Guardar N resultados"; un resultado del día se anula y se vuelve a cargar) y "Comparar plantel" (ranking por test con barra y cambio con flecha y texto "mejor" o "peor").
 - Catálogo por plantel: "Agregar tests sugeridos" (7 tests; Bronco en mm:ss guardado en segundos) y tests propios que se pueden archivar.
@@ -139,6 +147,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Ver el ranking de cada test del plantel (sin notas).
 - Ver el plantel con la disponibilidad, la foto y la fase en curso de cada jugador (solo el nombre de la fase).
 - Elegir las pestañas de la barra inferior del celular (Perfil → "Barra principal"), solo entre las pantallas de su rol.
+- Ver el ranking de asistencia a entrenamientos (`/asistencia`) y, si el head coach la activó, su tarjeta en el Resumen.
 
 **Jugador**
 - Registrar su propia lesión por zona y lado, con documentos opcionales.
@@ -176,6 +185,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 **Entrenador, nutricionista y preparador físico** (staff)
 - Ver "Lesiones activas" y la ficha de cada jugador.
+- Pasar lista en los entrenamientos (como todo el staff).
 - Ver el detalle de cualquier lesión del club (sin documentos) y sus fases.
 - No pueden modificar nada.
 
@@ -205,6 +215,10 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
   - al cambiar formato o plantel, Next vuelve a pedir el prefetch de todos los links visibles (~24 pedidos de fondo);
   - el selector de plantel (`club-header.tsx`) sigue llamando a `router.refresh()` después de `setActiveClub`, que ya cambia la cookie (pide la página dos veces);
   - la carga del jugador en el Resumen (`getMyLoad`) y `/lesiones` en Sevens (`formatPlayerIds`) siguen encadenando consultas.
+- **Asistencia:**
+  - fuera de este PR: motivo de ausencia, auto-registro del jugador y carga acumulada combinada (asistencia + partidos);
+  - el ranking no separa formatos: en Sevens muestra todo el plantel y suma entrenamientos de 15 y de 7;
+  - "Temporada" = desde el 1 de enero del año en curso (confirmar si el club usa otra definición).
 - **Limpieza:** borrar las ramas viejas ya mergeadas, en local y en GitHub.
 - **Funciones aún sin pantalla:**
   - Que el kine registre una lesión desde cero, sin marcarla primero.

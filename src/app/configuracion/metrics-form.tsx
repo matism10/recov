@@ -53,7 +53,12 @@ export function MetricsForm({
                       defaultChecked={selected[device.name].includes(m)}
                       className="size-4 accent-brand-strong"
                     />
-                    {DASHBOARD_METRIC_LABEL[m]}
+                    <span>
+                      {DASHBOARD_METRIC_LABEL[m]}
+                      {m === "asistencia" && (
+                        <span className="block text-xs text-muted">También la ven los jugadores.</span>
+                      )}
+                    </span>
                   </label>
                 ))}
               </div>

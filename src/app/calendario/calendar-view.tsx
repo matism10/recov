@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ClipboardList, MapPin, Swords, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList, ListChecks, MapPin, Swords, X } from "lucide-react";
 import { addDays } from "@/lib/injuries";
 import {
   EVENT_TYPE_LABEL,
@@ -42,6 +42,7 @@ type Props = {
   staff: boolean;
   canManage: boolean;
   canNomina: boolean;
+  attendanceSaved: string[]; // entrenamientos empezados con lista guardada (staff)
   initialSelectedId: string | null;
 };
 
@@ -58,6 +59,7 @@ export function CalendarView({
   staff,
   canManage,
   canNomina,
+  attendanceSaved,
   initialSelectedId,
 }: Props) {
   const [selectedId, setSelectedId] = useState(
@@ -68,8 +70,10 @@ export function CalendarView({
   const byDay = new Map<string, CalendarEvent[]>();
   for (const e of events) byDay.set(e.day, [...(byDay.get(e.day) ?? []), e]);
 
+  const savedLists = new Set(attendanceSaved);
   const chipProps = {
     availability,
+    savedLists,
     staff,
     selectedId,
     onSelect: setSelectedId,
@@ -135,6 +139,7 @@ export function CalendarView({
           staff={staff}
           canManage={canManage}
           canNomina={canNomina}
+          listSaved={savedLists.has(selected.id)}
           onClose={() => setSelectedId(null)}
         />
       )}
@@ -144,6 +149,7 @@ export function CalendarView({
 
 type ChipProps = {
   availability: Record<string, EventAvailabilitySummary>;
+  savedLists: Set<string>;
   staff: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -525,6 +531,7 @@ function EventChip({
   event,
   wide = false,
   availability,
+  savedLists,
   staff,
   selectedId,
   onSelect,
@@ -559,7 +566,26 @@ function EventChip({
       {wide && event.location && (
         <span className="mt-0.5 block truncate text-sm text-muted">{event.location}</span>
       )}
+      {wide && staff && listMissing(event, savedLists) && (
+        <span className="mt-1 block">
+          <AttendanceMissing />
+        </span>
+      )}
     </button>
+  );
+}
+
+// Entrenamiento ya empezado, no cancelado y sin lista guardada (solo staff).
+function listMissing(event: CalendarEvent, savedLists: Set<string>) {
+  return event.type === "entrenamiento" && event.past && !event.cancelled && !savedLists.has(event.id);
+}
+
+function AttendanceMissing() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-revision-bg px-2 py-0.5 text-xs font-medium text-revision-fg">
+      <ListChecks aria-hidden="true" className="size-3.5" />
+      Asistencia sin registrar
+    </span>
   );
 }
 
@@ -600,6 +626,7 @@ function EventPanel({
   staff,
   canManage,
   canNomina,
+  listSaved,
   onClose,
 }: {
   event: CalendarEvent;
@@ -607,6 +634,7 @@ function EventPanel({
   staff: boolean;
   canManage: boolean;
   canNomina: boolean;
+  listSaved: boolean;
   onClose: () => void;
 }) {
   const panelRef = useRef<HTMLElement>(null);
@@ -661,6 +689,9 @@ function EventPanel({
                 <span className="inline-flex items-center rounded-full border border-muted px-2.5 py-0.5 text-xs font-medium text-muted">
                   Cancelado
                 </span>
+              )}
+              {staff && event.type === "entrenamiento" && event.past && !event.cancelled && !listSaved && (
+                <AttendanceMissing />
               )}
             </div>
             <h2
@@ -742,6 +773,32 @@ function EventPanel({
                     <ClipboardList aria-hidden="true" className="size-4" />
                     Armar nómina
                   </Link>
+                )}
+              </div>
+            )}
+
+            {/* Asistencia: cualquier staff pasa lista desde que el entrenamiento empieza. */}
+            {staff && event.type === "entrenamiento" && !event.cancelled && (
+              <div className="mt-6 space-y-2 border-t border-line pt-4">
+                {event.past ? (
+                  <Link
+                    href={`/calendario/${event.id}/asistencia`}
+                    className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
+                  >
+                    <ListChecks aria-hidden="true" className="size-4" />
+                    Pasar lista
+                  </Link>
+                ) : (
+                  <>
+                    <button type="button" disabled className={`w-full text-sm lg:w-auto ${buttonPrimary}`}>
+                      <ListChecks aria-hidden="true" className="size-4" />
+                      Pasar lista
+                    </button>
+                    <p className="text-xs text-muted">Se habilita cuando empiece el entrenamiento.</p>
+                  </>
+                )}
+                {event.past && listSaved && (
+                  <p className="text-xs text-muted">Lista guardada. Puedes corregirla.</p>
                 )}
               </div>
             )}
