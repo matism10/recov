@@ -28,6 +28,8 @@ import { getAvatarUrls } from "@/lib/avatars";
 import { WhatsAppButton } from "@/app/whatsapp-button";
 import { SrpeLoad, WellnessHistory } from "@/app/srpe-load";
 import { WELLNESS_COLUMNS, getPlayerWeeklyLoad, type WeeklyLoad, type WellnessReport } from "@/lib/srpe";
+import { getPlayerGymSummary } from "@/lib/gym";
+import { GymSummary } from "./gym-summary";
 import {
   AvailabilityBadge,
   InjuryStatusBadge,
@@ -81,7 +83,7 @@ export default async function PlayerPage({
     .then(({ data }) => data ?? []);
 
   const formatPromise = getActiveFormat(user.id);
-  const [me, staff, player, all, loadResult, phases, avatarUrl, phone, weekly, wellness] = await Promise.all([
+  const [me, staff, player, all, loadResult, phases, avatarUrl, phone, weekly, wellness, gym] = await Promise.all([
     profilePromise,
     staffPromise,
     playerPromise,
@@ -135,6 +137,8 @@ export default async function PlayerPage({
             .then(({ data, error }) => (error ? null : ((data ?? []) as WellnessReport[])))
         : null,
     ),
+    // Plan de gimnasio: asignado, cumplimiento y últimas sesiones (staff).
+    staffPromise.then((isStaffUser) => (isStaffUser ? getPlayerGymSummary(supabase, id) : null)),
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
@@ -307,7 +311,7 @@ export default async function PlayerPage({
         </section>
       </div>
 
-      {/* Staff: carga semanal sRPE y bienestar, lado a lado en escritorio. */}
+      {/* Staff: carga semanal sRPE (con el gimnasio), bienestar y gimnasio; en escritorio, de a dos. */}
       {staff && (
         <div className="mt-8 space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
           <section>
@@ -317,6 +321,10 @@ export default async function PlayerPage({
           <section>
             <SectionTitle className="mb-3">Bienestar</SectionTitle>
             <WellnessHistory reports={wellness} />
+          </section>
+          <section>
+            <SectionTitle className="mb-3">Gimnasio</SectionTitle>
+            <GymSummary data={gym} />
           </section>
         </div>
       )}

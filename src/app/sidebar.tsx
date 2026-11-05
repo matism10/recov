@@ -12,6 +12,7 @@ import { clubOptions } from "@/lib/club-options";
 import { photoUrl } from "@/lib/photos";
 import { getFormatContext } from "@/lib/format";
 import { allowedScreens, resolveSlots } from "@/lib/nav-slots";
+import { canPlanGym } from "@/lib/gym-roles";
 
 // Datos de la navegación (sidebar de escritorio, barra móvil y encabezado del club).
 // Solo para usuarios confirmados: sin sesión, pendientes o rechazados no ven
@@ -79,6 +80,7 @@ const getNavData = cache(async () => {
     staff: isStaff(roles),
     evaluations: canReadEvaluations(roles),
     player: roles.includes("jugador"),
+    gymPlanner: canPlanGym(roles),
     pendingCount,
     // Barra móvil: los slots y, en "Más", el resto de las pantallas del rol.
     slots,
@@ -103,6 +105,8 @@ export async function Sidebar() {
       staff={nav.staff}
       evaluations={nav.evaluations}
       wellnessConfig={nav.wellnessConfig}
+      gymPlanner={nav.gymPlanner}
+      player={nav.player}
       pendingCount={nav.pendingCount}
     />
   );

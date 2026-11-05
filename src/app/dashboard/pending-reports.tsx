@@ -1,7 +1,7 @@
 // "Pendientes" del jugador en el Resumen: sesiones por responder (sRPE) y el check de
 // bienestar, de my_pending_reports. Sin pendientes, el bloque no aparece.
 import Link from "next/link";
-import { Activity, ChartColumn, ChevronRight } from "lucide-react";
+import { Activity, BicepsFlexed, ChartColumn, ChevronRight } from "lucide-react";
 import { SectionTitle } from "@/app/ui";
 import { dayLabel, sessionWhen, type PendingReport } from "@/lib/srpe";
 import { todayInChile } from "@/lib/injuries";
@@ -21,7 +21,26 @@ export function PendingReports({ items }: { items: PendingReport[] }) {
       </div>
       <ul className="grid gap-3 lg:grid-cols-2">
         {items.map((item) =>
-          item.kind === "session" ? (
+          item.kind === "gym" ? (
+            <li key={item.log_id}>
+              <Link
+                href={`/mi-plan/esfuerzo/${item.log_id}`}
+                className="flex min-h-16 items-center gap-3.5 rounded-2xl bg-brand-soft p-4 text-ink transition hover:bg-brand/30"
+              >
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand">
+                  <BicepsFlexed aria-hidden="true" className="size-5 text-ink" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">¿Qué tan dura fue la sesión de gimnasio?</span>
+                  <span className="block text-sm text-ink/80">
+                    {item.report_date === today ? "Hoy" : dayLabel(item.report_date)} · {item.label ?? "Por tu cuenta"} ·{" "}
+                    {item.minutes} min
+                  </span>
+                </span>
+                <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-brand-text" />
+              </Link>
+            </li>
+          ) : item.kind === "session" ? (
             <li key={item.event_id}>
               <Link
                 href={`/reportar/${item.event_id}`}

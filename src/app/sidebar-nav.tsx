@@ -24,6 +24,8 @@ export function SidebarNav({
   staff,
   evaluations,
   wellnessConfig,
+  gymPlanner,
+  player,
   pendingCount,
 }: {
   fullName: string;
@@ -32,12 +34,14 @@ export function SidebarNav({
   staff: boolean;
   evaluations: boolean;
   wellnessConfig: boolean;
+  gymPlanner: boolean;
+  player: boolean;
   pendingCount: number;
 }) {
   const pathname = usePathname();
   if (isNavHidden(pathname)) return null;
 
-  const items = sidebarItems({ direction, staff, evaluations, wellnessConfig });
+  const items = sidebarItems({ direction, staff, evaluations, wellnessConfig, gymPlanner, player });
   const profileActive = startsWith(pathname, "/perfil");
 
   const renderItem = (item: NavItem) => {
