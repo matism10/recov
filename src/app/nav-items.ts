@@ -37,6 +37,14 @@ export function isNavHidden(path: string) {
   return HIDDEN_ON.some((prefix) => startsWith(path, prefix));
 }
 
+// Pantallas sin la barra inferior del celular (la sidebar de escritorio y el
+// encabezado se mantienen): el esfuerzo tiene su propio pie fijo con "Guardar".
+export const HIDE_BAR_ON = ["/reportar", "/mi-plan/esfuerzo"];
+
+export function isBarHidden(path: string) {
+  return isNavHidden(path) || HIDE_BAR_ON.some((prefix) => startsWith(path, prefix));
+}
+
 export const RESUMEN: NavItem = {
   href: "/dashboard",
   label: "Resumen",

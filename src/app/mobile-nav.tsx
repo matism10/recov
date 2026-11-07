@@ -10,7 +10,7 @@ import {
   PERFIL,
   REGISTRAR_LESION_HREF,
   REGISTROS,
-  isNavHidden,
+  isBarHidden,
   type NavItem,
 } from "@/app/nav-items";
 import type { NavScreen } from "@/lib/nav-slots";
@@ -67,7 +67,7 @@ export function MobileNavBar({
   pendingCount: number;
 }) {
   const pathname = usePathname();
-  if (isNavHidden(pathname)) return null;
+  if (isBarHidden(pathname)) return null;
 
   const barItems = slots.map((s) => NAV_SCREEN_ITEM[s]);
   // Configuración va en "Más" para quien elige los días del check de bienestar (head

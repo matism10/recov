@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorMessage, buttonPrimary, fieldClass, labelClass, optionalClass } from "@/app/ui";
-import { RpeScale } from "@/app/rpe-scale";
+import { EffortPicker } from "@/app/effort-picker";
 import { formatLoad } from "@/lib/srpe";
 import { GYM_LIMITS } from "@/lib/gym";
 import { logOwnSession } from "../actions";
@@ -65,7 +65,7 @@ export function OwnSessionForm({ dates }: { dates: { date: string; label: string
           ¿Qué tan dura fue? <span className={optionalClass}>(puedes responderlo después)</span>
         </p>
         <div className="mt-2">
-          <RpeScale value={rpe} onChange={setRpe} disabled={pending} />
+          <EffortPicker value={rpe} onChange={setRpe} disabled={pending} />
         </div>
       </div>
 
