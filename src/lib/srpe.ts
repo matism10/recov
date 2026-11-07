@@ -9,19 +9,22 @@ import { chileDateTime, compactDayLabel, type EventType } from "@/lib/events";
 type Client = Awaited<ReturnType<typeof createClient>>;
 
 // ---------------------------------------------------------------------------
-// Escala 0–10 (Borg CR-10 modificada). 6, 8 y 9 van sin texto.
+// Escala 0–10 (Borg CR-10 modificada): etiqueta, frase corta y color de cada número
+// (de gris a celeste y luego naranjo). El texto sobre estos colores va en #082F49.
 // ---------------------------------------------------------------------------
-export const RPE_LABELS: Record<number, string> = {
-  0: "Reposo",
-  1: "Muy, muy fácil",
-  2: "Fácil",
-  3: "Moderado",
-  4: "Algo duro",
-  5: "Duro",
-  7: "Muy duro",
-  10: "Máximo",
-};
-export const RPE_VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+export const RPE_SCALE: { label: string; hint: string; color: string }[] = [
+  { label: "Reposo", hint: "No me costó nada", color: "#F1F5F9" },
+  { label: "Muy fácil", hint: "Podía conversar sin problema", color: "#E0F2FE" },
+  { label: "Fácil", hint: "Podía conversar sin problema", color: "#E0F2FE" },
+  { label: "Moderado", hint: "Respiraba más rápido", color: "#BAE6FD" },
+  { label: "Algo duro", hint: "Respiraba más rápido", color: "#BAE6FD" },
+  { label: "Duro", hint: "Me costó mantener el ritmo", color: "#7DD3FC" },
+  { label: "Duro", hint: "Me costó mantener el ritmo", color: "#7DD3FC" },
+  { label: "Muy duro", hint: "Casi al límite", color: "#FDBA74" },
+  { label: "Muy duro", hint: "Casi al límite", color: "#FDBA74" },
+  { label: "Casi máximo", hint: "No podía dar más", color: "#FB923C" },
+  { label: "Máximo", hint: "No podía dar más", color: "#FB923C" },
+];
 
 // ---------------------------------------------------------------------------
 // Bienestar: 5 preguntas de 1 a 5 (5 = mejor siempre)
