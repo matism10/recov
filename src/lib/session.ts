@@ -6,6 +6,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_CLUB_COOKIE, isUuid } from "@/lib/active-club";
+import { withPermissions } from "@/lib/permissions";
 
 // Cliente de Supabase del request (lee las cookies de la sesión).
 export const getSupabase = cache(createClient);
@@ -70,6 +71,9 @@ export type MyProfile = {
   club: MyClub | null;
   // Todas las membresías, de la más antigua a la más nueva.
   memberships: MyMembership[];
+  // Permisos efectivos en el plantel activo (my_permissions: rol + delegaciones + ajustes).
+  // También van pegados a `roles` para los helpers de roles.ts (ver permissions.ts).
+  permissions: string[];
 };
 
 type ProfileRow = {
@@ -92,9 +96,11 @@ export const getActiveClubCookie = cache(async () => {
 // membresía más antigua: con un solo plantel, lo mismo que antes.
 export const getProfile = cache(async (userId: string): Promise<MyProfile | null> => {
   const supabase = await getSupabase();
-  const [{ data }, cookieClub] = await Promise.all([
+  const [{ data }, cookieClub, { data: perms }] = await Promise.all([
     supabase.from("profiles").select(PROFILE_COLUMNS).eq("id", userId).maybeSingle(),
     getActiveClubCookie(),
+    // Plantel activo por el header x-club-id (la misma cookie); sin plantel confirmado, [].
+    supabase.rpc("my_permissions"),
   ]);
   if (!data) return null;
   const row = data as unknown as ProfileRow;
@@ -113,11 +119,12 @@ export const getProfile = cache(async (userId: string): Promise<MyProfile | null
   return {
     full_name: row.full_name,
     avatar_path: row.avatar_path,
-    roles: active?.roles ?? [],
+    roles: withPermissions([...(active?.roles ?? [])], active?.status === "confirmado" ? ((perms as string[] | null) ?? []) : []),
     status: active?.status ?? "pendiente",
     club_id: active?.club_id ?? null,
     club: active?.club ?? null,
     memberships,
+    permissions: active?.status === "confirmado" ? ((perms as string[] | null) ?? []) : [],
   };
 });
 

@@ -1,3 +1,5 @@
+import { can, hasEffectivePermissions } from "@/lib/permissions";
+
 export type UserRole =
   | "head_coach"
   | "manager"
@@ -7,17 +9,26 @@ export type UserRole =
   | "preparador_fisico"
   | "jugador";
 
-// Dirección del club: valida registros y gestiona el staff. Solo controla qué se
-// muestra; el permiso real lo verifica la base de datos.
+// Los helpers de este archivo son fachada de los permisos (src/lib/permissions.ts):
+// con los permisos efectivos de la sesión pegados a `roles` (getProfile) siguen los
+// ajustes por persona; sin ellos, la plantilla del rol. Solo controlan qué se muestra;
+// el permiso real lo verifica la base de datos (private.has_perm).
+
+// Dirección del club: gestiona el staff (permiso no delegable: head coach y manager).
 export const DIRECTION_ROLES = ["head_coach", "manager"] as const satisfies readonly UserRole[];
 
 export function isDirection(roles: readonly UserRole[]) {
-  return DIRECTION_ROLES.some((r) => roles.includes(r));
+  return can(roles, "staff_gestionar");
 }
 
-// Días del check de bienestar (set_wellness_days): head coach, manager y preparador físico.
+// Aprueba registros (/registros): por defecto la dirección; se puede dar a otros.
+export function canApproveRegistrations(roles: readonly UserRole[]) {
+  return can(roles, "registros_aprobar");
+}
+
+// Días del check de bienestar (set_wellness_days): por defecto head coach, manager y preparador físico.
 export function canSetWellnessDays(roles: readonly UserRole[]) {
-  return roles.some((r) => r === "head_coach" || r === "manager" || r === "preparador_fisico");
+  return can(roles, "check_dias");
 }
 
 // Staff del club: ve lesiones y fases. Igual que private.staff_roles() en la base.
@@ -42,11 +53,8 @@ export function canManageInjuries(
   userId: string,
   kineDelegateId: string | null | undefined,
 ) {
-  return (
-    roles.includes("kinesiologo") ||
-    roles.includes("head_coach") ||
-    kineDelegateId === userId
-  );
+  if (hasEffectivePermissions(roles)) return can(roles, "lesiones_revisar");
+  return can(roles, "lesiones_revisar") || kineDelegateId === userId;
 }
 
 // Crean, editan y cancelan eventos del calendario: head coach, manager y
@@ -54,7 +62,7 @@ export function canManageInjuries(
 export const EVENT_ROLES = ["head_coach", "manager", "entrenador"] as const satisfies readonly UserRole[];
 
 export function canManageEvents(roles: readonly UserRole[]) {
-  return EVENT_ROLES.some((r) => roles.includes(r));
+  return can(roles, "eventos_editar");
 }
 
 // Puestos que se pueden solicitar al registrarse por el link del club.

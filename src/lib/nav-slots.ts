@@ -2,7 +2,8 @@
 // valores por defecto. Compartido entre servidor y cliente. Las mismas reglas las
 // valida la base en set_nav_slots (private.nav_allowed_screens); aquí solo deciden
 // qué se muestra y qué se ofrece en Perfil.
-import { isDirection, isStaff, type UserRole } from "@/lib/roles";
+import { canApproveRegistrations, isDirection, isStaff, type UserRole } from "@/lib/roles";
+import { can } from "@/lib/permissions";
 import { canReadEvaluations } from "@/lib/evaluations";
 import { canPlanGym } from "@/lib/gym-roles";
 
@@ -53,9 +54,12 @@ export function allowedScreens(roles: readonly UserRole[]): NavScreen[] {
   const staff = isStaff(roles);
   const player = roles.includes("jugador");
   const allowed = new Set<NavScreen>(["resumen", "calendario", "plantel", "nominas"]);
-  if (staff) ["lesiones", "metricas"].forEach((s) => allowed.add(s as NavScreen));
+  // Igual que private.nav_allowed_screens: Lesiones, Registros, Staff y Planes siguen permisos.
+  if (can(roles, "lesiones_ver")) allowed.add("lesiones");
+  if (staff) allowed.add("metricas");
   if (canReadEvaluations(roles)) allowed.add("evaluaciones");
-  if (isDirection(roles)) ["registros", "staff"].forEach((s) => allowed.add(s as NavScreen));
+  if (canApproveRegistrations(roles)) allowed.add("registros");
+  if (isDirection(roles)) allowed.add("staff");
   // Planes de gimnasio: head coach y preparador físico.
   if (canPlanGym(roles)) allowed.add("planes");
   // Para el staff, Lesiones ya muestra las del plantel: Mis lesiones solo es del jugador.

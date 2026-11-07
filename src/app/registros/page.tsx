@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
-import { ROLE_LABEL, isDirection, type UserRole } from "@/lib/roles";
+import { ROLE_LABEL, canApproveRegistrations, type UserRole } from "@/lib/roles";
 import { ReviewButtons } from "./review-buttons";
 import { PageTitle, SectionTitle } from "@/app/ui";
 
@@ -74,7 +74,7 @@ export default async function RegistrosPage({
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
-  if (me?.status !== "confirmado" || !isDirection((me.roles ?? []) as UserRole[])) {
+  if (me?.status !== "confirmado" || !canApproveRegistrations((me.roles ?? []) as UserRole[])) {
     redirect("/dashboard");
   }
 
