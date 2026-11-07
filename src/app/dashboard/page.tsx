@@ -47,8 +47,18 @@ import { DEFAULT_DASHBOARD_METRICS_MOBILE, dashboardMetricsOf } from "@/lib/dash
 import { Block } from "@/app/skeleton";
 import { getFormatContext, inFormat, withActiveFormat } from "@/lib/format";
 import { FormatSwitch, SevensPositionBanner } from "@/app/sevens-ui";
-import { getMyPendingReports } from "@/lib/srpe";
-import { MyWellness, PendingReports } from "./pending-reports";
+import { MyWellness } from "./pending-reports";
+import {
+  getMyNotifications,
+  getMyStaffStateNotifications,
+  getMyStateNotifications,
+  playerStateCard,
+  sortCards,
+  staffStateCard,
+  storedCard,
+  type NoticeCard,
+} from "@/lib/notifications";
+import { Notifications } from "./notifications";
 import { getMyGymToday } from "@/lib/gym";
 import { GymTodayCard } from "./gym-today";
 import { MyWeek } from "./my-week";
@@ -119,7 +129,7 @@ export default async function DashboardPage() {
     // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
     // Solo decide qué se muestra; las funciones de la base validan el permiso real.
     const canManage = canManageInjuries(roles, user.id, profile.club?.kine_delegate_id);
-    const [myLoad, open, myInjuries, toReview, myPending, myReports, myWellness, myGym, week] = await Promise.all([
+    const [myLoad, open, myInjuries, toReview, myPending, myState, myWellness, myGym, week, notices, staffState] = await Promise.all([
       // Jugador: su carga de partidos y sus convocatorias del formato activo (solo datos propios).
       isPlayer ? withActiveFormat(user.id, (format) => getMyLoad(supabase, format)) : null,
       // "Lesiones activas" (staff): lesiones abiertas del club (RLS); abajo se toman
@@ -169,8 +179,9 @@ export default async function DashboardPage() {
             .maybeSingle()
             .then(({ data }) => data as { id: string } | null)
         : null,
-      // Pendientes del jugador (sRPE y bienestar) en el formato activo.
-      isPlayer ? withActiveFormat(user.id, (format) => getMyPendingReports(supabase, format)) : [],
+      // Notificaciones de estado del jugador (sRPE, esfuerzo del gimnasio y bienestar por
+      // responder) en el formato activo. Reemplazan al antiguo bloque "Pendientes".
+      isPlayer ? withActiveFormat(user.id, (format) => getMyStateNotifications(supabase, format)) : [],
       // "Mi bienestar": su último check. RLS: el jugador ve solo los suyos.
       isPlayer
         ? supabase
@@ -189,8 +200,12 @@ export default async function DashboardPage() {
       withActiveFormat(user.id, (format) =>
         getWeekData(supabase, profile.club_id!, format, { player: isPlayer, staff }),
       ),
+      // Notificaciones de evento (todas las cuentas; RLS: solo las propias).
+      getMyNotifications(supabase, profile.club_id!),
+      // Notificaciones de estado del staff, según sus permisos y el formato activo.
+      staff ? withActiveFormat(user.id, (format) => getMyStaffStateNotifications(supabase, format)) : [],
     ]);
-    return { myLoad, open, myInjuries, toReview, myPending, myReports, myWellness, myGym, week };
+    return { myLoad, open, myInjuries, toReview, myPending, myState, myWellness, myGym, week, notices, staffState };
   });
 
   // Franja de métricas (staff): sus datos salen ya, en paralelo con el resto, y la
@@ -353,6 +368,21 @@ export default async function DashboardPage() {
   const diagnosisToReview = toReview.filter((i) => i.status === "activa");
   const myPendingInjury = byRole.myPending;
 
+  // Notificaciones: de evento (guardadas) y de estado (calculadas), ya ordenadas.
+  // Las de estado del jugador solo si tiene ficha en el plantel del formato activo.
+  const noticeCards = sortCards(
+    [
+      ...byRole.notices.map((n) => storedCard(n, { clubName: club?.name ?? null })),
+      ...(me ? byRole.myState.map(playerStateCard) : []),
+      ...byRole.staffState.map(staffStateCard),
+    ].filter((c): c is NoticeCard => c !== null),
+  );
+  // "Sube tu diagnóstico": si ya está la notificación de esa lesión (11), no se repite
+  // la tarjeta grande; al descartarla, la tarjeta vuelve mientras siga en evaluación.
+  const diagnosisNotified =
+    !!myPendingInjury &&
+    byRole.notices.some((n) => n.kind === "marcado_lesionado" && n.payload?.injury_id === myPendingInjury.id);
+
   return (
     <>
     {/* Portada del club: solo en el Resumen, no en el layout. */}
@@ -394,8 +424,9 @@ export default async function DashboardPage() {
           <MetricsStrip data={metricsPromise} desktop={metricsDesktop} mobile={metricsMobile} />
         </Suspense>
       )}
-      {/* Jugador: sesiones y check de bienestar por responder (solo si hay). */}
-      {me && <PendingReports items={byRole.myReports} />}
+      {/* Notificaciones: las 3 más urgentes y "Ver todas". Incluye lo que antes era
+          "Pendientes" (sRPE, esfuerzo del gimnasio y check de bienestar). */}
+      <Notifications cards={noticeCards} />
       {/* Jugador: "Hoy toca gimnasio" y el registro de una sesión por su cuenta. */}
       {me && <GymTodayCard data={byRole.myGym} />}
       <MyWeek data={byRole.week} />
@@ -411,7 +442,7 @@ export default async function DashboardPage() {
         <NextMatch match={nextMatch} canNomina={canNomina} stacked className="mb-6 flex w-full lg:hidden" />
       )}
 
-      {myPendingInjury && (
+      {myPendingInjury && !diagnosisNotified && (
         <div className="mb-8 space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
           <div>
             <p className="font-medium text-ink">

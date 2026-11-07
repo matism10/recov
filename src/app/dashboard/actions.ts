@@ -42,3 +42,22 @@ export async function setPlayerAvailability(
   revalidatePath("/dashboard");
   return {};
 }
+
+// Notificaciones del Resumen: descartar una o todas las propias del plantel activo.
+// dismiss_notification y dismiss_all_notifications solo tocan las del usuario.
+export async function dismissNotification(id: string): Promise<{ error?: string }> {
+  if (!UUID_RE.test(id)) return { error: "Notificación no válida." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("dismiss_notification", { p_id: id });
+  if (error) return { error: "No se pudo descartar. Intenta de nuevo." };
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function dismissAllNotifications(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("dismiss_all_notifications");
+  if (error) return { error: "No se pudo descartar. Intenta de nuevo." };
+  revalidatePath("/dashboard");
+  return {};
+}
