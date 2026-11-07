@@ -27,6 +27,8 @@ import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import { WhatsAppButton } from "@/app/whatsapp-button";
 import { SrpeLoad, WellnessHistory } from "@/app/srpe-load";
+import { can } from "@/lib/permissions";
+import { PositionSection } from "./position-section";
 import { WELLNESS_COLUMNS, getPlayerWeeklyLoad, type WeeklyLoad, type WellnessReport } from "@/lib/srpe";
 import { getPlayerGymSummary } from "@/lib/gym";
 import { GymSummary } from "./gym-summary";
@@ -192,6 +194,18 @@ export default async function PlayerPage({
           </div>
         </div>
       </header>
+
+      {/* Cambiar posición: head coach o quien tenga el permiso posicion_cambiar. */}
+      {me?.status === "confirmado" && can((me.roles ?? []) as UserRole[], "posicion_cambiar") && (
+        <PositionSection
+          supabase={supabase}
+          playerId={player.id}
+          clubId={player.club_id}
+          userId={player.user_id}
+          sport={me.club?.sport ?? ""}
+          hasSevens={me.club?.sport === "rugby" && !!me.club?.has_sevens}
+        />
+      )}
 
       {/* En escritorio: lesión actual a la izquierda y línea de tiempo a la derecha. */}
       <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
