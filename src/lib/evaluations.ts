@@ -2,6 +2,7 @@
 // Compartido entre servidor y cliente. Las reglas de permisos reales están en la
 // base (private.has_any_role en las funciones y en RLS); aquí solo deciden qué se muestra.
 import type { UserRole } from "@/lib/roles";
+import { can } from "@/lib/permissions";
 
 // Registran resultados y administran el catálogo.
 export const EVAL_WRITE_ROLES = ["head_coach", "kinesiologo", "preparador_fisico"] as const satisfies readonly UserRole[];
@@ -14,11 +15,13 @@ export const EVAL_READ_ROLES = [
   "preparador_fisico",
 ] as const satisfies readonly UserRole[];
 
+// Permisos evaluaciones_cargar y tests_catalogo (por defecto, EVAL_WRITE_ROLES).
 export function canWriteEvaluations(roles: readonly UserRole[]) {
-  return EVAL_WRITE_ROLES.some((r) => roles.includes(r));
+  return can(roles, "evaluaciones_cargar") || can(roles, "tests_catalogo");
 }
+// Ven los resultados: los roles de siempre o quien carga o administra tests.
 export function canReadEvaluations(roles: readonly UserRole[]) {
-  return EVAL_READ_ROLES.some((r) => roles.includes(r));
+  return EVAL_READ_ROLES.some((r) => roles.includes(r)) || canWriteEvaluations(roles);
 }
 
 export type DisplayFormat = "number" | "mmss";

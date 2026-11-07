@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveClubId, getSessionUser } from "@/lib/session";
 import { STAFF_ROLES, type UserRole } from "@/lib/roles";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export type StaffState = { ok?: boolean; error?: string };
 
@@ -93,5 +94,72 @@ export async function setNominaDelegate(
 
   revalidatePath("/staff");
   revalidatePath("/calendario");
+  return { ok: true };
+}
+
+// Ajuste de un permiso para una persona del staff (solo head coach; lo verifica
+// set_member_permission). Igual a su rol: queda sin ajuste.
+export async function setMemberPermission(
+  profileId: string,
+  perm: string,
+  granted: boolean,
+): Promise<StaffState> {
+  if (!UUID_RE.test(profileId)) return { error: "Persona no válida." };
+  if (!(PERMISSIONS as readonly string[]).includes(perm)) return { error: "Permiso no válido." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_member_permission", {
+    p_profile_id: profileId,
+    p_perm: perm,
+    p_granted: granted,
+    p_club_id: await activeClub(),
+  });
+  if (error) return { error: errorMessage(error, "No se pudo guardar el permiso.") };
+
+  revalidatePath("/staff");
+  return { ok: true };
+}
+
+// "Restablecer al rol": archiva todos los ajustes de la persona.
+export async function resetMemberPermissions(profileId: string): Promise<StaffState> {
+  if (!UUID_RE.test(profileId)) return { error: "Persona no válida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reset_member_permissions", {
+    p_profile_id: profileId,
+    p_club_id: await activeClub(),
+  });
+  if (error) return { error: errorMessage(error, "No se pudieron restablecer los permisos.") };
+
+  revalidatePath("/staff");
+  return { ok: true };
+}
+
+// Nombrar (o dejar de nombrar) head coach: agrega o quita el rol. set_staff_roles exige
+// que quien llama sea head coach, protege al principal y que el club no quede sin head coach.
+export async function setHeadCoach(
+  profileId: string,
+  currentRoles: string[],
+  makeHeadCoach: boolean,
+): Promise<StaffState> {
+  if (!UUID_RE.test(profileId)) return { error: "Persona no válida." };
+  const others = currentRoles.filter(
+    (r) => r !== "head_coach" && (STAFF_ROLES as readonly string[]).includes(r),
+  );
+  if (!makeHeadCoach && others.length === 0) {
+    return { error: "Elige otro rol para esta persona antes de quitarle head coach." };
+  }
+  const roles = (makeHeadCoach ? [...others, "head_coach"] : others) as UserRole[];
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_staff_roles", {
+    p_profile_id: profileId,
+    p_roles: roles,
+    p_club_id: await activeClub(),
+  });
+  if (error) return { error: errorMessage(error, "No se pudieron guardar los cambios.") };
+
+  revalidatePath("/staff");
+  revalidatePath("/dashboard");
   return { ok: true };
 }

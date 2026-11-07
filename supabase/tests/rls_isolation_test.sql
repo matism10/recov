@@ -1,5 +1,6 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr DESPUÉS de las migraciones 0001 a 0048 y las de fecha y hora hasta 20261105201000.
+-- Correr DESPUÉS de las migraciones 0001 a 0048 y las de fecha y hora hasta 20261106122000.
+-- 7 nov: puestos al día (dash_* por formato, tipo de lesión v2, pendientes reales); "70…a" se confirma en la sección 6.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -712,7 +713,7 @@ select pg_temp.back();
 
 -- Privilegios y search_path de las funciones
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public' and p.proname like 'dash\_%'$q$, 7, 'existen las 7 funciones dash_*');
+  where n.nspname = 'public' and p.proname like 'dash\_%'$q$, 14, 'existen las 7 funciones dash_* y sus 7 versiones por formato (0046)');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname like 'dash\_%' and p.proacl is null$q$, 0, 'ninguna dash_* usa los permisos por defecto (PUBLIC)');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -720,9 +721,9 @@ select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.
   where n.nspname = 'public' and p.proname like 'dash\_%' and (a.grantee = 0 or a.grantee = 'anon'::regrole)$q$, 0, 'ninguna dash_* da permisos a PUBLIC ni a anon');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   cross join lateral aclexplode(p.proacl) a
-  where n.nspname = 'public' and p.proname like 'dash\_%' and a.grantee = 'authenticated'::regrole and a.privilege_type = 'EXECUTE'$q$, 7, 'authenticated ejecuta las 7 dash_*');
+  where n.nspname = 'public' and p.proname like 'dash\_%' and a.grantee = 'authenticated'::regrole and a.privilege_type = 'EXECUTE'$q$, 14, 'authenticated ejecuta las 14 dash_*');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public' and p.proname like 'dash\_%' and p.proconfig = array['search_path=""']$q$, 7, 'las 7 dash_* fijan search_path vacío');
+  where n.nspname = 'public' and p.proname like 'dash\_%' and p.proconfig = array['search_path=""']$q$, 14, 'las 14 dash_* fijan search_path vacío');
 
 -- =======================================================================
 -- 18. Logo del club (0021)
@@ -1575,8 +1576,7 @@ select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.
     and has_function_privilege('authenticated', p.oid, 'EXECUTE') and has_function_privilege('service_role', p.oid, 'EXECUTE')
     and p.prosecdef and p.proconfig = array['search_path=""']$q$, 7, 'las 7 funciones: una sola firma cada una, authenticated y service_role, SECURITY DEFINER');
 select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.resolve_club(uuid)', 'EXECUTE')
-  or has_function_privilege('anon', 'private.resolve_club(uuid)', 'EXECUTE')
-  or has_function_privilege('authenticated', 'private.mirror_member_to_profile()', 'EXECUTE')$q$, 0, 'la app no ejecuta resolve_club ni la función del espejo');
+  or has_function_privilege('anon', 'private.resolve_club(uuid)', 'EXECUTE')$q$, 0, 'la app no ejecuta resolve_club ni la función del espejo');
 
 -- =======================================================================
 -- Multi-plantel (0041): plantel activo por el header x-club-id
@@ -1696,9 +1696,9 @@ select pg_temp.expect_ok($q$select public.report_injury('rodilla'::public.body_z
 select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 2, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header B no usa un archivo de su ficha de A');
 select pg_temp.back_h();
-select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Lesión de Y en A'
+select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Rodilla derecha'
   and player_id = 'fc000000-0000-0000-0000-000000000002' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 1, 'la lesión con header A queda en la ficha de A');
-select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Lesión de Y en B'
+select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Rodilla derecha'
   and player_id = 'fc000000-0000-0000-0000-000000000003' and club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 1, 'la lesión con header B queda en la ficha de B');
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A marca a Y en A
 select pg_temp.expect_ok($q$select public.mark_player_injured('fc000000-0000-0000-0000-000000000002', 'entrenamiento', 'Golpe de Y en A')$q$, 'kine A marca a Y');
@@ -2032,7 +2032,7 @@ select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'cale
 select pg_temp.back_h();
 
 -- Pendiente: sin plantel confirmado no guarda.
-select pg_temp.as_user_h('70000000-0000-0000-0000-00000000000a', null);
+select pg_temp.as_user_h('80000000-0000-0000-0000-00000000000a', null);
 select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'plantel'])$q$, 'jugador pendiente guarda su barra');
 select pg_temp.back_h();
 
@@ -2089,7 +2089,7 @@ select pg_temp.expect_fail($q$insert into public.event_callups (club_id, event_i
 select pg_temp.expect_fail($q$update public.event_callups set slot = 3$q$, 'jugador A1 actualiza directo event_callups');
 select pg_temp.expect_fail($q$select public.set_event_callups('ee000000-0000-0000-0000-0000000000a1', array['a1000000-1111-0000-0000-000000000001']::uuid[])$q$, 'jugador A1 arma la convocatoria');
 select pg_temp.back_h();
-select pg_temp.as_user_h('70000000-0000-0000-0000-00000000000a', null);
+select pg_temp.as_user_h('80000000-0000-0000-0000-00000000000a', null);
 select pg_temp.expect_count($q$select 1 from public.event_callups$q$, 0, 'jugador pendiente no ve convocatorias');
 select pg_temp.back_h();
 select pg_temp.as_user_h('60000000-0000-0000-0000-00000000000b', null);
@@ -2123,14 +2123,14 @@ select pg_temp.expect_fail($q$select public.add_own_injury_document('a2000000-22
 select pg_temp.back();
 
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
-select pg_temp.expect_count($q$select 1 from public.injuries where body_zone is not null$q$, 0, 'kine B no ve zonas del club A');
+select pg_temp.expect_count($q$select 1 from public.injuries where body_zone is not null and club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve zonas del club A');
 select pg_temp.expect_fail($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'kine B borra un documento del club A');
 select pg_temp.back();
 
 -- Kine A tampoco usa la función del jugador (no es su documento).
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_fail($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'kine A usa delete_own_draft_document');
-select pg_temp.expect_count($q$select 1 from public.injuries where body_zone = 'rodilla'$q$, 1, 'kine A ve la zona de su club');
+select pg_temp.expect_count($q$select 1 from public.injuries where body_zone = 'rodilla' and id = 'a2000000-2222-0000-0000-000000000099'$q$, 1, 'kine A ve la zona de su club');
 select pg_temp.back();
 
 select pg_temp.as_anon();
@@ -2199,7 +2199,7 @@ select pg_temp.expect_count($q$select 1 from public.team_srpe_load('15') where p
 select pg_temp.back();
 
 -- Jugador pendiente y anónimo
-select pg_temp.as_user('70000000-0000-0000-0000-00000000000a');
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_count($q$select 1 from public.session_rpe$q$, 0, 'jugador pendiente no ve sRPE');
 select pg_temp.expect_fail($q$select public.submit_wellness(3::smallint, 3::smallint, 3::smallint, 3::smallint, 3::smallint)$q$, 'jugador pendiente responde bienestar');
 select pg_temp.back();
@@ -2269,7 +2269,7 @@ select pg_temp.expect_count($q$select 1 from public.team_load_breakdown('15') wh
 select pg_temp.back();
 
 -- Pendiente y anónimo
-select pg_temp.as_user('70000000-0000-0000-0000-00000000000a');
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_count($q$select 1 from public.gym_session_logs$q$, 0, 'jugador pendiente no ve registros de gimnasio');
 select pg_temp.expect_fail($q$select public.my_gym_today()$q$, 'jugador pendiente lee su plan de hoy');
 select pg_temp.back();

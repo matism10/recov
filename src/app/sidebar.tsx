@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { getProfile, getSupabase } from "@/lib/session";
-import { canSetWellnessDays, isDirection, isStaff, type UserRole } from "@/lib/roles";
+import { canApproveRegistrations, canSetWellnessDays, isDirection, isStaff, type UserRole } from "@/lib/roles";
 import { canReadEvaluations } from "@/lib/evaluations";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { SidebarNav } from "./sidebar-nav";
@@ -40,7 +40,7 @@ const getNavData = cache(async () => {
   const [pendingCount, avatarUrl, formatCtx, savedSlots] = await Promise.all([
     // RLS: solo la dirección ve las membresías pendientes de su plantel. Se cuentan
     // las del plantel activo, no las de otros planteles de la cuenta.
-    direction && profile.club_id
+    canApproveRegistrations(roles) && profile.club_id
       ? supabase
           .from("club_members")
           .select("user_id", { count: "exact", head: true })
