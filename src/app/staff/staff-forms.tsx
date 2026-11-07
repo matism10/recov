@@ -17,6 +17,7 @@ import {
   ErrorMessage,
   SuccessMessage,
   buttonDanger,
+  buttonDangerSoft,
   buttonPrimary,
   fieldClass,
   textButton,
@@ -159,7 +160,7 @@ export function RolesForm({
             type="button"
             onClick={() => setConfirmingRemove(true)}
             disabled={pending}
-            className={textButton}
+            className={`text-sm ${buttonDangerSoft}`}
           >
             Quita del staff
           </button>

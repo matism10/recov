@@ -35,6 +35,10 @@ export const buttonDanger =
 const footerButton =
   "flex h-14 w-full items-center justify-center gap-2 rounded-2xl border text-base font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2";
 export const signOutButtonClass = `${footerButton} border-[#E5484D] bg-[#FDECEC] text-[#C0302F] hover:bg-[#FBDCDC] focus-visible:outline-[#E5484D]`;
+// Acción destructiva con los colores de "Cerrar sesión", del tamaño de los demás botones
+// (p. ej. "Quita del staff": la persona pierde el acceso al plantel).
+export const buttonDangerSoft =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#E5484D] bg-[#FDECEC] px-4 py-2 font-medium text-[#C0302F] transition hover:bg-[#FBDCDC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5484D] disabled:opacity-60";
 export const profileButtonClass = `${footerButton} border-[#CDE8F8] bg-white text-[#0F1B33] hover:bg-[#F3F9FD] focus-visible:outline-brand-strong`;
 // Acciones secundarias con forma de texto (Cerrar sesión, Cancelar, Cambiar…).
 export const textButton =
