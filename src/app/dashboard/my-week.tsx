@@ -1,19 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { WEEKDAYS } from "@/lib/srpe";
 import { SectionTitle } from "@/app/ui";
+import { EventDetails, EventSheet, type EventSheetData } from "@/app/calendario/event-sheet";
 import type { WeekData } from "./week-data";
 
 const LETTERS = ["L", "M", "X", "J", "V", "S", "D"];
 
 // "Mi semana": fila de 7 días (L a D) con G (gimnasio), E (entrenamiento) o P (partido);
 // "·" si no hay nada y las letras juntas si hay más de una. Hoy va en #082F49. Al tocar
-// un día se ve qué hay.
+// un día se ve qué hay; un entrenamiento o partido abre la hoja de detalle del calendario.
 export function MyWeek({ data }: { data: WeekData }) {
   const [selected, setSelected] = useState(data.today);
+  const [openEvent, setOpenEvent] = useState<EventSheetData | null>(null);
+  const closeEvent = useCallback(() => setOpenEvent(null), []);
   const day = data.days.find((d) => d.date === selected) ?? data.days[0];
 
   return (
@@ -81,12 +84,20 @@ export function MyWeek({ data }: { data: WeekData }) {
                       <span className="block text-sm font-medium text-ink">{x.title}</span>
                       {x.detail && <span className="block text-xs text-muted">{x.detail}</span>}
                     </span>
-                    {x.href && <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted" />}
+                    {(x.href || x.event) && <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted" />}
                   </>
                 );
                 return (
                   <li key={i}>
-                    {x.href ? (
+                    {x.event ? (
+                      <button
+                        type="button"
+                        onClick={() => setOpenEvent(x.event!)}
+                        className="flex min-h-11 w-full items-center gap-3 py-1.5 text-left hover:bg-mist"
+                      >
+                        {body}
+                      </button>
+                    ) : x.href ? (
                       <Link href={x.href} className="flex min-h-11 items-center gap-3 py-1.5 hover:bg-mist">
                         {body}
                       </Link>
@@ -100,6 +111,13 @@ export function MyWeek({ data }: { data: WeekData }) {
           )}
         </div>
       </div>
+      {openEvent && (
+        <EventSheet key={openEvent.id} event={openEvent} onClose={closeEvent}>
+          <div className="lg:mt-4">
+            <EventDetails event={openEvent} />
+          </div>
+        </EventSheet>
+      )}
     </section>
   );
 }

@@ -7,6 +7,7 @@ import type { Format } from "@/lib/sevens";
 import { addDays } from "@/lib/injuries";
 import { chileDateTime, chileToIso } from "@/lib/events";
 import { currentWeek, getMyGymWeek } from "@/lib/gym";
+import type { EventSheetData } from "@/app/calendario/event-sheet";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -16,6 +17,8 @@ export type WeekItem = {
   detail: string | null;
   href: string | null;
   done?: boolean;
+  // Eventos (E y P): se abren en la hoja de detalle, sin navegar.
+  event?: EventSheetData;
 };
 export type WeekDay = { date: string; items: WeekItem[] };
 export type WeekData = { today: string; days: WeekDay[] };
@@ -33,7 +36,7 @@ export async function getWeekData(
   const [events, gymWeek, plans] = await Promise.all([
     supabase
       .from("events")
-      .select("id, type, starts_at, opponent")
+      .select("id, type, starts_at, ends_at, location, opponent, notes, cancelled_at")
       .eq("club_id", clubId)
       .eq("format", format)
       .is("cancelled_at", null)
@@ -82,7 +85,18 @@ export async function getWeekData(
       kind: match ? "P" : "E",
       title: match ? (e.opponent ? `Partido vs. ${e.opponent}` : "Partido") : "Entrenamiento",
       detail: time,
-      href: `/calendario/${e.id}`,
+      href: null,
+      event: {
+        id: e.id as string,
+        type: e.type as EventSheetData["type"],
+        day: date,
+        start: time,
+        end: chileDateTime(e.ends_at as string).time,
+        location: (e.location as string | null) ?? null,
+        opponent: (e.opponent as string | null) ?? null,
+        notes: (e.notes as string | null) ?? null,
+        cancelled: e.cancelled_at != null,
+      },
     });
   }
   // Orden dentro del día: E, G, P (como la leyenda).
