@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChartColumn, ChevronLeft, ChevronRight, ClipboardList, ListChecks, MapPin, Swords, X } from "lucide-react";
+import { ChartColumn, ChevronLeft, ChevronRight, ClipboardList, ListChecks } from "lucide-react";
 import { addDays } from "@/lib/injuries";
 import {
-  EVENT_TYPE_LABEL,
   WEEKDAY_LABELS,
   availableRatioOk,
   eventTitle,
@@ -31,6 +30,7 @@ import {
   textButton,
 } from "@/app/ui";
 import { cancelEvent } from "./actions";
+import { EventDetails, EventSheet } from "./event-sheet";
 
 type Props = {
   mobileView: "semana" | "mes";
@@ -637,25 +637,12 @@ function EventPanel({
   listSaved: boolean;
   onClose: () => void;
 }) {
-  const panelRef = useRef<HTMLElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   // Al abrir el detalle (cada evento monta su propio panel): en escritorio queda
   // bajo la grilla, así que se desplaza hasta él; el foco va al título.
-  useEffect(() => {
-    panelRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    titleRef.current?.focus({ preventScroll: true });
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const cancel = () =>
     startTransition(async () => {
       const result = await cancelEvent(event.id);
@@ -664,224 +651,147 @@ function EventPanel({
     });
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-end bg-ink/30 lg:static lg:z-auto lg:mt-6 lg:block lg:bg-transparent"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+    <EventSheet
+      event={event}
+      inline
+      onClose={onClose}
+      badges={
+        staff && event.type === "entrenamiento" && event.past && !event.cancelled && !listSaved && <AttendanceMissing />
+      }
     >
-      <aside
-        ref={panelRef}
-        aria-labelledby="event-panel-title"
-        className="max-h-[85vh] w-full scroll-mt-6 overflow-y-auto rounded-t-2xl border border-line bg-white p-5 shadow-lg lg:max-h-none lg:overflow-visible lg:rounded-xl lg:p-6 lg:shadow-none"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-2">
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  event.type === "competencia"
-                    ? "bg-brand-soft text-brand-text"
-                    : "border border-line text-ink"
-                }`}
+    {/* Escritorio: datos y acciones a la izquierda, plantel a la derecha. */}
+    <div className="lg:mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-8">
+      <div>
+        <EventDetails event={event} />
+
+        {/* Nómina: antes del partido se arma la convocatoria; una vez empezado,
+            se carga la participación. Solo head coach, manager y el delegado. */}
+        {canNomina && event.type === "competencia" && !event.cancelled && (
+          <div className="mt-6 border-t border-line pt-4">
+            {event.past ? (
+              <Link
+                href={`/calendario/${event.id}/participacion`}
+                className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
               >
-                {EVENT_TYPE_LABEL[event.type]}
-              </span>
-              {event.cancelled && (
-                <span className="inline-flex items-center rounded-full border border-muted px-2.5 py-0.5 text-xs font-medium text-muted">
-                  Cancelado
-                </span>
-              )}
-              {staff && event.type === "entrenamiento" && event.past && !event.cancelled && !listSaved && (
-                <AttendanceMissing />
-              )}
-            </div>
-            <h2
-              id="event-panel-title"
-              ref={titleRef}
-              tabIndex={-1}
-              className={`text-xl font-semibold text-ink outline-none ${
-                event.cancelled ? "line-through" : ""
-              }`}
-            >
-              {eventTitle(event)}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="-mt-2 -mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-mist"
-          >
-            <X aria-hidden="true" className="size-5" />
-            <span className="sr-only">Cerrar detalle</span>
-          </button>
-        </div>
-
-        {/* Escritorio: datos y acciones a la izquierda, plantel a la derecha. */}
-        <div className="lg:mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-8">
-          <div>
-            <dl className="mt-4 space-y-2 text-sm lg:mt-0">
-              <div>
-                <dt className="sr-only">Fecha y hora</dt>
-                <dd className="text-ink">
-                  {longDayLabel(event.day)}
-                  <br />
-                  {eventTimeLabel(event)}
-                </dd>
-              </div>
-              {event.location && (
-                <div className="flex items-start gap-2">
-                  <dt>
-                    <MapPin aria-hidden="true" className="mt-0.5 size-4 text-muted" />
-                    <span className="sr-only">Lugar</span>
-                  </dt>
-                  <dd className="text-ink">{event.location}</dd>
-                </div>
-              )}
-              {event.opponent && (
-                <div className="flex items-start gap-2">
-                  <dt>
-                    <Swords aria-hidden="true" className="mt-0.5 size-4 text-muted" />
-                    <span className="sr-only">Rival</span>
-                  </dt>
-                  <dd className="text-ink">{event.opponent}</dd>
-                </div>
-              )}
-              {event.notes && (
-                <div className="pt-1">
-                  <dt className="text-xs font-medium text-muted">Notas</dt>
-                  <dd className="mt-0.5 whitespace-pre-line text-ink">{event.notes}</dd>
-                </div>
-              )}
-            </dl>
-
-            {/* Nómina: antes del partido se arma la convocatoria; una vez empezado,
-                se carga la participación. Solo head coach, manager y el delegado. */}
-            {canNomina && event.type === "competencia" && !event.cancelled && (
-              <div className="mt-6 border-t border-line pt-4">
-                {event.past ? (
-                  <Link
-                    href={`/calendario/${event.id}/participacion`}
-                    className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
-                  >
-                    <ClipboardList aria-hidden="true" className="size-4" />
-                    Cargar participación
-                  </Link>
-                ) : (
-                  <Link
-                    href={`/calendario/${event.id}/disponibles`}
-                    className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
-                  >
-                    <ClipboardList aria-hidden="true" className="size-4" />
-                    Armar nómina
-                  </Link>
-                )}
-              </div>
-            )}
-
-            {/* Asistencia: cualquier staff pasa lista desde que el entrenamiento empieza. */}
-            {staff && event.type === "entrenamiento" && !event.cancelled && (
-              <div className="mt-6 space-y-2 border-t border-line pt-4">
-                {event.past ? (
-                  <Link
-                    href={`/calendario/${event.id}/asistencia`}
-                    className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
-                  >
-                    <ListChecks aria-hidden="true" className="size-4" />
-                    Pasar lista
-                  </Link>
-                ) : (
-                  <>
-                    <button type="button" disabled className={`w-full text-sm lg:w-auto ${buttonPrimary}`}>
-                      <ListChecks aria-hidden="true" className="size-4" />
-                      Pasar lista
-                    </button>
-                    <p className="text-xs text-muted">Se habilita cuando empiece el entrenamiento.</p>
-                  </>
-                )}
-                {event.past && listSaved && (
-                  <p className="text-xs text-muted">Lista guardada. Puedes corregirla.</p>
-                )}
-              </div>
-            )}
-
-            {/* Reportes de esfuerzo y bienestar: todo el staff, desde que el evento empieza. */}
-            {staff && !event.cancelled && (
-              <div className="mt-6 space-y-2 border-t border-line pt-4">
-                {event.past ? (
-                  <Link
-                    href={`/calendario/${event.id}/reportes`}
-                    className={`w-full text-sm lg:w-auto ${buttonSecondary}`}
-                  >
-                    <ChartColumn aria-hidden="true" className="size-4" />
-                    Reportes
-                  </Link>
-                ) : (
-                  <>
-                    <button type="button" disabled className={`w-full text-sm lg:w-auto ${buttonSecondary}`}>
-                      <ChartColumn aria-hidden="true" className="size-4" />
-                      Reportes
-                    </button>
-                    <p className="text-xs text-muted">
-                      Se habilita cuando empiece {event.type === "competencia" ? "el partido" : "el entrenamiento"}.
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
-
-            {canManage && !event.cancelled && (
-              <div className="mt-6 space-y-3 border-t border-line pt-4">
-                {confirming ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-ink">
-                      ¿Cancelar este evento? Seguirá en el calendario marcado como cancelado.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={cancel}
-                        disabled={pending}
-                        className={`text-sm ${buttonDanger}`}
-                      >
-                        {pending ? "Cancelando…" : "Sí, cancelar evento"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirming(false)}
-                        disabled={pending}
-                        className={textButton}
-                      >
-                        No, volver
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={`/calendario/${event.id}/editar`}
-                      className={`text-sm ${buttonSecondary}`}
-                    >
-                      Editar
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => setConfirming(true)}
-                      className={`text-sm ${buttonSecondary}`}
-                    >
-                      Cancelar evento
-                    </button>
-                  </div>
-                )}
-                {error && <ErrorMessage>{error}</ErrorMessage>}
-              </div>
+                <ClipboardList aria-hidden="true" className="size-4" />
+                Cargar participación
+              </Link>
+            ) : (
+              <Link
+                href={`/calendario/${event.id}/disponibles`}
+                className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
+              >
+                <ClipboardList aria-hidden="true" className="size-4" />
+                Armar nómina
+              </Link>
             )}
           </div>
+        )}
 
-          {staff && !event.cancelled && (
-            <SquadSummary eventId={event.id} summary={summary} past={event.past} />
-          )}
-        </div>
-      </aside>
+        {/* Asistencia: cualquier staff pasa lista desde que el entrenamiento empieza. */}
+        {staff && event.type === "entrenamiento" && !event.cancelled && (
+          <div className="mt-6 space-y-2 border-t border-line pt-4">
+            {event.past ? (
+              <Link
+                href={`/calendario/${event.id}/asistencia`}
+                className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
+              >
+                <ListChecks aria-hidden="true" className="size-4" />
+                Pasar lista
+              </Link>
+            ) : (
+              <>
+                <button type="button" disabled className={`w-full text-sm lg:w-auto ${buttonPrimary}`}>
+                  <ListChecks aria-hidden="true" className="size-4" />
+                  Pasar lista
+                </button>
+                <p className="text-xs text-muted">Se habilita cuando empiece el entrenamiento.</p>
+              </>
+            )}
+            {event.past && listSaved && (
+              <p className="text-xs text-muted">Lista guardada. Puedes corregirla.</p>
+            )}
+          </div>
+        )}
+
+        {/* Reportes de esfuerzo y bienestar: todo el staff, desde que el evento empieza. */}
+        {staff && !event.cancelled && (
+          <div className="mt-6 space-y-2 border-t border-line pt-4">
+            {event.past ? (
+              <Link
+                href={`/calendario/${event.id}/reportes`}
+                className={`w-full text-sm lg:w-auto ${buttonSecondary}`}
+              >
+                <ChartColumn aria-hidden="true" className="size-4" />
+                Reportes
+              </Link>
+            ) : (
+              <>
+                <button type="button" disabled className={`w-full text-sm lg:w-auto ${buttonSecondary}`}>
+                  <ChartColumn aria-hidden="true" className="size-4" />
+                  Reportes
+                </button>
+                <p className="text-xs text-muted">
+                  Se habilita cuando empiece {event.type === "competencia" ? "el partido" : "el entrenamiento"}.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {canManage && !event.cancelled && (
+          <div className="mt-6 space-y-3 border-t border-line pt-4">
+            {confirming ? (
+              <div className="space-y-3">
+                <p className="text-sm text-ink">
+                  ¿Cancelar este evento? Seguirá en el calendario marcado como cancelado.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={cancel}
+                    disabled={pending}
+                    className={`text-sm ${buttonDanger}`}
+                  >
+                    {pending ? "Cancelando…" : "Sí, cancelar evento"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(false)}
+                    disabled={pending}
+                    className={textButton}
+                  >
+                    No, volver
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/calendario/${event.id}/editar`}
+                  className={`text-sm ${buttonSecondary}`}
+                >
+                  Editar
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(true)}
+                  className={`text-sm ${buttonSecondary}`}
+                >
+                  Cancelar evento
+                </button>
+              </div>
+            )}
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+          </div>
+        )}
+      </div>
+
+      {staff && !event.cancelled && (
+        <SquadSummary eventId={event.id} summary={summary} past={event.past} />
+      )}
     </div>
+    </EventSheet>
   );
 }
 

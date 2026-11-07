@@ -1,8 +1,8 @@
 // "Hoy toca gimnasio" (Resumen del jugador): tarjeta celeste grande si hoy tiene una
-// sesión del plan sin hacer, con el botón "Ver mi plan de hoy". Debajo, siempre, el link
-// para registrar una sesión por su cuenta.
+// sesión del plan sin hacer, con el botón "Ver mi plan de hoy". Debajo, siempre, la fila
+// "¿Entrenaste por tu cuenta?" para registrar una sesión propia.
 import Link from "next/link";
-import { BicepsFlexed } from "lucide-react";
+import { BicepsFlexed, ChevronRight, Dumbbell } from "lucide-react";
 import type { GymToday } from "@/lib/gym";
 
 export function GymTodayCard({ data }: { data: GymToday | null }) {
@@ -32,8 +32,18 @@ export function GymTodayCard({ data }: { data: GymToday | null }) {
           </span>
         </Link>
       )}
-      <Link href="/mi-plan/propia" className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline">
-        ¿Fuiste al gimnasio por tu cuenta? Regístralo
+      <Link
+        href="/mi-plan/propia"
+        className="flex min-h-11 items-center gap-3 rounded-[14px] border-[0.5px] border-line bg-white p-3 transition hover:bg-mist lg:max-w-xl"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[#E0F2FE]">
+          <Dumbbell aria-hidden="true" className="size-5 text-[#0369A1]" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium text-ink">¿Entrenaste por tu cuenta?</span>
+          <span className="block text-xs text-muted">Registra tu esfuerzo</span>
+        </span>
+        <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted" />
       </Link>
     </div>
   );
