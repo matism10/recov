@@ -163,3 +163,21 @@ export async function setHeadCoach(
   revalidatePath("/dashboard");
   return { ok: true };
 }
+
+// "Participa en Sevens": agrega o quita a una persona del staff del Grupo Sevens
+// (set_staff_sevens: permiso sevens_grupo; quitar archiva y al volver conserva su posición).
+export async function setStaffSevens(profileId: string, enabled: boolean): Promise<StaffState> {
+  if (!UUID_RE.test(profileId)) return { error: "Persona no válida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_staff_sevens", {
+    p_member_id: profileId,
+    p_enabled: enabled,
+    p_club_id: await activeClub(),
+  });
+  if (error) return { error: errorMessage(error, "No se pudo guardar el cambio.") };
+
+  revalidatePath("/staff");
+  revalidatePath("/configuracion/sevens");
+  return { ok: true };
+}

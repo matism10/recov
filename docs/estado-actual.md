@@ -5,8 +5,8 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #94, 6 nov). En curso: permisos del staff (`feat/permisos-staff`, PR 2a); el cambio de posición y "Participa en Sevens" van en un PR 2b aparte.
-- Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000, 20261105190000 20261105200000 a 20261105210000 y 20261106120000 a 20261106122000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
+- Todo está mergeado en `main` (último: PR #95, 7 nov). En curso: cambio de posición y "Participa en Sevens" (`feat/posicion-sevens`, PR 2b).
+- Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000, 20261105190000 20261105200000 a 20261105210000 y 20261106120000 a 20261106122000 y 20261107120000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
 - 43 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
 - Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones), `sevens_test.sql` (Rugby Sevens), `load_wellness_test.sql` (sRPE y bienestar), `staff_permissions_test.sql` (permisos del staff) y `gym_plan_test.sql` (plan de gimnasio). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
@@ -41,9 +41,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 20261106120000: permisos del staff. Catálogo `private.permissions` (17 delegables y 3 no delegables: `staff_gestionar`, `sevens_activar`, `sevens_grupo`) y plantillas `private.role_permissions` (= lo de antes); ajustes por persona en `member_permissions` (sin escritura directa; "Restablecer al rol" archiva); `club_members.is_principal` (head coach principal: el confirmado más antiguo; trigger que lo protege y lo asigna en clubes nuevos); `private.has_perm(club, perm)`; `my_permissions`, `staff_permissions`, `set_member_permission` y `reset_member_permissions` (solo head coach); `set_staff_roles` con las reglas del head coach.
   - 20261106121000: las funciones pasan a `has_perm` (misma firma; con la plantilla por defecto, el mismo comportamiento). `review_member`: aprobar como head coach, solo un head coach. `nav_allowed_screens` por permisos.
   - 20261106122000: políticas RLS a `has_perm` (lesiones, fases, historial, sRPE, bienestar, pendientes, resultados de evaluaciones; la escritura directa del kine exige además el permiso).
+  - 20261107120000: `set_player_positions` (permiso `posicion_cambiar`: principal, secundaria y, en rugby con Sevens, la de Sevens si el jugador está en el grupo; los triggers validan), `private.on_player_position_changed` (enganche para la notificación de la fase 3, sin efecto) y `set_staff_sevens` (`sevens_grupo`: suma o quita staff del Grupo Sevens; archiva).
   - 0048: Nóminas en lectura para el jugador: `event_callups_select` pasa a todo confirmado del club (antes staff o la fila propia; aprobado por Mati). `event_participations` no cambia. La barra ofrece Nóminas también al jugador.
 
 ## Historial
+- 7 nov · #96 · Cambio de posición desde la ficha ("Cambiar posición", con aviso de planes de gimnasio por posición) y "Participa en Sevens" por persona en `/staff/[id]` (20261107120000).
 - 7 nov · #95 · Permisos del staff (20261106120000–122000): rol = plantilla + ajustes por persona, co-head coach, head coach principal protegido, `/staff` con lista y detalle (`/staff/[id]`: chips de rol, interruptores, "Restablecer al rol", "Nombrar head coach" con confirmación); la app lee los permisos con `my_permissions`. Tests al día con lo ya aplicado.
 - 6 nov · #94 · Resumen del jugador (sin migración): fila-tarjeta "¿Entrenaste por tu cuenta?" en vez del link a `/mi-plan/propia`, y en Mi semana los eventos abren la hoja de detalle del calendario (extraída a `src/app/calendario/event-sheet.tsx`) en vez de un link roto a `/calendario/[id]`.
 - 6 nov · #93 · Esfuerzo con "número grande" (sin migración): componente único `EffortPicker`/`EffortScreen` en `/reportar/[eventId]`, `/mi-plan/esfuerzo/[logId]` y `/mi-plan/propia`; sin número por defecto y sin barra inferior en las pantallas de esfuerzo.
@@ -209,6 +211,8 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Nombra head coach con confirmación ("Tendrá los mismos permisos que tú…"), edita permisos y "Restablecer al rol".
 - Confirmar o rechazar registros (`/registros`); solo un head coach aprueba a alguien como head coach.
 - Gestionar el staff en `/staff`: roles, quitar a alguien del staff y delegaciones.
+- Cambiar la posición de un jugador desde su ficha (principal, secundaria y de Sevens); el permiso se puede dar a otros.
+- En rugby con Sevens, sumar o quitar staff del Grupo Sevens ("Participa en Sevens" en `/staff/[id]`; también el manager).
 
 **Manager**
 - Todo lo del staff, más registros y gestión del staff (roles salvo head coach, quitar, delegaciones); ve los permisos pero no los edita.
@@ -247,7 +251,7 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Avisos abiertos:** "Leaked password protection" desactivado; `pg_net` en el esquema `public` (sin uso).
 
 ## Pendiente
-- **Permisos (PR 2b):** cambio de posición desde la ficha (`posicion_cambiar` ya está en el catálogo), enganche de la notificación "Tu posición cambió a X" (fase 3) e interruptor "Participa en Sevens" por persona en `/staff`.
+- **Notificaciones (fase 3):** implementar `private.on_player_position_changed` ("Tu posición cambió a X").
 - **Permisos en la app:** los componentes de cliente que reciben `roles` por props usan la plantilla del rol (sin ajustes); la sidebar sigue mostrando Registros y Staff con `isDirection`. Las políticas de escritura directa del kine (`injuries_write`, `phases_write`, `players_update`) quedan para quitarlas en una limpieza aparte.
 - **Tests:** la rama local `feat/fisico-grupos` (sin PR) tiene sus migraciones aplicadas en la base; `gym_plan_test.sql` ya espera lo que hacen.
 - **Sevens:**

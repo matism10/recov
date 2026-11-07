@@ -9,6 +9,7 @@ import {
   setMemberPermission,
   setNominaDelegate,
   setStaffRoles,
+  setStaffSevens,
   type StaffState,
 } from "./actions";
 import { PERMISSION_GROUPS, type Permission } from "@/lib/permissions";
@@ -325,6 +326,42 @@ export function HeadCoachButton({
           {mode === "nombrar" ? "Nombrar head coach" : "Quitar head coach"}
         </button>
       )}
+      {error && <ErrorMessage>{error}</ErrorMessage>}
+    </div>
+  );
+}
+
+// "Participa en Sevens" (solo rugby con Sevens activo; head coach y manager).
+export function SevensSwitch({ profileId, enabled }: { profileId: string; enabled: boolean }) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div className="space-y-2">
+      <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-2">
+        <span className="text-sm text-ink">Participa en Sevens</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Participa en Sevens"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const res = await setStaffSevens(profileId, !enabled);
+              setError(res.error ?? null);
+            })
+          }
+          className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
+            enabled ? "bg-brand-strong" : "bg-line"
+          } ${pending ? "animate-pulse" : ""}`}
+        >
+          <span
+            className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
+              enabled ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      </div>
       {error && <ErrorMessage>{error}</ErrorMessage>}
     </div>
   );

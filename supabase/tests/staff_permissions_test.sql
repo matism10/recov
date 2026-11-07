@@ -1,6 +1,6 @@
--- Recov · Test de permisos del staff (20261106120000, 121000 y 122000)
+-- Recov · Test de permisos del staff (20261106120000, 121000, 122000 y 20261107120000)
 -- Roles por defecto sin cambios, ajustes por persona, co-head coach, head coach principal,
--- último head coach y aislamiento entre clubes. El cambio de posición va en la fase 2b.
+-- último head coach, aislamiento entre clubes, cambio de posición y "Participa en Sevens".
 -- Autónomo: crea sus propios datos y termina en ROLLBACK. Si algo falla, lanza un error que empieza con "FAIL".
 
 begin;
@@ -269,6 +269,83 @@ select pg_temp.expect_count($q$select 1 where has_function_privilege('authentica
 select pg_temp.expect_count($q$select 1 where has_table_privilege('authenticated', 'public.member_permissions', 'INSERT')
   or has_table_privilege('authenticated', 'public.member_permissions', 'UPDATE')
   or has_table_privilege('authenticated', 'public.member_permissions', 'DELETE')$q$, 0, 'sin escritura directa en member_permissions');
+
+-- =======================================================================
+-- 6. Cambio de posición (20261107120000): posicion_cambiar, por defecto el head coach.
+-- =======================================================================
+update public.clubs set has_sevens = true where id = 'aaaaaaaa-0000-0000-0000-0000000000f1';
+insert into public.sevens_group (club_id, member_id) values
+  ('aaaaaaaa-0000-0000-0000-0000000000f1', 'f1000000-0000-0000-0000-000000000007');
+
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000003');   -- kine: sin el permiso
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Hooker')$q$, 'el kine cambia una posición (sin permiso)');
+select pg_temp.back();
+
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000001');   -- head coach
+select pg_temp.expect_ok($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Hooker', 'Pilar')$q$, 'el head coach cambia principal y secundaria');
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', null)$q$, 'sin posición principal');
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Pilar', 'Pilar')$q$, 'secundaria igual a la principal');
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Portero')$q$, 'posición de otro deporte (trigger)');
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-0000000000ff', 'Pilar')$q$, 'jugador inexistente');
+select pg_temp.expect_ok($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Hooker', 'Pilar', 'Pilar', 'Hooker')$q$, 'el head coach cambia también la de Sevens');
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Hooker', null, 'Flanker')$q$, 'posición del 15 en Sevens (trigger)');
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Hooker', null, 'Pilar', 'Pilar')$q$, 'Sevens: secundaria igual a la principal');
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000002', 'Wing', null, 'Centro')$q$, 'Sevens para un jugador fuera del grupo');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.players where id = 'f1100000-0000-0000-0000-000000000001'
+  and position = 'Hooker' and secondary_position = 'Pilar'$q$, 1, 'la ficha queda con las posiciones nuevas');
+select pg_temp.expect_count($q$select 1 from public.sevens_group where member_id = 'f1000000-0000-0000-0000-000000000007'
+  and position = 'Pilar' and secondary_position = 'Hooker'$q$, 1, 'la posición de Sevens quedó guardada');
+
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000001');
+select pg_temp.expect_ok($q$select public.set_member_permission('f1000000-0000-0000-0000-000000000003', 'posicion_cambiar', true)$q$, 'el head coach da "cambiar posición" al kine');
+select pg_temp.back();
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000003');
+select pg_temp.expect_ok($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000002', 'Centro')$q$, 'con el ajuste, el kine cambia una posición');
+select pg_temp.back();
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000007');   -- jugador
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Pilar')$q$, 'el jugador usa la función del staff');
+select pg_temp.back();
+select pg_temp.as_user('f2000000-0000-0000-0000-000000000001');   -- head coach de B
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Pilar')$q$, 'head coach de B cambia un jugador de A');
+select pg_temp.expect_fail($q$select public.set_player_positions('f1100000-0000-0000-0000-000000000001', 'Pilar', null, null, null, 'aaaaaaaa-0000-0000-0000-0000000000f1')$q$, 'head coach de B pasa el plantel de A');
+select pg_temp.back();
+
+-- =======================================================================
+-- 7. "Participa en Sevens" para el staff (sevens_grupo: head coach y manager).
+-- =======================================================================
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000006');   -- preparador físico
+select pg_temp.expect_fail($q$select public.set_staff_sevens('f1000000-0000-0000-0000-000000000003', true)$q$, 'el preparador físico arma el grupo');
+select pg_temp.back();
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000002');   -- manager
+select pg_temp.expect_ok($q$select public.set_staff_sevens('f1000000-0000-0000-0000-000000000003', true)$q$, 'el manager suma al kine al grupo');
+select pg_temp.expect_fail($q$select public.set_staff_sevens('f1000000-0000-0000-0000-000000000007', true)$q$, 'un jugador no entra por esta vía');
+select pg_temp.expect_fail($q$select public.set_staff_sevens('f1000000-0000-0000-0000-000000000003', null)$q$, 'valor nulo');
+select pg_temp.back();
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000003');
+select pg_temp.expect_ok($q$select public.set_my_sevens_position('Centro')$q$, 'el kine elige su posición de Sevens');
+select pg_temp.back();
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000001');   -- head coach
+select pg_temp.expect_ok($q$select public.set_staff_sevens('f1000000-0000-0000-0000-000000000003', false)$q$, 'el head coach lo quita del grupo');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.sevens_group where member_id = 'f1000000-0000-0000-0000-000000000003' and archived_at is not null$q$, 1, 'quitar archiva (no borra)');
+select pg_temp.as_user('f1000000-0000-0000-0000-000000000001');
+select pg_temp.expect_ok($q$select public.set_staff_sevens('f1000000-0000-0000-0000-000000000003', true)$q$, 'vuelve al grupo');
+select pg_temp.back();
+select pg_temp.expect_count($q$select 1 from public.sevens_group where member_id = 'f1000000-0000-0000-0000-000000000003'
+  and archived_at is null and position = 'Centro'$q$, 1, 'al volver conserva su posición (sin duplicar)');
+select pg_temp.as_user('f2000000-0000-0000-0000-000000000001');   -- head coach de B
+select pg_temp.expect_fail($q$select public.set_staff_sevens('f1000000-0000-0000-0000-000000000003', false, 'aaaaaaaa-0000-0000-0000-0000000000f1')$q$, 'head coach de B toca el grupo de A');
+select pg_temp.expect_fail($q$select public.set_staff_sevens('f2000000-0000-0000-0000-000000000002', true)$q$, 'B no tiene Sevens activado');
+select pg_temp.back();
+
+select pg_temp.expect_count($q$select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
+  and p.proname in ('set_player_positions', 'set_staff_sevens')
+  and p.prosecdef and p.proconfig = array['search_path=""']
+  and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE')$q$, 2,
+  'set_player_positions y set_staff_sevens: SECURITY DEFINER, search_path vacío, authenticated sí y anon no');
+select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.on_player_position_changed(uuid, text, text, text, text, text, text)', 'EXECUTE')$q$, 0,
+  'la app no ejecuta el enganche de la notificación');
 
 select 'staff_permissions_test: OK' as resultado;
 rollback;

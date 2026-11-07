@@ -6,7 +6,8 @@ import { ROLE_LABEL, isDirection, type UserRole } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import { PageTitle, SectionTitle, cardClass, chipClass } from "@/app/ui";
-import { HeadCoachButton, PermissionSwitches, ResetPermissionsButton, RolesForm } from "../staff-forms";
+import { HeadCoachButton, PermissionSwitches, ResetPermissionsButton, RolesForm, SevensSwitch } from "../staff-forms";
+import { can } from "@/lib/permissions";
 import { extraCount, isCoHeadCoach, isCustomized, loadStaff, removedCount } from "../data";
 
 // Detalle de una persona del staff: chips de rol, roles, permisos agrupados con
@@ -26,7 +27,21 @@ export default async function StaffMemberPage({ params }: { params: Promise<{ id
 
   const p = staff.find((s) => s.id === id);
   if (!p) notFound();
-  const avatarUrls = await getAvatarUrls(supabase, [p.id]);
+  // "Participa en Sevens": solo rugby con Sevens activo y para quien arma el grupo.
+  const showSevens = me.club?.sport === "rugby" && !!me.club?.has_sevens && can(myRoles, "sevens_grupo");
+  const [avatarUrls, inSevens] = await Promise.all([
+    getAvatarUrls(supabase, [p.id]),
+    showSevens
+      ? supabase
+          .from("sevens_group")
+          .select("member_id")
+          .eq("club_id", clubId)
+          .eq("member_id", p.id)
+          .is("archived_at", null)
+          .maybeSingle()
+          .then(({ data }) => !!data)
+      : false,
+  ]);
 
   const isMe = p.id === user.id;
   const iAmHeadCoach = myRoles.includes("head_coach");
@@ -83,6 +98,16 @@ export default async function StaffMemberPage({ params }: { params: Promise<{ id
             </div>
           )}
         </section>
+
+        {showSevens && (
+          <section className={`p-5 ${cardClass}`}>
+            <SectionTitle className="mb-3">Rugby Sevens</SectionTitle>
+            <SevensSwitch profileId={p.id} enabled={inSevens} />
+            <p className="mt-2 text-xs text-muted">
+              Los jugadores del grupo se eligen en Configuración → Grupo Sevens.
+            </p>
+          </section>
+        )}
 
         <section className={`p-5 ${cardClass}`}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
