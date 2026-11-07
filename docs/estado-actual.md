@@ -5,7 +5,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #95, 7 nov). En curso: cambio de posición y "Participa en Sevens" (`feat/posicion-sevens`, PR 2b).
+- Todo está mergeado en `main` (último: PR #96, 7 nov).
 - Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000, 20261105190000 20261105200000 a 20261105210000 y 20261106120000 a 20261106122000 y 20261107120000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
 - 43 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
@@ -45,6 +45,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 0048: Nóminas en lectura para el jugador: `event_callups_select` pasa a todo confirmado del club (antes staff o la fila propia; aprobado por Mati). `event_participations` no cambia. La barra ofrece Nóminas también al jugador.
 
 ## Historial
+- 7 nov · #97 · `/staff/[id]`: "Quita del staff" pasa a botón rojo con los colores de "Cerrar sesión" (`buttonDangerSoft` en `src/app/ui.tsx`; sin migración).
 - 7 nov · #96 · Cambio de posición desde la ficha ("Cambiar posición", con aviso de planes de gimnasio por posición) y "Participa en Sevens" por persona en `/staff/[id]` (20261107120000).
 - 7 nov · #95 · Permisos del staff (20261106120000–122000): rol = plantilla + ajustes por persona, co-head coach, head coach principal protegido, `/staff` con lista y detalle (`/staff/[id]`: chips de rol, interruptores, "Restablecer al rol", "Nombrar head coach" con confirmación); la app lee los permisos con `my_permissions`. Tests al día con lo ya aplicado.
 - 6 nov · #94 · Resumen del jugador (sin migración): fila-tarjeta "¿Entrenaste por tu cuenta?" en vez del link a `/mi-plan/propia`, y en Mi semana los eventos abren la hoja de detalle del calendario (extraída a `src/app/calendario/event-sheet.tsx`) en vez de un link roto a `/calendario/[id]`.
