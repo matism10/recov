@@ -202,8 +202,8 @@ select pg_temp.expect_error($q$select public.save_gym_plan(jsonb_set(current_set
   'Jugador inválido', 'destinatario de otro club');
 select pg_temp.expect_error($q$select public.save_gym_plan(jsonb_set(current_setting('t.p1')::jsonb, '{exclusions}', '["b1d00000-0000-0000-0000-000000000001"]'))$q$,
   'Jugador inválido', 'exclusión de otro club');
-select pg_temp.expect_error($q$select public.save_gym_plan(jsonb_set(current_setting('t.p1')::jsonb, '{targets}', jsonb_build_array(jsonb_build_object('kind', 'posicion', 'position_id', current_setting('t.pilar7')))))$q$,
-  'Posición inválida', 'posición del catálogo de Sevens');
+select pg_temp.expect_ok($q$select public.save_gym_plan(jsonb_set(current_setting('t.p1')::jsonb, '{targets}', jsonb_build_array(jsonb_build_object('kind', 'posicion', 'position_id', current_setting('t.pilar7')))))$q$,
+  'con Sevens: acepta una posición del catálogo de Sevens (20261105221000)');
 select pg_temp.expect_error($q$select public.save_gym_plan(jsonb_set(current_setting('t.p1')::jsonb, '{sessions,0,exercises,1,sets}', '11'))$q$,
   'Las series van de 1 a 10 (Dominadas)', 'series fuera de rango');
 select pg_temp.back();
