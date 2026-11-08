@@ -51,6 +51,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 ## Historial
 - 7 nov · PR pendiente · Evaluaciones: los tiempos mm:ss se dan formato al escribir (`maskMmss` en `src/lib/evaluations.ts`; "345" → "3:45"; sin migración).
 - 7 nov · PR pendiente · Gimnasio en el calendario (20261107190000): `gym_calendar` y chip "Gimnasio" de solo lectura en `/calendario`.
+- 7 nov · PR pendiente · Resumen del jugador (sin migración): tarjeta grande con su estado y la fase en curso en vez del plantel y el título "Disponibilidad del plantel". El Resumen del staff y `/plantel` no cambian.
 - 7 nov · PR pendiente · Notificaciones en el Resumen (20261107180000–184000): 23 de evento y 9 de estado; "Pendientes" pasa a ser la parte de estado.
 - 7 nov · #97 · `/staff/[id]`: "Quita del staff" pasa a botón rojo con los colores de "Cerrar sesión" (`buttonDangerSoft` en `src/app/ui.tsx`; sin migración).
 - 7 nov · #96 · Cambio de posición desde la ficha ("Cambiar posición", con aviso de planes de gimnasio por posición) y "Participa en Sevens" por persona en `/staff/[id]` (20261107120000).
@@ -131,7 +132,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - **Escala por deporte:** duración, tope y cortes de los rangos viven en la tabla `sports` (una sola fuente de verdad).
 - **Métricas → "Carga del plantel"** (staff): resumen (cuántos con carga alta y cuántos sin minutos o sin partidos) y los primeros 5 del ranking, con mini barras de los últimos 4 partidos y semáforo (con 3 partidos o más); "Ver ranking completo" abre `/metricas/carga`.
 - **Ficha del jugador → "Carga"** (staff): últimos 6 partidos, carga de la ventana, comparación con el promedio del plantel y última lesión.
-- **Jugador:** en su Resumen, "Mi carga" (sin semáforo) y "Mis partidos"; también ve su propia ficha. En Nóminas ve cada nómina en lectura (`/nominas/[eventId]`, 0048): titulares, banca y convocados sin puesto, sin disponibilidad ni minutos. Nunca la carga ni los minutos de otros jugadores.
+- **Jugador:** en su Resumen, arriba, una tarjeta grande con su estado (Disponible, En revisión, Lesionado o Reintegro, con sus colores) y, si está lesionado o en reintegro, la fase en curso (solo datos propios; ya no ve el plantel ahí, lo tiene en `/plantel`), `src/app/dashboard/my-status.tsx`; luego "Mi carga" (sin semáforo) y "Mis partidos"; también ve su propia ficha. En Nóminas ve cada nómina en lectura (`/nominas/[eventId]`, 0048): titulares, banca y convocados sin puesto, sin disponibilidad ni minutos. Nunca la carga ni los minutos de otros jugadores.
 
 **7. Calendario**
 - Las competencias solo piden hora de inicio; los entrenamientos, inicio y término.
