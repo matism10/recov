@@ -163,6 +163,23 @@ function eventWhen(startsAt: unknown) {
   return typeof startsAt === "string" ? sessionWhen(startsAt) : null;
 }
 
+const eventDayFormat = new Intl.DateTimeFormat("es-CL", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+// "sáb 8 nov, 19:00" en hora de Chile; con año ("sáb 8 nov 2027, 19:00") si no es el actual.
+function eventDateTime(startsAt: unknown) {
+  if (typeof startsAt !== "string" || Number.isNaN(new Date(startsAt).getTime())) return null;
+  const { date, time } = chileDateTime(startsAt);
+  const parts = eventDayFormat.formatToParts(new Date(`${date}T00:00:00Z`));
+  const part = (type: string) => parts.find((x) => x.type === type)?.value ?? "";
+  const year = date.slice(0, 4) !== todayInChile().slice(0, 4) ? ` ${date.slice(0, 4)}` : "";
+  return `${part("weekday")} ${part("day")} ${part("month")}${year}, ${time}`.replace(/\./g, "");
+}
+
 function calendarHref(p: Record<string, unknown>) {
   const id = str(p.event_id);
   const startsAt = str(p.starts_at);
@@ -243,13 +260,16 @@ export function storedCard(n: StoredNotification, ctx: { clubName: string | null
     // 2 · Evento nuevo
     case "evento_nuevo": {
       const weeks = num(p.weeks) ?? 1;
+      // Sin starts_at (avisos antiguos) queda la insignia de siempre y el detalle sin fecha.
+      const when = eventDateTime(p.starts_at);
       return {
         ...base,
+        badge: when ?? base.badge,
         tone: "celeste",
         icon: "calendar-plus",
         title: p.event_type === "competencia" ? `Nuevo partido${vsRival(p.opponent)}` : "Nuevo entrenamiento",
         detail:
-          [eventWhen(p.starts_at), weeks > 1 ? `cada semana (${weeks} semanas)` : null, str(p.location)]
+          [weeks > 1 ? `cada semana (${weeks} semanas)` : null, str(p.location)]
             .filter(Boolean)
             .join(" · ") + sevens || null,
         href: calendarHref(p),
