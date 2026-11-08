@@ -35,6 +35,7 @@ import {
   textButton,
 } from "@/app/ui";
 import { SummarySquad } from "./squad-browser";
+import { MyStatusCard } from "./my-status";
 import { NextMatch } from "./next-match";
 import { MetricsStrip, MetricsStripSkeleton, PlayerMetrics, loadMetricsStrip } from "./metrics-strip";
 import { getAttendanceRanking } from "@/lib/attendance";
@@ -311,7 +312,10 @@ export default async function DashboardPage() {
   // fase en curso de squad_current_phases. Sin consultas nuevas.
   const me = isPlayer ? players.find((p) => p.user_id === user.id) : undefined;
   const myStatus = me?.availability as Availability | undefined;
-  const myPhase = me && myStatus === "lesionado" ? phaseByPlayer.get(me.id) : undefined;
+  const myPhase =
+    me && (myStatus === "lesionado" || myStatus === "reintegro") ? phaseByPlayer.get(me.id) : undefined;
+  // Resumen del jugador (sin rol de staff): su estado en vez del plantel.
+  const playerView = isPlayer && !staff;
   // Jugador: su carga de partidos y sus convocatorias (solo si tiene ficha en el plantel).
   const myLoad = me ? byRole.myLoad : null;
 
@@ -399,9 +403,16 @@ export default async function DashboardPage() {
       {formatCtx.canSevens && <FormatSwitch format={formatCtx.format} />}
       {askSevensPosition && <SevensPositionBanner />}
       <header className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <PageTitle>Disponibilidad del plantel</PageTitle>
-          {myStatus && (
+        <div className={playerView ? "min-w-0 flex-1" : undefined}>
+          {playerView ? (
+            <>
+              <h1 className="sr-only">Resumen</h1>
+              {myStatus && <MyStatusCard status={myStatus} phase={myPhase} />}
+            </>
+          ) : (
+            <PageTitle>Disponibilidad del plantel</PageTitle>
+          )}
+          {myStatus && !playerView && (
             <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink">
               Tu estado
               <AvailabilityBadge status={myStatus} />
@@ -754,6 +765,7 @@ export default async function DashboardPage() {
         </>
       )}
 
+      {!playerView && (
       <section>
         <SectionTitle className="mb-3">Plantel</SectionTitle>
         {players.length === 0 ? (
@@ -778,6 +790,7 @@ export default async function DashboardPage() {
           </Link>
         )}
       </section>
+      )}
     </main>
     </>
   );
