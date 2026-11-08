@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Imágenes de identidad de prueba (fotos reales): nunca al repo, que es público.
 /public/dev-identity/
+
+# Capturas para el video (no se commitean)
+capturas-reel/

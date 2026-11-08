@@ -42,8 +42,8 @@ export function Screens({ images }: { images: Record<string, string | null> }) {
           <li key={s.file} className="w-[292px] shrink-0 snap-start rounded-[28px] bg-[#E8F6FE] p-5">
             <p className="text-xs font-bold tracking-wider text-[#3F5266] uppercase">{s.label}</p>
             <p className="mt-2 min-h-[3.5rem] font-[family-name:var(--l-title)] text-lg leading-snug font-bold tracking-tight">{s.text}</p>
-            <div className="mx-auto mt-4 h-[300px] w-[200px] overflow-hidden rounded-t-[26px] border-[3px] border-b-0 border-[#0B1B2B] bg-white">
-              <Shot src={images[s.file]} name={s.label} width={PHONE_SIZE.width} height={PHONE_SIZE.height} sizes="200px" />
+            <div className="mx-auto mt-4 w-[220px] overflow-hidden rounded-[30px] border-[3px] border-[#0B1B2B] bg-white">
+              <Shot src={images[s.file]} name={s.label} width={PHONE_SIZE.width} height={PHONE_SIZE.height} sizes="220px" />
             </div>
           </li>
         ))}
