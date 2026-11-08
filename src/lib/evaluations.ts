@@ -66,6 +66,16 @@ export function formatValue(value: number, test: Pick<TestDefinition, "unit" | "
   return test.display_format === "mmss" ? n : `${n} ${test.unit}`;
 }
 
+// Máscara al escribir un tiempo: los últimos 2 dígitos son los segundos ("345" → "3:45").
+// Con 1 o 2 dígitos se deja tal cual (segundos). Segundos máx. 59; minutos máx. 3 dígitos.
+export function maskMmss(input: string) {
+  const d = input.replace(/\D/g, "").slice(0, 5);
+  if (d.length <= 2) return d;
+  const m = String(Number(d.slice(0, -2)));
+  const s = Math.min(Number(d.slice(-2)), 59);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 // Texto del formulario → número. null si no es válido. mm:ss acepta "4:35" o segundos.
 export function parseValue(input: string, format: DisplayFormat): number | null {
   const s = input.trim();

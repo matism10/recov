@@ -49,6 +49,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 20261107190000: `gym_calendar(desde, hasta, formato)` (SECURITY DEFINER, solo `authenticated`; rango máx. 62 días; el gimnasio no tiene formato, el parámetro solo se valida): jugador confirmado y activo, solo sus sesiones (`private.gym_assignments`); staff con `gimnasio_planes` o `lesiones_ver`, las sesiones de los planes publicados del club. Planes y sesiones archivados no salen. Probada en `gym_plan_test.sql`.
 
 ## Historial
+- 7 nov · PR pendiente · Evaluaciones: los tiempos mm:ss se dan formato al escribir (`maskMmss` en `src/lib/evaluations.ts`; "345" → "3:45"; sin migración).
 - 7 nov · PR pendiente · Gimnasio en el calendario (20261107190000): `gym_calendar` y chip "Gimnasio" de solo lectura en `/calendario`.
 - 7 nov · PR pendiente · Notificaciones en el Resumen (20261107180000–184000): 23 de evento y 9 de estado; "Pendientes" pasa a ser la parte de estado.
 - 7 nov · #97 · `/staff/[id]`: "Quita del staff" pasa a botón rojo con los colores de "Cerrar sesión" (`buttonDangerSoft` en `src/app/ui.tsx`; sin migración).
