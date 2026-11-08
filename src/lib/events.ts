@@ -56,6 +56,9 @@ export type CalendarEvent = {
   repeated: boolean; // creado con repetición semanal
 };
 
+// Sesión de gimnasio en el calendario (gym_calendar): no es un evento, solo lectura.
+export type GymEntry = { day: string; session_id: string; plan_id: string; title: string };
+
 // Resumen de event_availability para el staff: conteos y los primeros nombres.
 export type EventAvailabilitySummary = {
   ok: number;

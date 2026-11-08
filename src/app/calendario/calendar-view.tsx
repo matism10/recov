@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChartColumn, ChevronLeft, ChevronRight, ClipboardList, ListChecks } from "lucide-react";
+import { ChartColumn, ChevronLeft, ChevronRight, ClipboardList, Dumbbell, ListChecks } from "lucide-react";
 import { addDays } from "@/lib/injuries";
 import {
   WEEKDAY_LABELS,
@@ -16,6 +16,7 @@ import {
   weekDays,
   weekStart,
   type CalendarEvent,
+  type GymEntry,
   type EventAvailabilitySummary,
   type SummaryPlayer,
   eventTimeLabel,
@@ -38,6 +39,8 @@ type Props = {
   today: string;
   days: string[];
   events: CalendarEvent[];
+  gym: GymEntry[]; // sesiones de gimnasio (solo lectura, todo el día)
+  gymHref: string; // /mi-plan (jugador) o /planes (staff)
   availability: Record<string, EventAvailabilitySummary>;
   staff: boolean;
   canManage: boolean;
@@ -55,6 +58,8 @@ export function CalendarView({
   today,
   days,
   events,
+  gym,
+  gymHref,
   availability,
   staff,
   canManage,
@@ -69,6 +74,10 @@ export function CalendarView({
 
   const byDay = new Map<string, CalendarEvent[]>();
   for (const e of events) byDay.set(e.day, [...(byDay.get(e.day) ?? []), e]);
+
+  const gymByDay = new Map<string, GymEntry[]>();
+  for (const g of gym) gymByDay.set(g.day, [...(gymByDay.get(g.day) ?? []), g]);
+  const gymProps = { gymByDay, gymHref };
 
   const savedLists = new Set(attendanceSaved);
   const chipProps = {
@@ -108,7 +117,7 @@ export function CalendarView({
 
   return (
     <div>
-      <MonthGrid anchor={anchor} today={today} days={days} byDay={byDay} {...chipProps} />
+      <MonthGrid anchor={anchor} today={today} days={days} byDay={byDay} {...gymProps} {...chipProps} />
       {/* Celular: semana (por defecto) o mes. */}
       <ViewToggle view={view} onWeek={() => showWeek(weekAnchor)} onMonth={showMonth} />
       {view === "mes" ? (
@@ -119,6 +128,7 @@ export function CalendarView({
           byDay={byDay}
           initialDay={selected?.day ?? (weekAnchor.slice(0, 7) === anchor.slice(0, 7) ? weekAnchor : null)}
           onPickDay={setWeekAnchor}
+          {...gymProps}
           {...chipProps}
         />
       ) : (
@@ -128,6 +138,7 @@ export function CalendarView({
           byDay={byDay}
           loaded={loaded}
           onShowWeek={showWeek}
+          {...gymProps}
           {...chipProps}
         />
       )}
@@ -147,6 +158,11 @@ export function CalendarView({
   );
 }
 
+type GymProps = {
+  gymByDay: Map<string, GymEntry[]>;
+  gymHref: string;
+};
+
 type ChipProps = {
   availability: Record<string, EventAvailabilitySummary>;
   savedLists: Set<string>;
@@ -163,13 +179,15 @@ function MonthGrid({
   today,
   days,
   byDay,
+  gymByDay,
+  gymHref,
   ...chipProps
 }: {
   anchor: string;
   today: string;
   days: string[];
   byDay: Map<string, CalendarEvent[]>;
-} & ChipProps) {
+} & GymProps & ChipProps) {
   const month = anchor.slice(0, 7);
   return (
     <section aria-label="Mes" className="hidden lg:block">
@@ -225,6 +243,9 @@ function MonthGrid({
                 </span>
                 {dayEvents.map((e) => (
                   <EventChip key={e.id} event={e} {...chipProps} />
+                ))}
+                {(gymByDay.get(day) ?? []).map((g) => (
+                  <GymChip key={g.session_id} entry={g} href={gymHref} />
                 ))}
               </li>
             );
@@ -292,6 +313,8 @@ function MobileMonth({
   byDay,
   initialDay,
   onPickDay,
+  gymByDay,
+  gymHref,
   ...chipProps
 }: {
   anchor: string;
@@ -301,7 +324,7 @@ function MobileMonth({
   initialDay: string | null;
   // El día elegido pasa a ser la semana que se ve al volver a "Semana".
   onPickDay: (day: string) => void;
-} & ChipProps) {
+} & GymProps & ChipProps) {
   const month = anchor.slice(0, 7);
   const inMonth = (d: string) => d.slice(0, 7) === month;
   // Día elegido: el del evento abierto, hoy si es de este mes, el primero con
@@ -314,6 +337,7 @@ function MobileMonth({
       `${month}-01`,
   );
   const dayEvents = byDay.get(day) ?? [];
+  const dayGym = gymByDay.get(day) ?? [];
 
   return (
     <section aria-label="Mes" className="lg:hidden">
@@ -344,6 +368,7 @@ function MobileMonth({
       <ol className="grid grid-cols-7 gap-y-1">
         {days.map((d) => {
           const events = byDay.get(d) ?? [];
+          const gymCount = (gymByDay.get(d) ?? []).length;
           const isToday = d === today;
           const chosen = d === day;
           return (
@@ -359,7 +384,7 @@ function MobileMonth({
                   events.length > 0
                     ? `, ${events.length} ${events.length === 1 ? "evento" : "eventos"}`
                     : ""
-                }`}
+                }${gymCount > 0 ? ", gimnasio" : ""}`}
                 className={`flex min-h-12 w-full flex-col items-center justify-center gap-1 rounded-lg transition ${
                   chosen ? "bg-brand-soft" : "hover:bg-mist"
                 }`}
@@ -377,6 +402,7 @@ function MobileMonth({
                   {Number(d.slice(8))}
                 </span>
                 <span aria-hidden="true" className="flex h-1.5 gap-0.5">
+                  {gymCount > 0 && <span className="size-1.5 rounded-full bg-emerald-500" />}
                   {events.slice(0, 3).map((e) => (
                     <span
                       key={e.id}
@@ -393,11 +419,16 @@ function MobileMonth({
       </ol>
 
       <h3 className="mt-6 mb-2 text-sm font-medium text-muted">{longDayLabel(day)}</h3>
-      {dayEvents.length > 0 ? (
+      {dayEvents.length > 0 || dayGym.length > 0 ? (
         <ul className="space-y-2">
           {dayEvents.map((e) => (
             <li key={e.id}>
               <EventChip event={e} wide {...chipProps} />
+            </li>
+          ))}
+          {dayGym.map((g) => (
+            <li key={g.session_id}>
+              <GymChip entry={g} href={gymHref} wide />
             </li>
           ))}
         </ul>
@@ -417,6 +448,8 @@ function WeekList({
   byDay,
   loaded,
   onShowWeek,
+  gymByDay,
+  gymHref,
   ...chipProps
 }: {
   anchor: string;
@@ -424,7 +457,7 @@ function WeekList({
   byDay: Map<string, CalendarEvent[]>;
   loaded: (week: string[]) => boolean;
   onShowWeek: (date: string) => void;
-} & ChipProps) {
+} & GymProps & ChipProps) {
   const week = weekDays(anchor);
   const start = weekStart(anchor);
   const inThisWeek = week.includes(today);
@@ -454,6 +487,7 @@ function WeekList({
       <ol className="space-y-4">
         {week.map((day) => {
           const dayEvents = byDay.get(day) ?? [];
+          const dayGym = gymByDay.get(day) ?? [];
           const isToday = day === today;
           return (
             <li key={day}>
@@ -469,11 +503,16 @@ function WeekList({
                   </span>
                 )}
               </h3>
-              {dayEvents.length > 0 ? (
+              {dayEvents.length > 0 || dayGym.length > 0 ? (
                 <ul className="space-y-2">
                   {dayEvents.map((e) => (
                     <li key={e.id}>
                       <EventChip event={e} wide {...chipProps} />
+                    </li>
+                  ))}
+                  {dayGym.map((g) => (
+                    <li key={g.session_id}>
+                      <GymChip entry={g} href={gymHref} wide />
                     </li>
                   ))}
                 </ul>
@@ -526,6 +565,26 @@ const CHIP_STYLE = {
   entrenamiento: "border-line bg-white text-ink hover:bg-mist",
   competencia: "border-brand bg-brand-soft text-brand-text hover:border-brand-strong",
 };
+
+// Sesión de gimnasio: solo lectura, todo el día (sin hora). Lleva a /mi-plan o /planes.
+function GymChip({ entry, href, wide = false }: { entry: GymEntry; href: string; wide?: boolean }) {
+  return (
+    <Link
+      href={href}
+      title={entry.title}
+      className={`block w-full rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 transition hover:border-emerald-400 ${
+        wide ? "min-h-11 px-4 py-3" : "px-1.5 py-1 text-xs"
+      }`}
+    >
+      <span className="flex items-center gap-1.5">
+        <Dumbbell aria-hidden="true" className={wide ? "size-4" : "size-3"} />
+        <span className={wide ? "text-sm font-medium" : "font-medium"}>Gimnasio</span>
+        {wide && <span className="text-sm text-emerald-800/80">· Todo el día</span>}
+      </span>
+      {wide && <span className="mt-0.5 block truncate text-sm">{entry.title}</span>}
+    </Link>
+  );
+}
 
 function EventChip({
   event,

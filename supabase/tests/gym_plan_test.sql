@@ -1,4 +1,4 @@
--- Recov · Test del plan de gimnasio (20261105200000, 20261105201000, 20261105202000 y 20261105210000)
+-- Recov · Test del plan de gimnasio (20261105200000, 20261105201000, 20261105202000, 20261105210000 y 20261107190000)
 -- Autónomo: crea sus propios datos y termina en ROLLBACK. Si algo falla, lanza un error que empieza con "FAIL".
 -- Las sesiones se arman según el día de hoy en Chile (t.dow*: día ISO de hoy y de hace N días).
 
@@ -480,14 +480,52 @@ select pg_temp.expect_eq($q$select string_agg(concat_ws('|', x->>'name', coalesc
   'my_gym_today trae bloque, superserie y segundos');
 select pg_temp.back();
 
+-- =======================================================================
+-- Calendario: gym_calendar (20261107190000)
+-- =======================================================================
+select pg_temp.as_user('10000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect_ok($q$select public.save_gym_plan(jsonb_build_object(
+  'name', 'Borrador cal', 'starts_on', current_setting('t.from'), 'ends_on', current_setting('t.to'),
+  'targets', jsonb_build_array(jsonb_build_object('kind', 'plantel')), 'exclusions', '[]'::jsonb,
+  'sessions', jsonb_build_array(jsonb_build_object('label', 'Sesión Borrador', 'weekday', current_setting('t.dow0')::int, 'est_minutes', 40,
+    'exercises', jsonb_build_array(jsonb_build_object('name', 'Plancha', 'sets', 3, 'reps', '20 s', 'intensity_type', 'bw'))))))$q$,
+  'borrador para el calendario');
+-- Staff con gimnasio_planes: ve la sesión publicada y no el borrador.
+select pg_temp.expect_count($q$select 1 from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date, '15') where title = 'Sesión T'$q$, 1, 'head coach ve la sesión publicada');
+select pg_temp.expect_count($q$select 1 from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date, '15') where title = 'Sesión Borrador'$q$, 0, 'el borrador no aparece (staff)');
+select pg_temp.back();
+-- Staff con lesiones_ver (kinesiólogo): también la ve.
+select pg_temp.as_user('30000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect_count($q$select 1 from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date, '15') where title = 'Sesión T'$q$, 1, 'kinesiólogo ve la sesión publicada');
+select pg_temp.back();
+-- Jugador: solo lo suyo (J1 es Pilar; J2 es Wing y no recibe P5).
+select pg_temp.as_user('60000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect_count($q$select 1 from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date, '15') where title = 'Sesión T'$q$, 1, 'jugador ve su sesión');
+select pg_temp.expect_count($q$select 1 from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date, '15') where title = 'Sesión Borrador'$q$, 0, 'el borrador no aparece (jugador)');
+select pg_temp.back();
+select pg_temp.as_user('61000000-0000-0000-0000-0000000000d1');
+select pg_temp.expect_count($q$select 1 from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date, '7') where title = 'Sesión T'$q$, 0, 'jugador sin ese destinatario no la ve');
+select pg_temp.back();
+-- Otro club: no ve nada del club A.
+select pg_temp.as_user('10000000-0000-0000-0000-0000000000d2');
+select pg_temp.expect_count($q$select 1 from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date, '15')$q$, 0, 'staff de otro club no ve sesiones ajenas');
+select pg_temp.back();
+select pg_temp.as_user('60000000-0000-0000-0000-0000000000d2');
+select pg_temp.expect_count($q$select 1 from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date, '15')$q$, 0, 'jugador de otro club no ve sesiones ajenas');
+select pg_temp.expect_state($q$select * from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date + 90, '15')$q$, 'P0001', 'rango demasiado largo');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select * from public.gym_calendar(current_setting('t.today')::date, current_setting('t.today')::date, '15')$q$, 'anónimo no accede');
+select pg_temp.back();
+
 -- Funciones: SECURITY DEFINER, search_path vacío, authenticated sí y anon no
 select pg_temp.expect_count($q$select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
   and p.proname in ('save_gym_plan', 'publish_gym_plan', 'archive_gym_plan', 'complete_gym_session', 'log_own_gym_session',
                     'submit_gym_rpe', 'my_gym_today', 'my_gym_week', 'my_gym_log_summary', 'team_load_breakdown',
-                    'gym_adherence', 'player_gym_summary', 'gym_plan_progress')
+                    'gym_adherence', 'player_gym_summary', 'gym_plan_progress', 'gym_calendar')
   and p.prosecdef and p.proconfig = array['search_path=""']
-  and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE')$q$, 13,
-  'gimnasio: 13 funciones solo para authenticated');
+  and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE')$q$, 14,
+  'gimnasio: 14 funciones solo para authenticated');
 select pg_temp.expect_count($q$select 1 from pg_proc p where p.pronamespace = 'private'::regnamespace
   and p.proname in ('gym_plan_players', 'gym_assignments', 'gym_last_max', 'gym_session_exercises', 'gym_planner_club',
                     'gym_kg_test', 'gym_in_window', 'load_sessions', 'chile_today', 'gym_round_kg')
