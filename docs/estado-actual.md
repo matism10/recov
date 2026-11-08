@@ -33,6 +33,12 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 0048: Nóminas en lectura para el jugador: `event_callups_select` pasa a todo confirmado del club (antes staff o la fila propia; aprobado por Mati). `event_participations` no cambia. La barra ofrece Nóminas también al jugador.
 
 ## Historial
+
+- 8 nov · PR pendiente · Landing pública en `/inicio` (route group `(landing)`, sin shell de la app), servida en la raíz de recov.cl y www.recov.cl por rewrite en `proxy.ts`; en los demás hosts `/inicio` redirige a `/`.
+  - Migración `20261108120000_access_requests`: tabla `access_requests` (RLS sin policies) y `submit_access_request` (SECURITY DEFINER, anon/authenticated; valida y evita duplicados del mismo correo en 24 h). Prueba: `supabase/tests/access_requests_test.sql`.
+  - Formulario de 5 campos: server action con honeypot y validación (`src/lib/landing/config.ts`); guarda y luego avisa a contacto@recov.cl con `sendEmail` (si el correo falla, queda guardada).
+  - Capturas en `public/landing/` (nombres en `config.ts`); si falta una, bloque gris. La réplica de Plantel/Cancha usa `Pitch` y `PITCH_LAYOUTS` con datos ficticios.
+  - Pendiente: páginas `/terminos` y `/privacidad` (enlaces ya puestos), dominio en Vercel/Cloudflare y revisar Auth URLs en Supabase.
 - 4 nov · PR pendiente · Registro de lesión v2: el jugador elige la zona en un mapa del cuerpo (Frente/Espalda, o lista) y el lado (sugerido según dónde tocó), el documento médico es opcional con Reemplazar/Eliminar hasta la revisión, el kine ve "Sin documento", zona y lado, y el Resumen del staff tiene el mapa "Zonas lesionadas".
 - 2 nov · #85 · Abrir la Web App y cambiar Rugby 15 ↔ Sevens más rápido: `start_url` a `/dashboard` y "/" redirige desde el proxy (antes armaba la página; ~0,6 s menos), el selector de formato ya no pide la página dos veces (sin `router.refresh()`), el Resumen no espera al grupo Sevens para sus consultas (`withActiveFormat`), "Por revisar" en Sevens se filtra sin consultar las fichas del grupo y la franja de métricas llega aparte con su esqueleto. Medido con `next start`: abrir la app 1,24 s → 0,72 s (head coach); cambio de formato 1,2–1,4 s → 0,7 s.
 - 2 nov · #84 · Navegación móvil: barra configurable por cuenta y plantel (0047), botón "Registrar lesión" del jugador, hoja "Más" en grilla con Perfil y Cerrar sesión, sección "Barra principal" en Perfil y Nóminas para todos (0048; el jugador en lectura en `/nominas/[eventId]`, también en la sidebar).
