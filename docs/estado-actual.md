@@ -46,8 +46,10 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
   - 20261107180000: notificaciones. Tabla `notifications` (`kind` validado por `private.notification_category`, `category` generada, `payload`, `dismissed_at`, `dedupe_key` con índice único parcial: lo que llega después actualiza la viva). RLS: cada uno lee solo las suyas y solo donde sigue confirmado; sin escritura directa. `private.notify`, `notify_players`, `notify_perm` y `dismiss_notification_keys`; `dismiss_notification(id)` y `dismiss_all_notifications()`; de estado, `my_state_notifications(formato)` (jugador) y `my_staff_state_notifications(formato)` (staff, por permiso).
   - 20261107181000–184000: las funciones existentes (copiadas de la base, misma firma) crean las notificaciones: eventos y nóminas (181000), lesiones y disponibilidad (182000), gimnasio y evaluaciones (183000), cuenta, registros, Sevens, posición y delegados (184000).
+  - 20261107190000: `gym_calendar(desde, hasta, formato)` (SECURITY DEFINER, solo `authenticated`; rango máx. 62 días; el gimnasio no tiene formato, el parámetro solo se valida): jugador confirmado y activo, solo sus sesiones (`private.gym_assignments`); staff con `gimnasio_planes` o `lesiones_ver`, las sesiones de los planes publicados del club. Planes y sesiones archivados no salen. Probada en `gym_plan_test.sql`.
 
 ## Historial
+- 7 nov · PR pendiente · Gimnasio en el calendario (20261107190000): `gym_calendar` y chip "Gimnasio" de solo lectura en `/calendario`.
 - 7 nov · PR pendiente · Notificaciones en el Resumen (20261107180000–184000): 23 de evento y 9 de estado; "Pendientes" pasa a ser la parte de estado.
 - 7 nov · #97 · `/staff/[id]`: "Quita del staff" pasa a botón rojo con los colores de "Cerrar sesión" (`buttonDangerSoft` en `src/app/ui.tsx`; sin migración).
 - 7 nov · #96 · Cambio de posición desde la ficha ("Cambiar posición", con aviso de planes de gimnasio por posición) y "Participa en Sevens" por persona en `/staff/[id]` (20261107120000).
@@ -133,6 +135,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **7. Calendario**
 - Las competencias solo piden hora de inicio; los entrenamientos, inicio y término.
 - Celular: cambiar entre Semana y Mes, y entre semanas del mes cargado, es inmediato (sin ir al servidor; la URL se actualiza con `replaceState`). Solo cambiar de mes pide datos nuevos.
+- **Gimnasio** (20261107190000): las sesiones del plan aparecen como chip verde "Gimnasio" (todo el día, sin hora, solo lectura) en la grilla del mes, la semana y el día del mes en el celular (con su punto). Jugador: solo las suyas, lleva a `/mi-plan`; staff: las de planes publicados, lleva a `/planes`. No son eventos: no cuentan en disponibilidad, nóminas ni sRPE.
 
 **7b. Asistencia a entrenamientos** (20261105120000)
 - **Pasar lista** (cualquier staff): en el detalle de un entrenamiento, botón "Pasar lista", habilitado desde que empieza y si no está cancelado. Pantalla `/calendario/[id]/asistencia`: contadores Presentes / Ausentes, todos parten presentes y se toca a quien faltó (chip Presente/Ausente), insignia "Lesionado" solo informativa y "Guardar asistencia". Si ya hay lista, se precarga y se corrige. En Sevens, la lista es el grupo.

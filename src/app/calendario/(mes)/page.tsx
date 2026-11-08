@@ -11,6 +11,7 @@ import {
   type EventAvailabilityRow,
   type EventAvailabilitySummary,
   type EventRow,
+  type GymEntry,
 } from "@/lib/events";
 import { PageTitle, buttonPrimary } from "@/app/ui";
 import { CalendarView } from "../calendar-view";
@@ -50,7 +51,7 @@ export default async function CalendarPage({
   const last = days[days.length - 1];
   // Solo los eventos del formato activo (Rugby 15 o Sevens). Los eventos del mes se
   // piden en paralelo con el formato y se filtran aquí, sin esperar uno al otro.
-  const [format, { data: rows }] = await Promise.all([
+  const [format, { data: rows }, { data: gymRows }] = await Promise.all([
     getActiveFormat(userId),
     supabase
       .from("events")
@@ -59,7 +60,10 @@ export default async function CalendarPage({
       .gte("starts_at", `${addDays(first, -1)}T00:00:00Z`)
       .lt("starts_at", `${addDays(last, 2)}T00:00:00Z`)
       .order("starts_at"),
+    // Sesiones de gimnasio (solo lectura). Si falla, el calendario sigue sin ellas.
+    supabase.rpc("gym_calendar", { p_from: first, p_to: last, p_format: "15" }),
   ]);
+  const gym = ((gymRows ?? []) as GymEntry[]).filter((g) => g.day >= first && g.day <= last);
   const sevensIdsPromise = format === "7" ? getSevensPlayerIds(userId) : Promise.resolve(null);
   const now = new Date();
   const events = ((rows ?? []) as EventRow[])
@@ -118,6 +122,8 @@ export default async function CalendarPage({
         today={today}
         days={days}
         events={events}
+        gym={gym}
+        gymHref={staff ? "/planes" : "/mi-plan"}
         availability={availability}
         staff={staff}
         canManage={canManage}
