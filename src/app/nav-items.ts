@@ -3,6 +3,7 @@
 // muestra: cada página valida su propio acceso.
 import {
   Activity,
+  BicepsFlexed,
   CalendarDays,
   CircleUserRound,
   ChartColumn,
@@ -34,6 +35,14 @@ export const HIDDEN_ON = ["/login", "/c", "/pendiente"];
 
 export function isNavHidden(path: string) {
   return HIDDEN_ON.some((prefix) => startsWith(path, prefix));
+}
+
+// Pantallas sin la barra inferior del celular (la sidebar de escritorio y el
+// encabezado se mantienen): el esfuerzo tiene su propio pie fijo con "Guardar".
+export const HIDE_BAR_ON = ["/reportar", "/mi-plan/esfuerzo"];
+
+export function isBarHidden(path: string) {
+  return isNavHidden(path) || HIDE_BAR_ON.some((prefix) => startsWith(path, prefix));
 }
 
 export const RESUMEN: NavItem = {
@@ -102,18 +111,40 @@ export const NOMINAS: NavItem = {
   isActive: (p) => startsWith(p, "/nominas"),
 };
 
+// Planes de gimnasio (head coach y preparador físico) y Mi plan (jugador).
+export const PLANES: NavItem = {
+  href: "/planes",
+  label: "Planes de gimnasio",
+  Icon: BicepsFlexed,
+  isActive: (p) => startsWith(p, "/planes"),
+};
+export const MI_PLAN: NavItem = {
+  href: "/mi-plan",
+  label: "Mi plan",
+  Icon: BicepsFlexed,
+  isActive: (p) => startsWith(p, "/mi-plan"),
+};
+
 // Sidebar de escritorio, en dos áreas: el día a día (Métricas y Nóminas solo para
 // el staff) y la administración del club (Registros, Staff y Configuración, solo
 // la dirección: head coach y manager).
 // Evaluaciones: el staff que ve resultados (todos menos el manager).
+// Configuración: también el preparador físico, que ahí solo ve el check de bienestar.
+// Planes de gimnasio: head coach y preparador físico; Mi plan: el jugador.
 export function sidebarItems({
   direction,
   staff,
   evaluations = false,
+  wellnessConfig = false,
+  gymPlanner = false,
+  player = false,
 }: {
   direction: boolean;
   staff: boolean;
   evaluations?: boolean;
+  wellnessConfig?: boolean;
+  gymPlanner?: boolean;
+  player?: boolean;
 }): {
   main: NavItem[];
   admin: NavItem[];
@@ -123,7 +154,10 @@ export function sidebarItems({
   // Nóminas: todos los confirmados (0048); el jugador la ve en lectura.
   main.push(NOMINAS);
   if (evaluations) main.push(EVALUACIONES);
-  return { main, admin: direction ? [REGISTROS, STAFF, CONFIGURACION] : [] };
+  if (gymPlanner) main.push(PLANES);
+  if (player) main.push(MI_PLAN);
+  const admin = direction ? [REGISTROS, STAFF, CONFIGURACION] : wellnessConfig ? [CONFIGURACION] : [];
+  return { main, admin };
 }
 
 // Pantallas propias del jugador (barra móvil y hoja "Más"). "Mis lesiones" es la
@@ -160,6 +194,8 @@ export const NAV_SCREEN_ITEM: Record<NavScreen, NavItem> = {
   staff: STAFF,
   mis_lesiones: MIS_LESIONES,
   mis_evaluaciones: MIS_EVALUACIONES,
+  planes: PLANES,
+  mi_plan: MI_PLAN,
 };
 
 // Formulario con el que el jugador registra su lesión (el mismo del Resumen).

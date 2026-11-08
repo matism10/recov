@@ -1,9 +1,11 @@
-// Barra inferior móvil configurable (0047, 0048): pantallas por rol, cantidad de slots y
+// Barra inferior móvil configurable (0047, 0048 y plan de gimnasio 20261105201000): pantallas por rol, cantidad de slots y
 // valores por defecto. Compartido entre servidor y cliente. Las mismas reglas las
 // valida la base en set_nav_slots (private.nav_allowed_screens); aquí solo deciden
 // qué se muestra y qué se ofrece en Perfil.
-import { isDirection, isStaff, type UserRole } from "@/lib/roles";
+import { canApproveRegistrations, isDirection, isStaff, type UserRole } from "@/lib/roles";
+import { can } from "@/lib/permissions";
 import { canReadEvaluations } from "@/lib/evaluations";
+import { canPlanGym } from "@/lib/gym-roles";
 
 // Mismo orden que el catálogo de la base (private.nav_screen_keys): es también el
 // orden de la hoja "Más" y de las opciones en Perfil.
@@ -19,6 +21,8 @@ export const NAV_SCREENS = [
   "staff",
   "mis_lesiones",
   "mis_evaluaciones",
+  "planes",
+  "mi_plan",
 ] as const;
 
 export type NavScreen = (typeof NAV_SCREENS)[number];
@@ -35,6 +39,8 @@ export const NAV_SCREEN_LABEL: Record<NavScreen, string> = {
   staff: "Staff",
   mis_lesiones: "Mis lesiones",
   mis_evaluaciones: "Mis evaluaciones",
+  planes: "Planes de gimnasio",
+  mi_plan: "Mi plan",
 };
 
 export function isNavScreen(value: unknown): value is NavScreen {
@@ -48,12 +54,17 @@ export function allowedScreens(roles: readonly UserRole[]): NavScreen[] {
   const staff = isStaff(roles);
   const player = roles.includes("jugador");
   const allowed = new Set<NavScreen>(["resumen", "calendario", "plantel", "nominas"]);
-  if (staff) ["lesiones", "metricas"].forEach((s) => allowed.add(s as NavScreen));
+  // Igual que private.nav_allowed_screens: Lesiones, Registros, Staff y Planes siguen permisos.
+  if (can(roles, "lesiones_ver")) allowed.add("lesiones");
+  if (staff) allowed.add("metricas");
   if (canReadEvaluations(roles)) allowed.add("evaluaciones");
-  if (isDirection(roles)) ["registros", "staff"].forEach((s) => allowed.add(s as NavScreen));
+  if (canApproveRegistrations(roles)) allowed.add("registros");
+  if (isDirection(roles)) allowed.add("staff");
+  // Planes de gimnasio: head coach y preparador físico.
+  if (canPlanGym(roles)) allowed.add("planes");
   // Para el staff, Lesiones ya muestra las del plantel: Mis lesiones solo es del jugador.
   if (player && !staff) allowed.add("mis_lesiones");
-  if (player) allowed.add("mis_evaluaciones");
+  if (player) ["mis_evaluaciones", "mi_plan"].forEach((s) => allowed.add(s as NavScreen));
   return NAV_SCREENS.filter((s) => allowed.has(s));
 }
 
@@ -75,7 +86,9 @@ export function defaultSlots(
   else if (roles.includes("entrenador")) base = ["resumen", "calendario", "lesiones", "plantel"];
   else if (roles.includes("preparador_fisico") || roles.includes("nutricionista"))
     base = ["resumen", "calendario", "evaluaciones", "plantel"];
-  else base = ["resumen", "calendario", "mis_lesiones"];
+  // Jugador: Mi plan en la barra; "Mis lesiones" queda en "Más". Solo cambia para quien
+  // no guardó su barra (slots NULL).
+  else base = ["resumen", "calendario", "mi_plan"];
   return fill(base, allowedScreens(roles), slotCount(roles));
 }
 

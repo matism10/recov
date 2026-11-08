@@ -1,5 +1,6 @@
 -- Recov · Test de aislamiento entre clubes y de permisos por rol
--- Correr en el SQL Editor de Supabase DESPUÉS de las migraciones 0001 a 0048.
+-- Correr DESPUÉS de las migraciones 0001 a 0048 y las de fecha y hora hasta 20261106122000.
+-- 7 nov: puestos al día (dash_* por formato, tipo de lesión v2, pendientes reales); "70…a" se confirma en la sección 6.
 -- Todo ocurre dentro de una transacción que termina en ROLLBACK: no deja datos.
 -- Si algo falla, lanza un error que empieza con "FAIL".
 
@@ -296,20 +297,20 @@ select pg_temp.expect_fail($q$insert into public.documents (club_id, player_id, 
 select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name) values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf')$q$,
   'jugador A1 sube su archivo');
 -- archivo que no existe en storage
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 6, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 6, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/noexiste.pdf","name":"x.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta con archivo inexistente');
 -- ruta de otro jugador
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 6, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 6, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000002/ajeno.pdf","name":"x.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta con ruta de otro jugador');
 -- duración inválida y fecha futura
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 0, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 0, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta duración 0');
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 3, 'años', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 3, 'años', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta unidad inválida');
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date + 5, 3, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date + 5, 3, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$, 'reporta fecha futura');
 -- el reporte válido
-select pg_temp.expect_ok($q$select public.report_injury('Esguince de tobillo', current_date - 2, 8, 'semanas', 'Me torcí en el entrenamiento',
+select pg_temp.expect_ok($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 8, 'semanas', 'Me torcí en el entrenamiento',
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$, 'jugador A1 registra su lesión');
 select pg_temp.expect_count($q$select 1 from public.injuries$q$, 2, 'jugador A1 ve su lesión nueva');
 select pg_temp.expect_count($q$select 1 from public.injuries where reported_by_player and severity is null
@@ -588,9 +589,9 @@ select pg_temp.back();
 -- 15. report_injury con lugar obligatorio (0018)
 -- =======================================================================
 select pg_temp.as_anon();
-select pg_temp.expect_fail($q$select public.report_injury('Esguince', current_date - 2, 6, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 2, 6, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/a1000000-1111-0000-0000-000000000001/mio.pdf","name":"mio.pdf"}]'::jsonb, 'entrenamiento')$q$,
-  'anónimo ejecuta report_injury (7 argumentos)');
+  'anónimo ejecuta report_injury');
 select pg_temp.back();
 
 -- =======================================================================
@@ -712,7 +713,7 @@ select pg_temp.back();
 
 -- Privilegios y search_path de las funciones
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public' and p.proname like 'dash\_%'$q$, 7, 'existen las 7 funciones dash_*');
+  where n.nspname = 'public' and p.proname like 'dash\_%'$q$, 14, 'existen las 7 funciones dash_* y sus 7 versiones por formato (0046)');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname like 'dash\_%' and p.proacl is null$q$, 0, 'ninguna dash_* usa los permisos por defecto (PUBLIC)');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -720,9 +721,9 @@ select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.
   where n.nspname = 'public' and p.proname like 'dash\_%' and (a.grantee = 0 or a.grantee = 'anon'::regrole)$q$, 0, 'ninguna dash_* da permisos a PUBLIC ni a anon');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   cross join lateral aclexplode(p.proacl) a
-  where n.nspname = 'public' and p.proname like 'dash\_%' and a.grantee = 'authenticated'::regrole and a.privilege_type = 'EXECUTE'$q$, 7, 'authenticated ejecuta las 7 dash_*');
+  where n.nspname = 'public' and p.proname like 'dash\_%' and a.grantee = 'authenticated'::regrole and a.privilege_type = 'EXECUTE'$q$, 14, 'authenticated ejecuta las 14 dash_*');
 select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-  where n.nspname = 'public' and p.proname like 'dash\_%' and p.proconfig = array['search_path=""']$q$, 7, 'las 7 dash_* fijan search_path vacío');
+  where n.nspname = 'public' and p.proname like 'dash\_%' and p.proconfig = array['search_path=""']$q$, 14, 'las 14 dash_* fijan search_path vacío');
 
 -- =======================================================================
 -- 18. Logo del club (0021)
@@ -1575,8 +1576,7 @@ select pg_temp.expect_count($q$select 1 from pg_proc p join pg_namespace n on n.
     and has_function_privilege('authenticated', p.oid, 'EXECUTE') and has_function_privilege('service_role', p.oid, 'EXECUTE')
     and p.prosecdef and p.proconfig = array['search_path=""']$q$, 7, 'las 7 funciones: una sola firma cada una, authenticated y service_role, SECURITY DEFINER');
 select pg_temp.expect_count($q$select 1 where has_function_privilege('authenticated', 'private.resolve_club(uuid)', 'EXECUTE')
-  or has_function_privilege('anon', 'private.resolve_club(uuid)', 'EXECUTE')
-  or has_function_privilege('authenticated', 'private.mirror_member_to_profile()', 'EXECUTE')$q$, 0, 'la app no ejecuta resolve_club ni la función del espejo');
+  or has_function_privilege('anon', 'private.resolve_club(uuid)', 'EXECUTE')$q$, 0, 'la app no ejecuta resolve_club ni la función del espejo');
 
 -- =======================================================================
 -- Multi-plantel (0041): plantel activo por el header x-club-id
@@ -1685,20 +1685,20 @@ select pg_temp.back_h();
 select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001');
 select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
   values ('medical-docs', 'aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf')$q$, 'Y sube su archivo en A');
-select pg_temp.expect_ok($q$select public.report_injury('Lesión de Y en A', current_date - 1, 2, 'semanas', null,
+select pg_temp.expect_ok($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 2, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header A reporta una lesión');
 select pg_temp.back_h();
 select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
 select pg_temp.expect_ok($q$insert into storage.objects (bucket_id, name)
   values ('medical-docs', 'bbbbbbbb-0000-0000-0000-000000000002/fc000000-0000-0000-0000-000000000003/yb.pdf')$q$, 'Y sube su archivo en B');
-select pg_temp.expect_ok($q$select public.report_injury('Lesión de Y en B', current_date - 1, 2, 'semanas', null,
+select pg_temp.expect_ok($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 2, 'semanas', null,
   '[{"path":"bbbbbbbb-0000-0000-0000-000000000002/fc000000-0000-0000-0000-000000000003/yb.pdf","name":"yb.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header B reporta una lesión');
-select pg_temp.expect_fail($q$select public.report_injury('Lesión cruzada', current_date - 1, 2, 'semanas', null,
+select pg_temp.expect_fail($q$select public.report_injury('rodilla'::public.body_zone, 'derecha'::public.injury_laterality, current_date - 1, 2, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb, 'entrenamiento')$q$, 'Y con header B no usa un archivo de su ficha de A');
 select pg_temp.back_h();
-select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Lesión de Y en A'
+select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Rodilla derecha'
   and player_id = 'fc000000-0000-0000-0000-000000000002' and club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 1, 'la lesión con header A queda en la ficha de A');
-select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Lesión de Y en B'
+select pg_temp.expect_count($q$select 1 from public.injuries where type = 'Rodilla derecha'
   and player_id = 'fc000000-0000-0000-0000-000000000003' and club_id = 'bbbbbbbb-0000-0000-0000-000000000002'$q$, 1, 'la lesión con header B queda en la ficha de B');
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');   -- kine A marca a Y en A
 select pg_temp.expect_ok($q$select public.mark_player_injured('fc000000-0000-0000-0000-000000000002', 'entrenamiento', 'Golpe de Y en A')$q$, 'kine A marca a Y');
@@ -1711,19 +1711,19 @@ create temp table ids_0041 as select
   (select id from public.injuries where player_id = 'fc000000-0000-0000-0000-000000000003' and status = 'en_evaluacion') ib;
 grant select on ids_0041 to authenticated;
 select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001');
-select pg_temp.expect_fail($q$select public.complete_injury_report((select ib from ids_0041), 'Esguince', 2, 'semanas', null,
+select pg_temp.expect_fail($q$select public.complete_injury_report((select ib from ids_0041), 'rodilla'::public.body_zone, 'derecha'::public.injury_laterality, 2, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb)$q$, 'Y con header A no completa la lesión de B');
-select pg_temp.expect_ok($q$select public.complete_injury_report((select ia from ids_0041), 'Esguince en A', 2, 'semanas', null,
+select pg_temp.expect_ok($q$select public.complete_injury_report((select ia from ids_0041), 'rodilla'::public.body_zone, 'derecha'::public.injury_laterality, 2, 'semanas', null,
   '[{"path":"aaaaaaaa-0000-0000-0000-000000000001/fc000000-0000-0000-0000-000000000002/ya.pdf","name":"ya.pdf"}]'::jsonb)$q$, 'Y con header A completa la lesión de A');
 select pg_temp.expect_ok($q$select public.set_my_phone('+56911110000')$q$, 'Y con header A guarda su teléfono');
 select pg_temp.back_h();
 select pg_temp.as_user_h('9c000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
-select pg_temp.expect_ok($q$select public.complete_injury_report((select ib from ids_0041), 'Esguince en B', 2, 'semanas', null,
+select pg_temp.expect_ok($q$select public.complete_injury_report((select ib from ids_0041), 'rodilla'::public.body_zone, 'derecha'::public.injury_laterality, 2, 'semanas', null,
   '[{"path":"bbbbbbbb-0000-0000-0000-000000000002/fc000000-0000-0000-0000-000000000003/yb.pdf","name":"yb.pdf"}]'::jsonb)$q$, 'Y con header B completa la lesión de B');
 select pg_temp.expect_ok($q$select public.set_my_phone('+56922220000')$q$, 'Y con header B guarda su teléfono');
 select pg_temp.back_h();
 select pg_temp.expect_count($q$select 1 from public.injuries where (id, type, status) in
-  (((select ia from ids_0041), 'Esguince en A', 'activa'), ((select ib from ids_0041), 'Esguince en B', 'activa'))$q$, 2, 'cada lesión quedó completada en su plantel');
+  (((select ia from ids_0041), 'Rodilla derecha', 'activa'), ((select ib from ids_0041), 'Rodilla derecha', 'activa'))$q$, 2, 'cada lesión quedó completada en su plantel');
 select pg_temp.expect_count($q$select 1 from public.player_contacts where (player_id, club_id, phone) in
   (('fc000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', '+56911110000'),
    ('fc000000-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-000000000002', '+56922220000'))$q$, 2, 'cada teléfono quedó en la ficha de su plantel, sin pisar la otra');
@@ -2032,7 +2032,7 @@ select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'cale
 select pg_temp.back_h();
 
 -- Pendiente: sin plantel confirmado no guarda.
-select pg_temp.as_user_h('70000000-0000-0000-0000-00000000000a', null);
+select pg_temp.as_user_h('80000000-0000-0000-0000-00000000000a', null);
 select pg_temp.expect_fail($q$select public.set_nav_slots(array['resumen', 'calendario', 'plantel'])$q$, 'jugador pendiente guarda su barra');
 select pg_temp.back_h();
 
@@ -2089,7 +2089,7 @@ select pg_temp.expect_fail($q$insert into public.event_callups (club_id, event_i
 select pg_temp.expect_fail($q$update public.event_callups set slot = 3$q$, 'jugador A1 actualiza directo event_callups');
 select pg_temp.expect_fail($q$select public.set_event_callups('ee000000-0000-0000-0000-0000000000a1', array['a1000000-1111-0000-0000-000000000001']::uuid[])$q$, 'jugador A1 arma la convocatoria');
 select pg_temp.back_h();
-select pg_temp.as_user_h('70000000-0000-0000-0000-00000000000a', null);
+select pg_temp.as_user_h('80000000-0000-0000-0000-00000000000a', null);
 select pg_temp.expect_count($q$select 1 from public.event_callups$q$, 0, 'jugador pendiente no ve convocatorias');
 select pg_temp.back_h();
 select pg_temp.as_user_h('60000000-0000-0000-0000-00000000000b', null);
@@ -2123,14 +2123,14 @@ select pg_temp.expect_fail($q$select public.add_own_injury_document('a2000000-22
 select pg_temp.back();
 
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
-select pg_temp.expect_count($q$select 1 from public.injuries where body_zone is not null$q$, 0, 'kine B no ve zonas del club A');
+select pg_temp.expect_count($q$select 1 from public.injuries where body_zone is not null and club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve zonas del club A');
 select pg_temp.expect_fail($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'kine B borra un documento del club A');
 select pg_temp.back();
 
 -- Kine A tampoco usa la función del jugador (no es su documento).
 select pg_temp.as_user('30000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_fail($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'kine A usa delete_own_draft_document');
-select pg_temp.expect_count($q$select 1 from public.injuries where body_zone = 'rodilla'$q$, 1, 'kine A ve la zona de su club');
+select pg_temp.expect_count($q$select 1 from public.injuries where body_zone = 'rodilla' and id = 'a2000000-2222-0000-0000-000000000099'$q$, 1, 'kine A ve la zona de su club');
 select pg_temp.back();
 
 select pg_temp.as_anon();
@@ -2141,9 +2141,142 @@ select pg_temp.back();
 
 select pg_temp.expect_count($q$select 1 from public.documents where id = 'a4000000-4444-0000-0000-000000000099'$q$, 1, 'el documento de A1 sigue ahí');
 
+-- Versiones anteriores (tipo libre) sin permisos tras el deploy (20261104233000).
+select pg_temp.expect_count($q$select 1 where not has_function_privilege('authenticated', 'public.report_injury(text, date, integer, text, text, jsonb, text)', 'execute')
+  and not has_function_privilege('anon', 'public.report_injury(text, date, integer, text, text, jsonb, text)', 'execute')
+  and not has_function_privilege('authenticated', 'public.complete_injury_report(uuid, text, integer, text, text, jsonb)', 'execute')$q$, 1,
+  'las versiones viejas de report_injury y complete_injury_report no se pueden ejecutar');
+
 -- Control: A1 sí puede (lo de arriba falló por aislamiento, no por otra razón).
 select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
 select pg_temp.expect_ok($q$select public.delete_own_draft_document('a4000000-4444-0000-0000-000000000099')$q$, 'A1 quita su propio documento');
+select pg_temp.back();
+
+
+-- =======================================================================
+-- sRPE y check de bienestar (20261105180000): aislamiento por club y entre jugadores
+-- =======================================================================
+insert into public.events (id, club_id, type, starts_at, ends_at, created_by) values
+  ('a7000000-7777-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'entrenamiento', now() - interval '3 hours', now() - interval '90 minutes', '10000000-0000-0000-0000-00000000000a'),
+  ('b7000000-7777-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'entrenamiento', now() - interval '3 hours', now() - interval '90 minutes', '30000000-0000-0000-0000-00000000000b');
+insert into public.session_rpe (event_id, player_id, club_id, rpe) values
+  ('a7000000-7777-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 6),
+  ('a7000000-7777-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 7),
+  ('b7000000-7777-0000-0000-000000000001', 'b1000000-1111-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 5);
+insert into public.wellness_reports (club_id, player_id, report_date, fatigue, sleep, soreness, stress, mood) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', current_date, 3, 3, 3, 3, 3),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', current_date, 1, 2, 3, 4, 5),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'b1000000-1111-0000-0000-000000000001', current_date, 4, 4, 4, 4, 4);
+
+-- Jugador A1: solo lo suyo
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.session_rpe$q$, 1, 'jugador A1 ve solo su sRPE');
+select pg_temp.expect_count($q$select 1 from public.wellness_reports$q$, 1, 'jugador A1 ve solo su bienestar');
+select pg_temp.expect_fail($q$select public.event_rpe_summary('a7000000-7777-0000-0000-000000000001')$q$, 'jugador A1 ve el resumen del evento');
+select pg_temp.expect_fail($q$select public.player_weekly_load('a1000000-1111-0000-0000-000000000002')$q$, 'jugador A1 ve la carga de A2');
+select pg_temp.expect_fail($q$select * from public.wellness_flags('15')$q$, 'jugador A1 ve las marcas de bienestar');
+select pg_temp.expect_fail($q$select * from public.team_srpe_load('15')$q$, 'jugador A1 ve la carga del plantel');
+select pg_temp.expect_fail($q$select public.submit_session_rpe('b7000000-7777-0000-0000-000000000001', 5::smallint, false)$q$, 'jugador A1 responde un evento del club B');
+select pg_temp.expect_no_rows($q$update public.session_rpe set rpe = 0$q$, 'jugador A1 cambia sRPE directo');
+select pg_temp.expect_no_rows($q$update public.wellness_reports set mood = 1$q$, 'jugador A1 cambia bienestar directo');
+select pg_temp.back();
+
+-- Staff A: todo su club, nada del B
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.session_rpe$q$, 2, 'entrenador A ve el sRPE de su club');
+select pg_temp.expect_count($q$select 1 from public.wellness_reports$q$, 2, 'entrenador A ve el bienestar de su club');
+select pg_temp.expect_fail($q$select public.event_rpe_summary('b7000000-7777-0000-0000-000000000001')$q$, 'entrenador A ve el resumen de un evento del club B');
+select pg_temp.expect_fail($q$select public.player_weekly_load('b1000000-1111-0000-0000-000000000001')$q$, 'entrenador A ve la carga de B1');
+select pg_temp.expect_count($q$select 1 from public.wellness_flags('15') where player_id = 'b1000000-1111-0000-0000-000000000001'$q$, 0, 'entrenador A no ve marcas de B1');
+select pg_temp.expect_fail($q$select public.set_wellness_days(array[2]::smallint[])$q$, 'entrenador A cambia los días de bienestar');
+select pg_temp.back();
+
+-- Kine B: nada del club A
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_count($q$select 1 from public.session_rpe where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve sRPE del club A');
+select pg_temp.expect_count($q$select 1 from public.wellness_reports where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve bienestar del club A');
+select pg_temp.expect_count($q$select 1 from public.team_srpe_load('15') where player_id::text like 'a1%'$q$, 0, 'kine B no ve la carga del club A');
+select pg_temp.back();
+
+-- Jugador pendiente y anónimo
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.session_rpe$q$, 0, 'jugador pendiente no ve sRPE');
+select pg_temp.expect_fail($q$select public.submit_wellness(3::smallint, 3::smallint, 3::smallint, 3::smallint, 3::smallint)$q$, 'jugador pendiente responde bienestar');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select 1 from public.session_rpe$q$, 'anónimo lee session_rpe');
+select pg_temp.expect_fail($q$select 1 from public.wellness_reports$q$, 'anónimo lee wellness_reports');
+select pg_temp.expect_fail($q$select public.submit_session_rpe('a7000000-7777-0000-0000-000000000001', 5::smallint, false)$q$, 'anónimo ejecuta submit_session_rpe');
+select pg_temp.expect_fail($q$select * from public.my_pending_reports('15')$q$, 'anónimo ejecuta my_pending_reports');
+select pg_temp.back();
+
+-- Funciones: SECURITY DEFINER, search_path vacío, authenticated sí y anon no
+select pg_temp.expect_count($q$select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
+  and p.proname in ('set_wellness_days', 'submit_session_rpe', 'submit_wellness', 'my_pending_reports', 'event_rpe_summary',
+                    'player_weekly_load', 'team_srpe_load', 'wellness_flags', 'my_session_report')
+  and p.prosecdef and p.proconfig = array['search_path=""']
+  and has_function_privilege('authenticated', p.oid, 'EXECUTE') and not has_function_privilege('anon', p.oid, 'EXECUTE')$q$, 9,
+  'sRPE y bienestar: 9 funciones solo para authenticated');
+select pg_temp.expect_count($q$select 1 from pg_proc p where p.pronamespace = 'private'::regnamespace
+  and p.proname in ('session_minutes', 'rpe_check', 'my_active_player', 'wellness_target_date', 'srpe_sessions', 'srpe_load_flag')
+  and not has_function_privilege('authenticated', p.oid, 'EXECUTE')$q$, 6,
+  'los helpers de sRPE no los ejecuta authenticated');
+
+-- =======================================================================
+-- Plan de gimnasio (20261105200000): aislamiento por club, entre jugadores y sin escritura directa
+-- =======================================================================
+insert into public.gym_plans (id, club_id, name, starts_on, ends_on, status, created_by, published_at) values
+  ('a9000000-9999-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'Fuerza A', current_date - 7, current_date + 7, 'publicado', '10000000-0000-0000-0000-00000000000a', now()),
+  ('b9000000-9999-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'Fuerza B', current_date - 7, current_date + 7, 'publicado', '30000000-0000-0000-0000-00000000000b', now());
+insert into public.gym_plan_sessions (id, club_id, plan_id, label, weekday, est_minutes) values
+  ('a9100000-9999-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'a9000000-9999-0000-0000-000000000001', 'Sesión A', 1, 60),
+  ('b9100000-9999-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'b9000000-9999-0000-0000-000000000001', 'Sesión B', 1, 60);
+insert into public.gym_plan_targets (club_id, plan_id, kind) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a9000000-9999-0000-0000-000000000001', 'plantel'),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'b9000000-9999-0000-0000-000000000001', 'plantel');
+insert into public.gym_session_logs (club_id, player_id, plan_session_id, performed_on, minutes, rpe) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', 'a9100000-9999-0000-0000-000000000001', current_date, 60, 6),
+  ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000002', null, current_date, 40, 5),
+  ('bbbbbbbb-0000-0000-0000-000000000002', 'b1000000-1111-0000-0000-000000000001', 'b9100000-9999-0000-0000-000000000001', current_date, 60, 7);
+
+-- Jugador A1: no lee planes directo y solo ve sus registros
+select pg_temp.as_user('60000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.gym_plans$q$, 0, 'jugador A1 lee los planes directo');
+select pg_temp.expect_count($q$select 1 from public.gym_plan_sessions$q$, 0, 'jugador A1 lee las sesiones directo');
+select pg_temp.expect_count($q$select 1 from public.gym_session_logs$q$, 1, 'jugador A1 ve solo su registro de gimnasio');
+select pg_temp.expect_fail($q$select public.save_gym_plan('{"name":"Plan","starts_on":"2026-11-01","ends_on":"2026-11-30"}'::jsonb)$q$, 'jugador A1 crea un plan');
+select pg_temp.expect_fail($q$select public.player_gym_summary('a1000000-1111-0000-0000-000000000002')$q$, 'jugador A1 ve el gimnasio de A2');
+select pg_temp.expect_fail($q$insert into public.gym_session_logs (club_id, player_id, performed_on, minutes) values ('aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-1111-0000-0000-000000000001', current_date, 60)$q$,
+  'jugador A1 inserta un registro directo');
+select pg_temp.expect_no_rows($q$update public.gym_session_logs set rpe = 10$q$, 'jugador A1 cambia su registro directo');
+select pg_temp.expect_error($q$select public.complete_gym_session('b9100000-9999-0000-0000-000000000001', null, true)$q$, 'not_found', 'jugador A1 marca una sesión del club B');
+select pg_temp.back();
+
+-- Entrenador A: lee los planes y registros de su club, no los del B, y no crea planes
+select pg_temp.as_user('40000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.gym_plans$q$, 1, 'entrenador A ve los planes de su club');
+select pg_temp.expect_count($q$select 1 from public.gym_session_logs$q$, 2, 'entrenador A ve los registros de su club');
+select pg_temp.expect_fail($q$select public.save_gym_plan('{"name":"Plan","starts_on":"2026-11-01","ends_on":"2026-11-30"}'::jsonb)$q$, 'entrenador A crea un plan');
+select pg_temp.expect_fail($q$select public.player_gym_summary('b1000000-1111-0000-0000-000000000001')$q$, 'entrenador A ve el gimnasio de B1');
+select pg_temp.expect_no_rows($q$update public.gym_plans set name = 'x'$q$, 'entrenador A cambia un plan directo');
+select pg_temp.back();
+
+-- Kine B: nada del club A
+select pg_temp.as_user('30000000-0000-0000-0000-00000000000b');
+select pg_temp.expect_count($q$select 1 from public.gym_plans where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve planes del club A');
+select pg_temp.expect_count($q$select 1 from public.gym_session_logs where club_id = 'aaaaaaaa-0000-0000-0000-000000000001'$q$, 0, 'kine B no ve registros del club A');
+select pg_temp.expect_count($q$select 1 from public.team_load_breakdown('15') where player_id::text like 'a1%'$q$, 0, 'kine B no ve el desglose del club A');
+select pg_temp.back();
+
+-- Pendiente y anónimo
+select pg_temp.as_user('80000000-0000-0000-0000-00000000000a');
+select pg_temp.expect_count($q$select 1 from public.gym_session_logs$q$, 0, 'jugador pendiente no ve registros de gimnasio');
+select pg_temp.expect_fail($q$select public.my_gym_today()$q$, 'jugador pendiente lee su plan de hoy');
+select pg_temp.back();
+select pg_temp.as_anon();
+select pg_temp.expect_fail($q$select 1 from public.gym_plans$q$, 'anónimo lee gym_plans');
+select pg_temp.expect_fail($q$select 1 from public.gym_session_logs$q$, 'anónimo lee gym_session_logs');
+select pg_temp.expect_fail($q$select public.my_gym_today()$q$, 'anónimo ejecuta my_gym_today');
 select pg_temp.back();
 
 rollback;

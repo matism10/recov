@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ClipboardList, MapPin, Swords, X } from "lucide-react";
+import { ChartColumn, ChevronLeft, ChevronRight, ClipboardList, Dumbbell, ListChecks } from "lucide-react";
 import { addDays } from "@/lib/injuries";
 import {
-  EVENT_TYPE_LABEL,
   WEEKDAY_LABELS,
   availableRatioOk,
   eventTitle,
@@ -17,6 +16,7 @@ import {
   weekDays,
   weekStart,
   type CalendarEvent,
+  type GymEntry,
   type EventAvailabilitySummary,
   type SummaryPlayer,
   eventTimeLabel,
@@ -31,6 +31,7 @@ import {
   textButton,
 } from "@/app/ui";
 import { cancelEvent } from "./actions";
+import { EventDetails, EventSheet } from "./event-sheet";
 
 type Props = {
   mobileView: "semana" | "mes";
@@ -38,10 +39,13 @@ type Props = {
   today: string;
   days: string[];
   events: CalendarEvent[];
+  gym: GymEntry[]; // sesiones de gimnasio (solo lectura, todo el día)
+  gymHref: string; // /mi-plan (jugador) o /planes (staff)
   availability: Record<string, EventAvailabilitySummary>;
   staff: boolean;
   canManage: boolean;
   canNomina: boolean;
+  attendanceSaved: string[]; // entrenamientos empezados con lista guardada (staff)
   initialSelectedId: string | null;
 };
 
@@ -54,10 +58,13 @@ export function CalendarView({
   today,
   days,
   events,
+  gym,
+  gymHref,
   availability,
   staff,
   canManage,
   canNomina,
+  attendanceSaved,
   initialSelectedId,
 }: Props) {
   const [selectedId, setSelectedId] = useState(
@@ -68,8 +75,14 @@ export function CalendarView({
   const byDay = new Map<string, CalendarEvent[]>();
   for (const e of events) byDay.set(e.day, [...(byDay.get(e.day) ?? []), e]);
 
+  const gymByDay = new Map<string, GymEntry[]>();
+  for (const g of gym) gymByDay.set(g.day, [...(gymByDay.get(g.day) ?? []), g]);
+  const gymProps = { gymByDay, gymHref };
+
+  const savedLists = new Set(attendanceSaved);
   const chipProps = {
     availability,
+    savedLists,
     staff,
     selectedId,
     onSelect: setSelectedId,
@@ -104,7 +117,7 @@ export function CalendarView({
 
   return (
     <div>
-      <MonthGrid anchor={anchor} today={today} days={days} byDay={byDay} {...chipProps} />
+      <MonthGrid anchor={anchor} today={today} days={days} byDay={byDay} {...gymProps} {...chipProps} />
       {/* Celular: semana (por defecto) o mes. */}
       <ViewToggle view={view} onWeek={() => showWeek(weekAnchor)} onMonth={showMonth} />
       {view === "mes" ? (
@@ -115,6 +128,7 @@ export function CalendarView({
           byDay={byDay}
           initialDay={selected?.day ?? (weekAnchor.slice(0, 7) === anchor.slice(0, 7) ? weekAnchor : null)}
           onPickDay={setWeekAnchor}
+          {...gymProps}
           {...chipProps}
         />
       ) : (
@@ -124,6 +138,7 @@ export function CalendarView({
           byDay={byDay}
           loaded={loaded}
           onShowWeek={showWeek}
+          {...gymProps}
           {...chipProps}
         />
       )}
@@ -135,6 +150,7 @@ export function CalendarView({
           staff={staff}
           canManage={canManage}
           canNomina={canNomina}
+          listSaved={savedLists.has(selected.id)}
           onClose={() => setSelectedId(null)}
         />
       )}
@@ -142,8 +158,14 @@ export function CalendarView({
   );
 }
 
+type GymProps = {
+  gymByDay: Map<string, GymEntry[]>;
+  gymHref: string;
+};
+
 type ChipProps = {
   availability: Record<string, EventAvailabilitySummary>;
+  savedLists: Set<string>;
   staff: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -157,13 +179,15 @@ function MonthGrid({
   today,
   days,
   byDay,
+  gymByDay,
+  gymHref,
   ...chipProps
 }: {
   anchor: string;
   today: string;
   days: string[];
   byDay: Map<string, CalendarEvent[]>;
-} & ChipProps) {
+} & GymProps & ChipProps) {
   const month = anchor.slice(0, 7);
   return (
     <section aria-label="Mes" className="hidden lg:block">
@@ -219,6 +243,9 @@ function MonthGrid({
                 </span>
                 {dayEvents.map((e) => (
                   <EventChip key={e.id} event={e} {...chipProps} />
+                ))}
+                {(gymByDay.get(day) ?? []).map((g) => (
+                  <GymChip key={g.session_id} entry={g} href={gymHref} />
                 ))}
               </li>
             );
@@ -286,6 +313,8 @@ function MobileMonth({
   byDay,
   initialDay,
   onPickDay,
+  gymByDay,
+  gymHref,
   ...chipProps
 }: {
   anchor: string;
@@ -295,7 +324,7 @@ function MobileMonth({
   initialDay: string | null;
   // El día elegido pasa a ser la semana que se ve al volver a "Semana".
   onPickDay: (day: string) => void;
-} & ChipProps) {
+} & GymProps & ChipProps) {
   const month = anchor.slice(0, 7);
   const inMonth = (d: string) => d.slice(0, 7) === month;
   // Día elegido: el del evento abierto, hoy si es de este mes, el primero con
@@ -308,6 +337,7 @@ function MobileMonth({
       `${month}-01`,
   );
   const dayEvents = byDay.get(day) ?? [];
+  const dayGym = gymByDay.get(day) ?? [];
 
   return (
     <section aria-label="Mes" className="lg:hidden">
@@ -338,6 +368,7 @@ function MobileMonth({
       <ol className="grid grid-cols-7 gap-y-1">
         {days.map((d) => {
           const events = byDay.get(d) ?? [];
+          const gymCount = (gymByDay.get(d) ?? []).length;
           const isToday = d === today;
           const chosen = d === day;
           return (
@@ -353,7 +384,7 @@ function MobileMonth({
                   events.length > 0
                     ? `, ${events.length} ${events.length === 1 ? "evento" : "eventos"}`
                     : ""
-                }`}
+                }${gymCount > 0 ? ", gimnasio" : ""}`}
                 className={`flex min-h-12 w-full flex-col items-center justify-center gap-1 rounded-lg transition ${
                   chosen ? "bg-brand-soft" : "hover:bg-mist"
                 }`}
@@ -371,6 +402,7 @@ function MobileMonth({
                   {Number(d.slice(8))}
                 </span>
                 <span aria-hidden="true" className="flex h-1.5 gap-0.5">
+                  {gymCount > 0 && <span className="size-1.5 rounded-full bg-emerald-500" />}
                   {events.slice(0, 3).map((e) => (
                     <span
                       key={e.id}
@@ -387,11 +419,16 @@ function MobileMonth({
       </ol>
 
       <h3 className="mt-6 mb-2 text-sm font-medium text-muted">{longDayLabel(day)}</h3>
-      {dayEvents.length > 0 ? (
+      {dayEvents.length > 0 || dayGym.length > 0 ? (
         <ul className="space-y-2">
           {dayEvents.map((e) => (
             <li key={e.id}>
               <EventChip event={e} wide {...chipProps} />
+            </li>
+          ))}
+          {dayGym.map((g) => (
+            <li key={g.session_id}>
+              <GymChip entry={g} href={gymHref} wide />
             </li>
           ))}
         </ul>
@@ -411,6 +448,8 @@ function WeekList({
   byDay,
   loaded,
   onShowWeek,
+  gymByDay,
+  gymHref,
   ...chipProps
 }: {
   anchor: string;
@@ -418,7 +457,7 @@ function WeekList({
   byDay: Map<string, CalendarEvent[]>;
   loaded: (week: string[]) => boolean;
   onShowWeek: (date: string) => void;
-} & ChipProps) {
+} & GymProps & ChipProps) {
   const week = weekDays(anchor);
   const start = weekStart(anchor);
   const inThisWeek = week.includes(today);
@@ -448,6 +487,7 @@ function WeekList({
       <ol className="space-y-4">
         {week.map((day) => {
           const dayEvents = byDay.get(day) ?? [];
+          const dayGym = gymByDay.get(day) ?? [];
           const isToday = day === today;
           return (
             <li key={day}>
@@ -463,11 +503,16 @@ function WeekList({
                   </span>
                 )}
               </h3>
-              {dayEvents.length > 0 ? (
+              {dayEvents.length > 0 || dayGym.length > 0 ? (
                 <ul className="space-y-2">
                   {dayEvents.map((e) => (
                     <li key={e.id}>
                       <EventChip event={e} wide {...chipProps} />
+                    </li>
+                  ))}
+                  {dayGym.map((g) => (
+                    <li key={g.session_id}>
+                      <GymChip entry={g} href={gymHref} wide />
                     </li>
                   ))}
                 </ul>
@@ -521,10 +566,31 @@ const CHIP_STYLE = {
   competencia: "border-brand bg-brand-soft text-brand-text hover:border-brand-strong",
 };
 
+// Sesión de gimnasio: solo lectura, todo el día (sin hora). Lleva a /mi-plan o /planes.
+function GymChip({ entry, href, wide = false }: { entry: GymEntry; href: string; wide?: boolean }) {
+  return (
+    <Link
+      href={href}
+      title={entry.title}
+      className={`block w-full rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 transition hover:border-emerald-400 ${
+        wide ? "min-h-11 px-4 py-3" : "px-1.5 py-1 text-xs"
+      }`}
+    >
+      <span className="flex items-center gap-1.5">
+        <Dumbbell aria-hidden="true" className={wide ? "size-4" : "size-3"} />
+        <span className={wide ? "text-sm font-medium" : "font-medium"}>Gimnasio</span>
+        {wide && <span className="text-sm text-emerald-800/80">· Todo el día</span>}
+      </span>
+      {wide && <span className="mt-0.5 block truncate text-sm">{entry.title}</span>}
+    </Link>
+  );
+}
+
 function EventChip({
   event,
   wide = false,
   availability,
+  savedLists,
   staff,
   selectedId,
   onSelect,
@@ -559,7 +625,26 @@ function EventChip({
       {wide && event.location && (
         <span className="mt-0.5 block truncate text-sm text-muted">{event.location}</span>
       )}
+      {wide && staff && listMissing(event, savedLists) && (
+        <span className="mt-1 block">
+          <AttendanceMissing />
+        </span>
+      )}
     </button>
+  );
+}
+
+// Entrenamiento ya empezado, no cancelado y sin lista guardada (solo staff).
+function listMissing(event: CalendarEvent, savedLists: Set<string>) {
+  return event.type === "entrenamiento" && event.past && !event.cancelled && !savedLists.has(event.id);
+}
+
+function AttendanceMissing() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-revision-bg px-2 py-0.5 text-xs font-medium text-revision-fg">
+      <ListChecks aria-hidden="true" className="size-3.5" />
+      Asistencia sin registrar
+    </span>
   );
 }
 
@@ -600,6 +685,7 @@ function EventPanel({
   staff,
   canManage,
   canNomina,
+  listSaved,
   onClose,
 }: {
   event: CalendarEvent;
@@ -607,27 +693,15 @@ function EventPanel({
   staff: boolean;
   canManage: boolean;
   canNomina: boolean;
+  listSaved: boolean;
   onClose: () => void;
 }) {
-  const panelRef = useRef<HTMLElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   // Al abrir el detalle (cada evento monta su propio panel): en escritorio queda
   // bajo la grilla, así que se desplaza hasta él; el foco va al título.
-  useEffect(() => {
-    panelRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    titleRef.current?.focus({ preventScroll: true });
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const cancel = () =>
     startTransition(async () => {
       const result = await cancelEvent(event.id);
@@ -636,170 +710,147 @@ function EventPanel({
     });
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-end bg-ink/30 lg:static lg:z-auto lg:mt-6 lg:block lg:bg-transparent"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+    <EventSheet
+      event={event}
+      inline
+      onClose={onClose}
+      badges={
+        staff && event.type === "entrenamiento" && event.past && !event.cancelled && !listSaved && <AttendanceMissing />
+      }
     >
-      <aside
-        ref={panelRef}
-        aria-labelledby="event-panel-title"
-        className="max-h-[85vh] w-full scroll-mt-6 overflow-y-auto rounded-t-2xl border border-line bg-white p-5 shadow-lg lg:max-h-none lg:overflow-visible lg:rounded-xl lg:p-6 lg:shadow-none"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-2">
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  event.type === "competencia"
-                    ? "bg-brand-soft text-brand-text"
-                    : "border border-line text-ink"
-                }`}
+    {/* Escritorio: datos y acciones a la izquierda, plantel a la derecha. */}
+    <div className="lg:mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-8">
+      <div>
+        <EventDetails event={event} />
+
+        {/* Nómina: antes del partido se arma la convocatoria; una vez empezado,
+            se carga la participación. Solo head coach, manager y el delegado. */}
+        {canNomina && event.type === "competencia" && !event.cancelled && (
+          <div className="mt-6 border-t border-line pt-4">
+            {event.past ? (
+              <Link
+                href={`/calendario/${event.id}/participacion`}
+                className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
               >
-                {EVENT_TYPE_LABEL[event.type]}
-              </span>
-              {event.cancelled && (
-                <span className="inline-flex items-center rounded-full border border-muted px-2.5 py-0.5 text-xs font-medium text-muted">
-                  Cancelado
-                </span>
-              )}
-            </div>
-            <h2
-              id="event-panel-title"
-              ref={titleRef}
-              tabIndex={-1}
-              className={`text-xl font-semibold text-ink outline-none ${
-                event.cancelled ? "line-through" : ""
-              }`}
-            >
-              {eventTitle(event)}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="-mt-2 -mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-mist"
-          >
-            <X aria-hidden="true" className="size-5" />
-            <span className="sr-only">Cerrar detalle</span>
-          </button>
-        </div>
-
-        {/* Escritorio: datos y acciones a la izquierda, plantel a la derecha. */}
-        <div className="lg:mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-8">
-          <div>
-            <dl className="mt-4 space-y-2 text-sm lg:mt-0">
-              <div>
-                <dt className="sr-only">Fecha y hora</dt>
-                <dd className="text-ink">
-                  {longDayLabel(event.day)}
-                  <br />
-                  {eventTimeLabel(event)}
-                </dd>
-              </div>
-              {event.location && (
-                <div className="flex items-start gap-2">
-                  <dt>
-                    <MapPin aria-hidden="true" className="mt-0.5 size-4 text-muted" />
-                    <span className="sr-only">Lugar</span>
-                  </dt>
-                  <dd className="text-ink">{event.location}</dd>
-                </div>
-              )}
-              {event.opponent && (
-                <div className="flex items-start gap-2">
-                  <dt>
-                    <Swords aria-hidden="true" className="mt-0.5 size-4 text-muted" />
-                    <span className="sr-only">Rival</span>
-                  </dt>
-                  <dd className="text-ink">{event.opponent}</dd>
-                </div>
-              )}
-              {event.notes && (
-                <div className="pt-1">
-                  <dt className="text-xs font-medium text-muted">Notas</dt>
-                  <dd className="mt-0.5 whitespace-pre-line text-ink">{event.notes}</dd>
-                </div>
-              )}
-            </dl>
-
-            {/* Nómina: antes del partido se arma la convocatoria; una vez empezado,
-                se carga la participación. Solo head coach, manager y el delegado. */}
-            {canNomina && event.type === "competencia" && !event.cancelled && (
-              <div className="mt-6 border-t border-line pt-4">
-                {event.past ? (
-                  <Link
-                    href={`/calendario/${event.id}/participacion`}
-                    className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
-                  >
-                    <ClipboardList aria-hidden="true" className="size-4" />
-                    Cargar participación
-                  </Link>
-                ) : (
-                  <Link
-                    href={`/calendario/${event.id}/disponibles`}
-                    className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
-                  >
-                    <ClipboardList aria-hidden="true" className="size-4" />
-                    Armar nómina
-                  </Link>
-                )}
-              </div>
-            )}
-
-            {canManage && !event.cancelled && (
-              <div className="mt-6 space-y-3 border-t border-line pt-4">
-                {confirming ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-ink">
-                      ¿Cancelar este evento? Seguirá en el calendario marcado como cancelado.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={cancel}
-                        disabled={pending}
-                        className={`text-sm ${buttonDanger}`}
-                      >
-                        {pending ? "Cancelando…" : "Sí, cancelar evento"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirming(false)}
-                        disabled={pending}
-                        className={textButton}
-                      >
-                        No, volver
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={`/calendario/${event.id}/editar`}
-                      className={`text-sm ${buttonSecondary}`}
-                    >
-                      Editar
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => setConfirming(true)}
-                      className={`text-sm ${buttonSecondary}`}
-                    >
-                      Cancelar evento
-                    </button>
-                  </div>
-                )}
-                {error && <ErrorMessage>{error}</ErrorMessage>}
-              </div>
+                <ClipboardList aria-hidden="true" className="size-4" />
+                Cargar participación
+              </Link>
+            ) : (
+              <Link
+                href={`/calendario/${event.id}/disponibles`}
+                className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
+              >
+                <ClipboardList aria-hidden="true" className="size-4" />
+                Armar nómina
+              </Link>
             )}
           </div>
+        )}
 
-          {staff && !event.cancelled && (
-            <SquadSummary eventId={event.id} summary={summary} past={event.past} />
-          )}
-        </div>
-      </aside>
+        {/* Asistencia: cualquier staff pasa lista desde que el entrenamiento empieza. */}
+        {staff && event.type === "entrenamiento" && !event.cancelled && (
+          <div className="mt-6 space-y-2 border-t border-line pt-4">
+            {event.past ? (
+              <Link
+                href={`/calendario/${event.id}/asistencia`}
+                className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
+              >
+                <ListChecks aria-hidden="true" className="size-4" />
+                Pasar lista
+              </Link>
+            ) : (
+              <>
+                <button type="button" disabled className={`w-full text-sm lg:w-auto ${buttonPrimary}`}>
+                  <ListChecks aria-hidden="true" className="size-4" />
+                  Pasar lista
+                </button>
+                <p className="text-xs text-muted">Se habilita cuando empiece el entrenamiento.</p>
+              </>
+            )}
+            {event.past && listSaved && (
+              <p className="text-xs text-muted">Lista guardada. Puedes corregirla.</p>
+            )}
+          </div>
+        )}
+
+        {/* Reportes de esfuerzo y bienestar: todo el staff, desde que el evento empieza. */}
+        {staff && !event.cancelled && (
+          <div className="mt-6 space-y-2 border-t border-line pt-4">
+            {event.past ? (
+              <Link
+                href={`/calendario/${event.id}/reportes`}
+                className={`w-full text-sm lg:w-auto ${buttonSecondary}`}
+              >
+                <ChartColumn aria-hidden="true" className="size-4" />
+                Reportes
+              </Link>
+            ) : (
+              <>
+                <button type="button" disabled className={`w-full text-sm lg:w-auto ${buttonSecondary}`}>
+                  <ChartColumn aria-hidden="true" className="size-4" />
+                  Reportes
+                </button>
+                <p className="text-xs text-muted">
+                  Se habilita cuando empiece {event.type === "competencia" ? "el partido" : "el entrenamiento"}.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {canManage && !event.cancelled && (
+          <div className="mt-6 space-y-3 border-t border-line pt-4">
+            {confirming ? (
+              <div className="space-y-3">
+                <p className="text-sm text-ink">
+                  ¿Cancelar este evento? Seguirá en el calendario marcado como cancelado.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={cancel}
+                    disabled={pending}
+                    className={`text-sm ${buttonDanger}`}
+                  >
+                    {pending ? "Cancelando…" : "Sí, cancelar evento"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(false)}
+                    disabled={pending}
+                    className={textButton}
+                  >
+                    No, volver
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/calendario/${event.id}/editar`}
+                  className={`text-sm ${buttonSecondary}`}
+                >
+                  Editar
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(true)}
+                  className={`text-sm ${buttonSecondary}`}
+                >
+                  Cancelar evento
+                </button>
+              </div>
+            )}
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+          </div>
+        )}
+      </div>
+
+      {staff && !event.cancelled && (
+        <SquadSummary eventId={event.id} summary={summary} past={event.past} />
+      )}
     </div>
+    </EventSheet>
   );
 }
 

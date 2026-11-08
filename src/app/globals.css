@@ -37,6 +37,13 @@
   --color-reintegro-bg: #ede9fe;
   --color-reintegro-fg: #4c1d95;
 
+  /* Avisos de carga y bienestar ("Carga alta", "Bajo lo habitual"): naranjo,
+     distinto de los estados de disponibilidad */
+  --color-alerta: #f97316;
+  --color-alerta-bg: #ffedd5;
+  --color-alerta-soft: #fff7ed;
+  --color-alerta-fg: #9a3412;
+
   /* Errores y acciones destructivas: token propio, separado de "lesionado" */
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;

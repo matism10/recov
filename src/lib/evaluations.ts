@@ -2,6 +2,7 @@
 // Compartido entre servidor y cliente. Las reglas de permisos reales están en la
 // base (private.has_any_role en las funciones y en RLS); aquí solo deciden qué se muestra.
 import type { UserRole } from "@/lib/roles";
+import { can } from "@/lib/permissions";
 
 // Registran resultados y administran el catálogo.
 export const EVAL_WRITE_ROLES = ["head_coach", "kinesiologo", "preparador_fisico"] as const satisfies readonly UserRole[];
@@ -14,11 +15,13 @@ export const EVAL_READ_ROLES = [
   "preparador_fisico",
 ] as const satisfies readonly UserRole[];
 
+// Permisos evaluaciones_cargar y tests_catalogo (por defecto, EVAL_WRITE_ROLES).
 export function canWriteEvaluations(roles: readonly UserRole[]) {
-  return EVAL_WRITE_ROLES.some((r) => roles.includes(r));
+  return can(roles, "evaluaciones_cargar") || can(roles, "tests_catalogo");
 }
+// Ven los resultados: los roles de siempre o quien carga o administra tests.
 export function canReadEvaluations(roles: readonly UserRole[]) {
-  return EVAL_READ_ROLES.some((r) => roles.includes(r));
+  return EVAL_READ_ROLES.some((r) => roles.includes(r)) || canWriteEvaluations(roles);
 }
 
 export type DisplayFormat = "number" | "mmss";
@@ -61,6 +64,16 @@ export function formatNumber(value: number, format: DisplayFormat) {
 export function formatValue(value: number, test: Pick<TestDefinition, "unit" | "display_format">) {
   const n = formatNumber(value, test.display_format);
   return test.display_format === "mmss" ? n : `${n} ${test.unit}`;
+}
+
+// Máscara al escribir un tiempo: los últimos 2 dígitos son los segundos ("345" → "3:45").
+// Con 1 o 2 dígitos se deja tal cual (segundos). Segundos máx. 59; minutos máx. 3 dígitos.
+export function maskMmss(input: string) {
+  const d = input.replace(/\D/g, "").slice(0, 5);
+  if (d.length <= 2) return d;
+  const m = String(Number(d.slice(0, -2)));
+  const s = Math.min(Number(d.slice(-2)), 59);
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 // Texto del formulario → número. null si no es válido. mm:ss acepta "4:35" o segundos.

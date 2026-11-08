@@ -253,6 +253,55 @@ export type Database = {
           },
         ]
       }
+      event_attendance: {
+        Row: {
+          club_id: string
+          event_id: string
+          player_id: string
+          present: boolean
+          recorded_at: string
+          recorded_by: string
+        }
+        Insert: {
+          club_id: string
+          event_id: string
+          player_id: string
+          present: boolean
+          recorded_at?: string
+          recorded_by: string
+        }
+        Update: {
+          club_id?: string
+          event_id?: string
+          player_id?: string
+          present?: boolean
+          recorded_at?: string
+          recorded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_attendance_event_id_club_id_fkey"
+            columns: ["event_id", "club_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id", "club_id"]
+          },
+          {
+            foreignKeyName: "event_attendance_player_id_club_id_fkey"
+            columns: ["player_id", "club_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id", "club_id"]
+          },
+          {
+            foreignKeyName: "event_attendance_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_callups: {
         Row: {
           club_id: string
@@ -1017,6 +1066,15 @@ export type Database = {
         Returns: boolean
       }
       archive_test_definition: { Args: { p_test: string }; Returns: undefined }
+      attendance_ranking: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          attended: number
+          full_name: string
+          player_id: string
+          total: number
+        }[]
+      }
       cancel_event: { Args: { p_event_id: string }; Returns: undefined }
       club_logo_path: { Args: { p_slug: string }; Returns: string }
       club_public_card: {
@@ -1342,6 +1400,10 @@ export type Database = {
       }
       set_dashboard_metrics_mobile: {
         Args: { p_metrics: string[] }
+        Returns: undefined
+      }
+      set_event_attendance: {
+        Args: { p_absent: string[]; p_event_id: string }
         Returns: undefined
       }
       set_event_callups: {

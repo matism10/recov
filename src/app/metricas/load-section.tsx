@@ -10,14 +10,16 @@ import { LoadRow } from "./load-row";
 import { LoadSummary } from "./load-summary";
 import { MetricsError, metricCardClass } from "@/app/metrics";
 import { SectionTitle, buttonSecondary } from "@/app/ui";
+import type { ReactNode } from "react";
 
 export const RANKING_PREVIEW = 5;
 
-export function LoadSection({ result }: { result: LoadResult<TeamLoad> }) {
+export function LoadSection({ result, srpe }: { result: LoadResult<TeamLoad>; srpe?: ReactNode }) {
   return (
-    // Una sola lámina: título, resumen, ranking y el enlace al ranking completo.
+    // Una sola lámina: título, carga sRPE, resumen, ranking y el enlace al ranking completo.
     <section className={`mb-8 ${metricCardClass}`}>
       <SectionTitle className="mb-1">Carga del plantel</SectionTitle>
+      {srpe && <div className="mt-3 mb-4">{srpe}</div>}
       {!result.ok ? (
         <MetricsError />
       ) : result.data.matches_count === 0 ? (

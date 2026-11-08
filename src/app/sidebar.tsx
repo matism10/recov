@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { getProfile, getSupabase } from "@/lib/session";
-import { isDirection, isStaff, type UserRole } from "@/lib/roles";
+import { canApproveRegistrations, canSetWellnessDays, isDirection, isStaff, type UserRole } from "@/lib/roles";
 import { canReadEvaluations } from "@/lib/evaluations";
 import { clubLogoUrl } from "@/lib/club-logo";
 import { SidebarNav } from "./sidebar-nav";
@@ -12,6 +12,7 @@ import { clubOptions } from "@/lib/club-options";
 import { photoUrl } from "@/lib/photos";
 import { getFormatContext } from "@/lib/format";
 import { allowedScreens, resolveSlots } from "@/lib/nav-slots";
+import { canPlanGym } from "@/lib/gym-roles";
 
 // Datos de la navegación (sidebar de escritorio, barra móvil y encabezado del club).
 // Solo para usuarios confirmados: sin sesión, pendientes o rechazados no ven
@@ -39,7 +40,7 @@ const getNavData = cache(async () => {
   const [pendingCount, avatarUrl, formatCtx, savedSlots] = await Promise.all([
     // RLS: solo la dirección ve las membresías pendientes de su plantel. Se cuentan
     // las del plantel activo, no las de otros planteles de la cuenta.
-    direction && profile.club_id
+    canApproveRegistrations(roles) && profile.club_id
       ? supabase
           .from("club_members")
           .select("user_id", { count: "exact", head: true })
@@ -79,11 +80,13 @@ const getNavData = cache(async () => {
     staff: isStaff(roles),
     evaluations: canReadEvaluations(roles),
     player: roles.includes("jugador"),
+    gymPlanner: canPlanGym(roles),
     pendingCount,
     // Barra móvil: los slots y, en "Más", el resto de las pantallas del rol.
     slots,
     more: allowedScreens(roles).filter((s) => !slots.includes(s)),
     headCoach: roles.includes("head_coach"),
+    wellnessConfig: canSetWellnessDays(roles),
     // Indicador de formato: solo para quien puede trabajar en Rugby 15 y en Sevens.
     format: formatCtx.canSevens ? formatCtx.format : null,
   };
@@ -101,6 +104,9 @@ export async function Sidebar() {
       direction={nav.direction}
       staff={nav.staff}
       evaluations={nav.evaluations}
+      wellnessConfig={nav.wellnessConfig}
+      gymPlanner={nav.gymPlanner}
+      player={nav.player}
       pendingCount={nav.pendingCount}
     />
   );
@@ -131,6 +137,7 @@ export async function MobileNav() {
       more={nav.more}
       player={nav.player}
       headCoach={nav.headCoach}
+      wellnessConfig={nav.wellnessConfig}
       pendingCount={nav.pendingCount}
     />
   );

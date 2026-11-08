@@ -10,7 +10,7 @@ import {
   PERFIL,
   REGISTRAR_LESION_HREF,
   REGISTROS,
-  isNavHidden,
+  isBarHidden,
   type NavItem,
 } from "@/app/nav-items";
 import type { NavScreen } from "@/lib/nav-slots";
@@ -56,20 +56,26 @@ export function MobileNavBar({
   more,
   player,
   headCoach,
+  wellnessConfig,
   pendingCount,
 }: {
   slots: NavScreen[];
   more: NavScreen[];
   player: boolean;
   headCoach: boolean;
+  wellnessConfig: boolean;
   pendingCount: number;
 }) {
   const pathname = usePathname();
-  if (isNavHidden(pathname)) return null;
+  if (isBarHidden(pathname)) return null;
 
   const barItems = slots.map((s) => NAV_SCREEN_ITEM[s]);
-  // Configuración va en "Más" solo para el head coach.
-  const moreItems = [...more.map((s) => NAV_SCREEN_ITEM[s]), ...(headCoach ? [CONFIGURACION] : [])];
+  // Configuración va en "Más" para quien elige los días del check de bienestar (head
+  // coach, manager y preparador físico); el preparador físico ahí solo ve el check.
+  const moreItems = [
+    ...more.map((s) => NAV_SCREEN_ITEM[s]),
+    ...(headCoach || wellnessConfig ? [CONFIGURACION] : []),
+  ];
   const current = activeHref([...barItems, ...moreItems, PERFIL], pathname);
   // El botón del jugador va al centro: después del segundo slot.
   const centerAfter = player ? 1 : -1;
