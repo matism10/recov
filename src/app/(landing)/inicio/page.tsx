@@ -57,7 +57,7 @@ export default function LandingPage() {
                 <p className="text-[#3F5266]">Rodilla · Reintegro</p>
               </div>
               <div className="absolute -bottom-4 right-2 rounded-xl bg-white px-3 py-2 text-xs shadow-lg sm:right-6 sm:text-sm">
-                <p className="font-bold">12 confirmados</p>
+                <p className="font-bold">51 disponibles</p>
                 <p className="text-[#3F5266]">Sábado 16:00</p>
               </div>
             </div>
@@ -67,7 +67,7 @@ export default function LandingPage() {
 
       <section className="py-16 lg:py-24">
         <div className={wrap}>
-          <h2 className={h2}>Todo tu club, en el celular.</h2>
+          <h2 className={`${h2} max-w-3xl`}>Todo tu club, en el celular, con múltiples funcionalidades para gestionar cada acción del plantel.</h2>
           <p className="mt-3 max-w-2xl text-lg text-[#3F5266]">
             Tus jugadores y tu staff usan la misma app. Tú ves el estado real del plantel, sin planillas.
           </p>
