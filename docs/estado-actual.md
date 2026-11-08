@@ -49,6 +49,13 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 20261107190000: `gym_calendar(desde, hasta, formato)` (SECURITY DEFINER, solo `authenticated`; rango máx. 62 días; el gimnasio no tiene formato, el parámetro solo se valida): jugador confirmado y activo, solo sus sesiones (`private.gym_assignments`); staff con `gimnasio_planes` o `lesiones_ver`, las sesiones de los planes publicados del club. Planes y sesiones archivados no salen. Probada en `gym_plan_test.sql`.
 
 ## Historial
+
+- 8 nov · PR pendiente · Landing pública en `/inicio` (route group `(landing)`, sin shell de la app), servida en la raíz de recov.cl y www.recov.cl por rewrite en `proxy.ts`; en los demás hosts `/inicio` redirige a `/`.
+  - Migración `20261108120000_access_requests`: tabla `access_requests` (RLS sin policies) y `submit_access_request` (SECURITY DEFINER, anon/authenticated; valida y evita duplicados del mismo correo en 24 h). Prueba: `supabase/tests/access_requests_test.sql`.
+  - Formulario de 5 campos: server action con honeypot y validación (`src/lib/landing/config.ts`); guarda y luego avisa a contacto@recov.cl con `sendEmail` (si el correo falla, queda guardada).
+  - Capturas en `public/landing/` (nombres en `config.ts`); si falta una, bloque gris. La réplica de Plantel/Cancha usa `Pitch` y `PITCH_LAYOUTS` con datos ficticios.
+  - Pendiente: páginas `/terminos` y `/privacidad` (enlaces ya puestos), dominio en Vercel/Cloudflare y revisar Auth URLs en Supabase.
+- 4 nov · PR pendiente · Registro de lesión v2: el jugador elige la zona en un mapa del cuerpo (Frente/Espalda, o lista) y el lado (sugerido según dónde tocó), el documento médico es opcional con Reemplazar/Eliminar hasta la revisión, el kine ve "Sin documento", zona y lado, y el Resumen del staff tiene el mapa "Zonas lesionadas".
 - 7 nov · PR pendiente · Notificación de evento nuevo: la insignia muestra la fecha y hora del evento en hora de Chile ("sáb 8 nov, 19:00"; con año si es otro) en vez de "Hoy"; sin migración (el payload ya traía `starts_at`).
 - 7 nov · PR pendiente · Evaluaciones: los tiempos mm:ss se dan formato al escribir (`maskMmss` en `src/lib/evaluations.ts`; "345" → "3:45"; sin migración).
 - 7 nov · PR pendiente · Gimnasio en el calendario (20261107190000): `gym_calendar` y chip "Gimnasio" de solo lectura en `/calendario`.
