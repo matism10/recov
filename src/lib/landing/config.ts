@@ -1,11 +1,11 @@
 // Configuración de la landing pública: imágenes (public/landing/), pantallas, deportes y opciones del formulario.
 export const LANDING_IMAGES = {
-  hero: { name: "hero-resumen", width: 1600, height: 1000 },
+  hero: { name: "hero-resumen", width: 2000, height: 1138 },
 } as const;
 
 export type ScreenItem = { file: string; label: string; text: string };
 
-const PHONE = { width: 390, height: 844 };
+const PHONE = { width: 923, height: 2000 };
 export const PHONE_SIZE = PHONE;
 
 export const STAFF_SCREENS: ScreenItem[] = [
