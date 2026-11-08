@@ -3,7 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Archive, Plus, Save, Sparkles, Undo2 } from "lucide-react";
-import { formatValue, parseValue, type TestDefinition } from "@/lib/evaluations";
+import { formatValue, maskMmss, parseValue, type TestDefinition } from "@/lib/evaluations";
 import {
   ErrorMessage,
   SuccessMessage,
@@ -156,7 +156,10 @@ export function ResultsForm({
                     autoComplete="off"
                     placeholder={placeholder}
                     value={values[r.playerId] ?? ""}
-                    onChange={(e) => setValues((v) => ({ ...v, [r.playerId]: e.target.value }))}
+                    onChange={(e) => {
+                      const next = test.display_format === "mmss" ? maskMmss(e.target.value) : e.target.value;
+                      setValues((v) => ({ ...v, [r.playerId]: next }));
+                    }}
                     aria-invalid={bad || undefined}
                     className={`min-h-11 w-full rounded-xl border bg-white px-3 py-2 text-right text-ink tabular-nums outline-none focus:border-brand-strong focus:ring-2 focus:ring-brand-soft ${
                       bad ? "border-lesionado-fg" : "border-line"
