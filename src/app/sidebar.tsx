@@ -13,6 +13,7 @@ import { photoUrl } from "@/lib/photos";
 import { getFormatContext } from "@/lib/format";
 import { allowedScreens, resolveSlots } from "@/lib/nav-slots";
 import { canPlanGym } from "@/lib/gym-roles";
+import { pendingLegal } from "@/lib/legal/gate";
 
 // Datos de la navegación (sidebar de escritorio, barra móvil y encabezado del club).
 // Solo para usuarios confirmados: sin sesión, pendientes o rechazados no ven
@@ -32,6 +33,8 @@ const getNavData = cache(async () => {
   // El mismo perfil que lee la página en este request (una sola consulta).
   const profile = await getProfile(userId);
   if (profile?.status !== "confirmado") return null;
+  // Pantalla legal bloqueante: sin navegación hasta aceptar.
+  if (pendingLegal(profile)) return null;
 
   const club = profile.club;
   const roles = (profile.roles ?? []) as UserRole[];

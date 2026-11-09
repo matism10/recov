@@ -4,6 +4,7 @@ import { useActionState, useId, useState, type ChangeEvent, type FormEvent } fro
 import { ROLE_LABEL, STAFF_SIGNUP_ROLES } from "@/lib/roles";
 import { resizeAvatar } from "@/app/avatar-resize";
 import { PhoneField } from "@/app/phone-field";
+import { TermsConsent } from "@/app/legal-consent";
 import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 import { registerMember, type RegisterState } from "./actions";
 import Link from "next/link";
@@ -43,6 +44,7 @@ export function RegisterForm({
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const phoneId = useId();
+  const [accepted, setAccepted] = useState(false);
 
   async function pickAvatar(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -311,9 +313,11 @@ export function RegisterForm({
         </Link>
       )}
 
+      <TermsConsent checked={accepted} onChange={setAccepted} />
+
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !accepted}
         className={`w-full ${buttonPrimary}`}
       >
         {pending ? "Creando cuenta…" : "Crea tu cuenta"}

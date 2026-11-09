@@ -55,6 +55,11 @@ export default async function LoginPage({
             ¿Olvidaste tu contraseña?
           </Link>
         </form>
+        <p className="mt-4 text-center text-xs text-muted">
+          <Link href="/terminos" className="underline">Términos de uso</Link>
+          {" · "}
+          <Link href="/privacidad" className="underline">Política de privacidad</Link>
+        </p>
         <InstallGuide />
       </div>
     </main>

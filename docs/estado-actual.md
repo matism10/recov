@@ -6,7 +6,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Estado del repositorio
 - Todo está mergeado en `main` (último: PR #96, 7 nov).
-- Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000, 20261105190000 20261105200000 a 20261105210000 y 20261106120000 a 20261106122000 y 20261107120000 a 20261107184000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
+- Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000, 20261105190000 20261105200000 a 20261105210000 y 20261106120000 a 20261106122000 y 20261107120000 a 20261107184000, 20261108120000 y 20261109120000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
 - 43 pantallas (rutas de página en `src/app`).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
 - Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones), `sevens_test.sql` (Rugby Sevens), `load_wellness_test.sql` (sRPE y bienestar), `staff_permissions_test.sql` (permisos del staff), `gym_plan_test.sql` (plan de gimnasio) y `notifications_test.sql` (notificaciones). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`).
@@ -50,6 +50,9 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 
+- 9 nov · PR pendiente · Páginas legales y aceptación.
+  - Migración `20261109120000_legal_acceptance`: `profiles.terms_accepted_at/terms_version`, `clubs.guardian_declared_at/by`, `accept_terms(p_version)` y `declare_guardian_authorization()` (exige `staff_gestionar` en el plantel activo; idempotente). `register_member` de 10 argumentos (con `p_terms_version`, atómico) que llama a la de 9, que ahora exige haber aceptado. Prueba: `supabase/tests/legal_acceptance_test.sql`.
+  - `/privacidad` y `/terminos` públicas (`src/lib/legal/content.ts`, `LEGAL_VERSION = "2026-11-09"`); casilla obligatoria en el registro; pantalla bloqueante en el layout (`LegalGate`) para cuentas sin la versión vigente y, para head coach y manager, la declaración de autorización de apoderados.
 - 8 nov · PR pendiente · Landing pública en `/inicio` (route group `(landing)`, sin shell de la app), servida en la raíz de recov.cl y www.recov.cl por rewrite en `proxy.ts`; en los demás hosts `/inicio` redirige a `/`.
   - Migración `20261108120000_access_requests`: tabla `access_requests` (RLS sin policies) y `submit_access_request` (SECURITY DEFINER, anon/authenticated; valida y evita duplicados del mismo correo en 24 h). Prueba: `supabase/tests/access_requests_test.sql`.
   - Formulario de 5 campos: server action con honeypot y validación (`src/lib/landing/config.ts`); guarda y luego avisa a contacto@recov.cl con `sendEmail` (si el correo falla, queda guardada).
@@ -98,6 +101,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Una cuenta puede estar en varios planteles: con sesión, el link ofrece "Únete a este plantel" (jugador con posiciones o staff con puesto) o "Unirme con otro correo".
 - Queda **pendiente** hasta que la dirección la confirma o rechaza en `/registros`; al confirmar le llega un correo. `/pendiente` revisa cada 10 s y entra sola al confirmarse.
 - Con 2 o más planteles, el encabezado tiene un selector; el plantel activo vive en la cookie `recov_club` y viaja como `x-club-id`. Roles y estado son por plantel (`club_members`).
+- Registro: casilla obligatoria "He leído y acepto los Términos de uso y la Política de privacidad" (guarda fecha y versión). Cuentas con otra versión (o sin aceptación) ven una pantalla bloqueante; head coach y manager del plantel, además, la declaración de autorización de apoderados (menores de 16 años) en su primer ingreso. Textos en `/terminos` y `/privacidad`.
 - Recuperar contraseña en `/recuperar`. Recov se instala como Web App (guía en el login y el registro).
 
 **2. Una lesión entra al sistema por uno de dos caminos**
@@ -275,6 +279,7 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Avisos abiertos:** "Leaked password protection" desactivado; `pg_net` en el esquema `public` (sin uso).
 
 ## Pendiente
+- **Legal:** los textos están como "Borrador pendiente de revisión legal" (línea al inicio de cada página; quitarla cuando se pida); no hay pantalla de creación de plantel (se crea por SQL), así que la declaración va como pantalla bloqueante; al subir `LEGAL_VERSION` todas las cuentas vuelven a aceptar.
 - **Notificaciones:**
   - `rls_isolation_test.sql` se corrió solo en parte con las funciones nuevas (secciones 1–12 y multi-plantel 0039): el archivo no cabe en una llamada del MCP;
   - las notificaciones descartadas se guardan (no se borran) y la lectura toma las de los últimos 30 días; falta decidir una limpieza;
