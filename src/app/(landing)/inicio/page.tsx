@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { ALL_IMAGE_FILES, LANDING_IMAGES } from "@/lib/landing/config";
+import { ALL_IMAGE_FILES, LANDING_IMAGES, PHONE_SIZE } from "@/lib/landing/config";
 import logo from "@/app/recov-logo.png";
 import { AccessForm } from "./access-form";
 import { BrowserFrame, Shot } from "./frame";
@@ -29,45 +29,54 @@ export default function LandingPage() {
   const hero = LANDING_IMAGES.hero;
   return (
     <main>
-      <section id="acceso" className="overflow-x-clip bg-[#38BDF8] pb-12 lg:pb-20">
+      <section id="acceso" className="overflow-x-clip bg-[#38BDF8] pb-0 lg:pb-20">
         <div className={wrap}>
           <header className="flex min-h-16 items-center justify-between">
             <span className="flex items-center gap-2">
               <Image src={logo} alt="" width={36} height={36} className="size-9 rounded-lg" />
               <span className="font-[family-name:var(--l-title)] text-2xl font-extrabold tracking-tight">Recov</span>
             </span>
-            <Link href="/login" className="inline-flex min-h-11 items-center text-sm font-semibold underline">Iniciar sesión</Link>
+            <nav aria-label="Secciones" className="flex items-center gap-2">
+              {[["Funciones", "#funciones"], ["Deportes", "#deportes"]].map(([t, h]) => (
+                <a key={h} href={h} className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-[#0B1B2B] bg-transparent px-4 text-sm font-semibold text-[#0B1B2B]">{t}</a>
+              ))}
+            </nav>
           </header>
-          <div className="mt-6 grid gap-10 lg:mt-12 lg:grid-cols-[42%_1fr] lg:items-center lg:gap-12">
-            <div className="space-y-6">
+          <div className="mt-6 grid gap-y-8 lg:mt-12 lg:grid-cols-[42%_1fr] lg:gap-x-12 lg:gap-y-6">
+            <div className="space-y-6 lg:self-end">
               <h1 className="font-[family-name:var(--l-title)] text-4xl leading-[1.05] font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
                 Ten claro quién puede jugar el sábado. <span className="text-[#05445E]">Sin un solo WhatsApp.</span>
               </h1>
               <p className="max-w-[34rem] text-lg text-[#0B1B2B]">
                 Recov controla lesiones, fecha de vuelta y disponibilidad de tu club amateur en una sola pantalla.
               </p>
-              <AccessForm />
             </div>
-            <div className="relative lg:w-[calc(100%+6rem)] lg:max-w-none">
-              <BrowserFrame>
+            <div className="relative mx-auto w-full max-w-[300px] md:max-w-none lg:row-span-2 lg:w-[calc(100%+6rem)] lg:max-w-none lg:self-center">
+              <div className="mx-auto h-[300px] w-[220px] overflow-hidden rounded-t-[36px] border-[8px] border-b-0 border-[#0B1B2B] bg-white md:hidden">
+                <Shot src={images["staff-resumen"]} name="staff-resumen" width={PHONE_SIZE.width} height={PHONE_SIZE.height} sizes="220px" priority />
+              </div>
+              <BrowserFrame className="hidden md:block">
                 <Shot src={images[hero.name]} name={hero.name} width={hero.width} height={hero.height} sizes="(min-width: 1024px) 58vw, 100vw" priority />
               </BrowserFrame>
-              <div className="absolute -top-3 left-2 rounded-xl bg-white px-3 py-2 text-xs shadow-lg sm:-left-4 sm:text-sm">
+              <div className="absolute top-10 left-0 rounded-xl bg-white px-2 py-1.5 text-[11px] shadow-lg md:-top-3 md:left-2 md:px-3 md:py-2 md:text-sm lg:-left-4">
                 <p className="font-bold">Tomás R. vuelve el 18 nov</p>
                 <p className="text-[#3F5266]">Rodilla · Reintegro</p>
               </div>
-              <div className="absolute -bottom-4 right-2 rounded-xl bg-white px-3 py-2 text-xs shadow-lg sm:right-6 sm:text-sm">
+              <div className="absolute right-0 bottom-10 rounded-xl bg-white px-2 py-1.5 text-[11px] shadow-lg md:-bottom-4 md:right-6 md:px-3 md:py-2 md:text-sm">
                 <p className="font-bold">51 disponibles</p>
                 <p className="text-[#3F5266]">Sábado 16:00</p>
               </div>
+            </div>
+            <div className="-mx-6 rounded-t-[28px] bg-white px-6 pt-6 pb-10 lg:mx-0 lg:self-start lg:rounded-none lg:bg-transparent lg:p-0">
+              <AccessForm />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="py-16 lg:py-24">
+      <section id="funciones" className="scroll-mt-4 py-16 lg:py-24">
         <div className={wrap}>
-          <h2 className={`${h2} max-w-3xl`}>Todo tu club, en el celular, con múltiples funcionalidades para gestionar cada acción del plantel.</h2>
+          <h2 className={`${h2} max-w-3xl`}>Todo tu club, en el celular.</h2>
           <p className="mt-3 max-w-2xl text-lg text-[#3F5266]">
             Tus jugadores y tu staff usan la misma app. Tú ves el estado real del plantel, sin planillas.
           </p>
@@ -78,7 +87,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="bg-[#0B1B2B] py-16 text-white lg:py-24">
+      <section id="deportes" className="scroll-mt-4 bg-[#0B1B2B] py-16 text-white lg:py-24">
         <div className={wrap}>
           <div className="flex items-end gap-4">
             <span className="font-[family-name:var(--l-title)] text-[120px] leading-[0.8] font-extrabold tracking-tighter text-[#38BDF8] sm:text-[180px]">7</span>
