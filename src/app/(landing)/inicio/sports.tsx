@@ -67,7 +67,7 @@ function Replica({ kind }: { kind: PitchKind }) {
   const [selected, setSelected] = useState(positions[0]);
   const [only, setOnly] = useState(false);
   const idx = positions.indexOf(selected);
-  const all = playersFor(selected, idx);
+  const all = playersFor(selected, idx).map((p, i) => ({ ...p, mobile: i === 0 || i === 3 || i === 5 }));
   const list = only ? all.filter((p) => p.status === "disponible") : all;
   const markers = layout.map<PitchMarker & { x: number; y: number }>((l) => ({
     key: String(l.slot), code: l.code, label: shortPositionLabel(l.position), active: l.position === selected,
@@ -94,25 +94,25 @@ function Replica({ kind }: { kind: PitchKind }) {
                 <p className="font-[family-name:var(--l-title)] text-lg font-bold">{selected}</p>
                 <p className="text-sm text-[#5B6675]">{all.length} jugadores</p>
               </div>
-              <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium">
+              <label className="hidden min-h-11 cursor-pointer md:inline-flex items-center gap-2 text-sm font-medium">
                 <input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} className="size-5 accent-[#0284c7]" />
                 Solo disponibles
               </label>
             </div>
             <ul className="space-y-2">
               {list.map((p) => (
-                <li key={p.name} className="relative overflow-hidden rounded-xl bg-[#F7F8FA]">
+                <li key={p.name} className={`relative overflow-hidden rounded-xl bg-[#F7F8FA] ${p.mobile ? "" : "hidden md:block"}`}>
                   <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${STRIPE[p.status]}`} />
-                  <div className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 py-3 pr-4 pl-5">
+                  <div className="flex min-h-14 items-center gap-x-3 py-2 pr-3 pl-5 md:min-h-16 md:flex-wrap md:gap-x-4 md:gap-y-2 md:py-3 md:pr-4">
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       <Avatar name={p.name} size="md" />
                       <div className="min-w-0">
-                        <p className="text-[17px] leading-6 font-semibold">{p.name}</p>
-                        <p className="text-sm text-[#5B6675]">{[p.position, p.phase].filter(Boolean).join(" · ")}</p>
+                        <p className="truncate text-[17px] leading-6 font-semibold">{p.name}</p>
+                        <p className="truncate text-sm text-[#5B6675]">{[p.position, p.phase].filter(Boolean).join(" · ")}</p>
                       </div>
                     </div>
                     <AvailabilityBadge status={p.status} />
-                    <span className="inline-flex min-h-11 items-center text-sm font-medium whitespace-nowrap text-[#0369a1] underline">Marcar lesión</span>
+                    <span className="hidden min-h-11 items-center text-sm font-medium whitespace-nowrap md:inline-flex text-[#0369a1] underline">Marcar lesión</span>
                   </div>
                 </li>
               ))}

@@ -15,6 +15,7 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
       className={`${title.variable} ${body.variable} flex-1 bg-white font-[family-name:var(--l-body)] text-[#0B1B2B]`}
       style={{ fontStretch: "100%" }}
     >
+      <style>{"html{scroll-behavior:smooth}"}</style>
       {children}
     </div>
   );
