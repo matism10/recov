@@ -10,6 +10,7 @@ import { accountName } from "./account-name";
 import { STAFF_SIGNUP_ROLES, type StaffSignupRole } from "@/lib/roles";
 import { PHONE_ERROR, normalizePhone } from "@/lib/phone";
 import { emailDomainReceivesMail } from "@/lib/email-domain";
+import { LEGAL_VERSION } from "@/lib/legal/content";
 
 const MAX_NAME = 100;
 const MIN_PASSWORD = 6;
@@ -62,6 +63,9 @@ export async function registerMember(
   // una cuenta que después no se pueda registrar en el club.
   if (kind !== "jugador" && kind !== "staff") {
     return fail("Elige si eres jugador o staff.");
+  }
+  if (formData.get("consent") !== "on") {
+    return fail("Acepta los Términos de uso y la Política de privacidad para registrarte.");
   }
   if (!EMAIL_RE.test(fields.email)) return fail("Ingresa un correo válido.");
   if (password.length < MIN_PASSWORD) {
@@ -152,19 +156,18 @@ export async function registerMember(
     );
   }
 
+  // Registro y aceptación en una sola transacción (10 argumentos: todos explícitos).
   const { error: rpcError } = await supabase.rpc("register_member", {
     p_club_slug: slug,
     p_kind: kind,
     p_first_name: fields.firstName,
     p_last_name: fields.lastName,
-    ...(kind === "jugador"
-      ? {
-          p_position: fields.position,
-          p_secondary_position: fields.secondaryPosition || null,
-          p_height_cm: height,
-          p_weight_kg: weight,
-        }
-      : { p_requested_role: fields.role }),
+    p_position: kind === "jugador" ? fields.position : null,
+    p_secondary_position: kind === "jugador" ? fields.secondaryPosition || null : null,
+    p_height_cm: kind === "jugador" ? height : null,
+    p_weight_kg: kind === "jugador" ? weight : null,
+    p_requested_role: kind === "staff" ? fields.role : null,
+    p_terms_version: LEGAL_VERSION,
   });
 
   if (rpcError) {

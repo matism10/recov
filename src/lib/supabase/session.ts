@@ -7,9 +7,9 @@ import {
 } from "@/lib/active-club";
 
 // Accesibles sin sesión. "/c/" es el link de registro de cada club; /recuperar y
-// /restablecer, recuperar contraseña.
+// /restablecer, recuperar contraseña; /privacidad y /terminos, los textos legales.
 // /pendiente no va aquí: requiere sesión, pero no un perfil confirmado.
-const PUBLIC_PATHS = ["/login", "/c/", "/recuperar", "/restablecer"];
+const PUBLIC_PATHS = ["/login", "/c/", "/recuperar", "/restablecer", "/privacidad", "/terminos"];
 
 // Refresca la sesión de Supabase en cada request, protege las rutas privadas y
 // valida el plantel activo (cookie recov_club) contra las membresías de la cuenta.

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import "./globals.css";
 import { ClubHeaderNav, MobileNav, Sidebar } from "./sidebar";
+import { LegalGate } from "./legal-gate";
 
 // Archivo: una sola familia para títulos, cuerpo y wordmark. Fuente variable con
 // eje de ancho: se usa semicondensada (font-stretch 87.5% en globals.css).
@@ -42,7 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="flex min-w-0 flex-1 flex-col">
             {/* Encabezado con la identidad del club, en celular y escritorio. */}
             <ClubHeaderNav />
-            {children}
+            <LegalGate>{children}</LegalGate>
           </div>
         </div>
         {/* Barra inferior solo en celular y tablet (hasta lg). */}

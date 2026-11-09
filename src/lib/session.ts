@@ -27,12 +27,12 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 
 // Columnas del plantel que piden el layout y las páginas.
 const CLUB_COLUMNS =
-  "name, sport, category, logo_path, cover_path, cover_position_x, cover_position_y, kine_delegate_id, nomina_delegate_id, nomina_mode, dashboard_metrics, dashboard_metrics_mobile, has_sevens";
+  "name, sport, category, logo_path, cover_path, cover_position_x, cover_position_y, kine_delegate_id, nomina_delegate_id, nomina_mode, dashboard_metrics, dashboard_metrics_mobile, has_sevens, guardian_declared_at";
 
 // Perfil (nombre y foto, de la cuenta) con todas sus membresías y su plantel.
 // Desde 0043 profiles es solo identidad: plantel, roles y estado salen de club_members.
 const PROFILE_COLUMNS =
-  "full_name, avatar_path, " +
+  "full_name, avatar_path, terms_accepted_at, terms_version, " +
   `club_members!club_members_user_id_fkey(club_id, roles, status, created_at, clubs!club_members_club_id_fkey(${CLUB_COLUMNS}))`;
 
 export type MyClub = {
@@ -49,6 +49,8 @@ export type MyClub = {
   dashboard_metrics: string[] | null;
   dashboard_metrics_mobile: string[] | null;
   has_sevens: boolean;
+  // Declaración de autorización de apoderados (20261109120000); null = pendiente.
+  guardian_declared_at: string | null;
 };
 
 // Una membresía de la cuenta (para el selector de plantel).
@@ -68,6 +70,9 @@ export type MyProfile = {
   status: string;
   club_id: string | null;
   avatar_path: string | null;
+  // Aceptación de términos (20261109120000).
+  terms_accepted_at: string | null;
+  terms_version: string | null;
   club: MyClub | null;
   // Todas las membresías, de la más antigua a la más nueva.
   memberships: MyMembership[];
@@ -79,6 +84,8 @@ export type MyProfile = {
 type ProfileRow = {
   full_name: string | null;
   avatar_path: string | null;
+  terms_accepted_at: string | null;
+  terms_version: string | null;
   club_members: (Omit<MyMembership, "club"> & { clubs: MyClub | MyClub[] | null })[] | null;
 };
 
@@ -119,6 +126,8 @@ export const getProfile = cache(async (userId: string): Promise<MyProfile | null
   return {
     full_name: row.full_name,
     avatar_path: row.avatar_path,
+    terms_accepted_at: row.terms_accepted_at,
+    terms_version: row.terms_version,
     roles: withPermissions([...(active?.roles ?? [])], active?.status === "confirmado" ? ((perms as string[] | null) ?? []) : []),
     status: active?.status ?? "pendiente",
     club_id: active?.club_id ?? null,
