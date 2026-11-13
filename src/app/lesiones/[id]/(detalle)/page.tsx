@@ -335,6 +335,7 @@ export default async function InjuryPage({
                 expectedReturnOn={injury.expected_return_on}
                 severity={severity}
                 availability={(player?.availability ?? "disponible") as Availability}
+                reviewed={!!injury.reviewed_at}
               />
             </section>
           )}

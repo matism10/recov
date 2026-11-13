@@ -14,7 +14,11 @@ import {
   type PhaseDraft,
 } from "@/lib/injuries";
 
-export type ReviewInjuryState = { ok?: boolean; error?: string };
+export type ReviewInjuryState = {
+  ok?: boolean;
+  error?: string;
+  decision?: "confirmar" | "descartar" | "cerrar";
+};
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -92,7 +96,7 @@ export async function reviewInjury(
 
   revalidatePath(`/lesiones/${id}`);
   revalidatePath("/dashboard");
-  return { ok: true };
+  return { ok: true, decision };
 }
 
 export type PhasesState = { ok?: boolean; error?: string };
