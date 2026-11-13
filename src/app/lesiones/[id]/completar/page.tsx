@@ -1,10 +1,9 @@
-import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { notFound, redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import type { UserRole } from "@/lib/roles";
 import { formatDate } from "@/lib/injuries";
 import { InjuryForm } from "@/app/registrar-lesion/injury-form";
-import { textButton } from "@/app/ui";
 
 export default async function CompleteInjuryPage({
   params,
@@ -43,9 +42,7 @@ export default async function CompleteInjuryPage({
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 lg:max-w-5xl">
       <header className="mb-6">
-        <Link href={`/lesiones/${id}`} className={textButton}>
-          ← Volver
-        </Link>
+        <BackLink fallback={`/lesiones/${id}`}>← Volver</BackLink>
         <h1 className="mt-2 text-2xl font-semibold text-ink">
           Sube tu diagnóstico
         </h1>

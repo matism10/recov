@@ -1,9 +1,8 @@
-import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canManageInjuries, type UserRole } from "@/lib/roles";
 import { MarkForm } from "../mark-form";
-import { textButton } from "@/app/ui";
 
 export default async function MarkInjuredPage({
   params,
@@ -42,9 +41,7 @@ export default async function MarkInjuredPage({
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/dashboard" className={textButton}>
-          ← Volver
-        </Link>
+        <BackLink fallback="/plantel">← Volver</BackLink>
         <p className="mt-2 text-sm text-muted">
           {player.full_name}
           {player.position && ` · ${player.position}`}
