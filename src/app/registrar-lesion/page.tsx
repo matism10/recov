@@ -1,9 +1,8 @@
-import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import type { UserRole } from "@/lib/roles";
 import { InjuryForm } from "./injury-form";
-import { textButton } from "@/app/ui";
 
 export default async function ReportInjuryPage() {
   const supabase = await getSupabase();
@@ -27,9 +26,7 @@ export default async function ReportInjuryPage() {
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 lg:max-w-5xl">
       <header className="mb-6">
-        <Link href="/dashboard" className={textButton}>
-          ← Volver
-        </Link>
+        <BackLink fallback="/dashboard">← Volver</BackLink>
         <h1 className="mt-2 text-2xl font-semibold text-ink">
           Registrar lesión
         </h1>

@@ -1,10 +1,10 @@
-import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { signOut } from "@/app/login/actions";
 import { ROLE_LABEL, type UserRole } from "@/lib/roles";
 import { photoUrl } from "@/lib/photos";
-import { cardClass, signOutButtonClass, textButton } from "@/app/ui";
+import { cardClass, signOutButtonClass } from "@/app/ui";
 import { LogOut } from "lucide-react";
 import { allowedScreens, defaultSlots, resolveSlots } from "@/lib/nav-slots";
 import { NavSlotsForm } from "./nav-slots-form";
@@ -78,9 +78,7 @@ export default async function ProfilePage() {
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/dashboard" className={textButton}>
-          ← Volver
-        </Link>
+        <BackLink fallback="/dashboard">← Volver</BackLink>
         <h1 className="mt-2 text-2xl font-semibold text-ink">Tu perfil</h1>
         <p className="mt-1 text-sm text-muted">
           {club?.name}

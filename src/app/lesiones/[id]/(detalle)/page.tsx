@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { Hourglass } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
@@ -25,8 +26,7 @@ import {
   PageTitle,
   SectionTitle,
   buttonPrimary,
-  textButton,
-} from "@/app/ui";
+  } from "@/app/ui";
 import { BodyMapPair } from "@/app/body-map";
 import { LATERALITY_LABEL, isBodyZone, isLaterality, zoneLabel } from "@/lib/body-zones";
 import { OwnDocuments } from "../own-documents";
@@ -155,9 +155,7 @@ export default async function InjuryPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 lg:max-w-6xl lg:px-12 lg:py-12">
-      <Link href="/dashboard" className={textButton}>
-        ← Volver
-      </Link>
+      <BackLink fallback="/lesiones">← Volver</BackLink>
 
       {awaitingReview && (
         <div
