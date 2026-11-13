@@ -50,6 +50,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 
+- 13 nov · PR pendiente · Detalle de lesión: una lesión ya confirmada no vuelve a mostrar el formulario "Confirma la lesión" (solo Da de alta y Descarta); al confirmar queda el mensaje "Lesión confirmada y guardada.".
 - 9 nov · PR pendiente · Páginas legales y aceptación.
   - Migración `20261109120000_legal_acceptance`: `profiles.terms_accepted_at/terms_version`, `clubs.guardian_declared_at/by`, `accept_terms(p_version)` y `declare_guardian_authorization()` (exige `staff_gestionar` en el plantel activo; idempotente). `register_member` de 10 argumentos (con `p_terms_version`, atómico) que llama a la de 9, que ahora exige haber aceptado. Prueba: `supabase/tests/legal_acceptance_test.sql`.
   - `/privacidad` y `/terminos` públicas (`src/lib/legal/content.ts`, `LEGAL_VERSION = "2026-11-09"`); casilla obligatoria en el registro; pantalla bloqueante en el layout (`LegalGate`) para cuentas sin la versión vigente y, para head coach y manager, la declaración de autorización de apoderados.
@@ -119,7 +120,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Lista y detalle muestran zona y lado; el detalle, un mapa con la zona. Las lesiones antiguas sin zona se ven como antes (tipo libre).
 - **Resumen del staff → "Zonas lesionadas":** mapa Frente/Espalda con las lesiones abiertas del plantel (en Sevens, del grupo) pintadas por cantidad (amarillo 1, naranjo 2, rojo 3 o más) y una lista por zona.
 - Desde el detalle de la lesión se puede:
-  - **Confirmar:** gravedad, fecha estimada de alta y disponibilidad (sugiere Lesionado).
+  - **Confirmar:** gravedad, fecha estimada de alta y disponibilidad (sugiere Lesionado). Una vez confirmada (`reviewed_at`) el formulario ya no se muestra; queda el mensaje "Lesión confirmada y guardada.".
   - **Descartar:** el jugador vuelve a Disponible si no tiene otra lesión abierta; si tiene otra activa, queda Lesionado.
 
 **4. Recuperación**

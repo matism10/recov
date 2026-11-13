@@ -7,7 +7,11 @@ import {
   type Availability,
   type ManualAvailability,
 } from "@/lib/roles";
-import { SEVERITY_LABEL, type InjurySeverity, type InjuryStatus } from "@/lib/injuries";
+import {
+  SEVERITY_LABEL,
+  type InjurySeverity,
+  type InjuryStatus,
+} from "@/lib/injuries";
 import { reviewInjury, type ReviewInjuryState } from "./actions";
 import {
   ErrorMessage,
@@ -17,7 +21,6 @@ import {
   inputClass,
   labelClass,
 } from "@/app/ui";
-
 
 const CONFIRM_MESSAGE = {
   descartar:
@@ -33,6 +36,7 @@ export function ReviewForm({
   expectedReturnOn,
   severity,
   availability,
+  reviewed,
 }: {
   injuryId: string;
   status: InjuryStatus;
@@ -40,19 +44,22 @@ export function ReviewForm({
   expectedReturnOn: string | null;
   severity: InjurySeverity | null;
   availability: Availability;
+  // Ya confirmada: no se vuelve a mostrar el formulario de confirmación.
+  reviewed: boolean;
 }) {
-  const [state, formAction, pending] = useActionState<ReviewInjuryState, FormData>(
-    reviewInjury,
-    {},
-  );
+  const [state, formAction, pending] = useActionState<
+    ReviewInjuryState,
+    FormData
+  >(reviewInjury, {});
   const [chosenSeverity, setChosenSeverity] = useState<InjurySeverity | "">(
     severity ?? "",
   );
   // Al confirmar se sugiere "Lesionado"; si ya está en reintegro se mantiene.
   // "En revisión" no es una opción: confirmar la lesión la resuelve.
-  const [chosenAvailability, setChosenAvailability] = useState<ManualAvailability>(
-    availability === "reintegro" ? "reintegro" : "lesionado",
-  );
+  const [chosenAvailability, setChosenAvailability] =
+    useState<ManualAvailability>(
+      availability === "reintegro" ? "reintegro" : "lesionado",
+    );
 
   // Descartar y dar de alta piden confirmación antes de enviarse.
   function confirmDecision(
@@ -64,72 +71,78 @@ export function ReviewForm({
 
   return (
     <div className="space-y-6">
-      <form action={formAction} className="space-y-4">
-        <input type="hidden" name="injury_id" value={injuryId} />
-        <input type="hidden" name="decision" value="confirmar" />
+      {!reviewed && (
+        <form action={formAction} className="space-y-4">
+          <input type="hidden" name="injury_id" value={injuryId} />
+          <input type="hidden" name="decision" value="confirmar" />
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className={labelClass}>
-            Gravedad
-            <select
-              name="severity"
-              required
-              value={chosenSeverity}
-              onChange={(e) => setChosenSeverity(e.target.value as InjurySeverity)}
-              className={inputClass}
-            >
-              <option value="" disabled>
-                Elige
-              </option>
-              {Object.entries(SEVERITY_LABEL).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className={labelClass}>
+              Gravedad
+              <select
+                name="severity"
+                required
+                value={chosenSeverity}
+                onChange={(e) =>
+                  setChosenSeverity(e.target.value as InjurySeverity)
+                }
+                className={inputClass}
+              >
+                <option value="" disabled>
+                  Elige
                 </option>
-              ))}
-            </select>
-          </label>
-          <label className={labelClass}>
-            Fecha estimada de alta
-            <input
-              name="expected_return_on"
-              type="date"
-              required
-              min={startedOn}
-              defaultValue={expectedReturnOn ?? ""}
-              className={inputClass}
-            />
-          </label>
-          <label className={labelClass}>
-            Disponibilidad
-            <select
-              name="availability"
-              value={chosenAvailability}
-              onChange={(e) => setChosenAvailability(e.target.value as ManualAvailability)}
-              className={inputClass}
-            >
-              {MANUAL_AVAILABILITY.map((value) => (
-                <option key={value} value={value}>
-                  {AVAILABILITY_LABEL[value]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+                {Object.entries(SEVERITY_LABEL).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={labelClass}>
+              Fecha estimada de alta
+              <input
+                name="expected_return_on"
+                type="date"
+                required
+                min={startedOn}
+                defaultValue={expectedReturnOn ?? ""}
+                className={inputClass}
+              />
+            </label>
+            <label className={labelClass}>
+              Disponibilidad
+              <select
+                name="availability"
+                value={chosenAvailability}
+                onChange={(e) =>
+                  setChosenAvailability(e.target.value as ManualAvailability)
+                }
+                className={inputClass}
+              >
+                {MANUAL_AVAILABILITY.map((value) => (
+                  <option key={value} value={value}>
+                    {AVAILABILITY_LABEL[value]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
-        <button
-          type="submit"
-          disabled={pending}
-          className={`w-full ${buttonPrimary}`}
-        >
-          {pending ? "Guardando…" : "Confirma la lesión"}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={pending}
+            className={`w-full ${buttonPrimary}`}
+          >
+            {pending ? "Guardando…" : "Confirma la lesión"}
+          </button>
+        </form>
+      )}
 
       {/* Descartar queda aparte de "Confirma la lesión": acción de texto en rojo,
           al otro extremo. Mismo envío y misma confirmación que antes. */}
       <form
         action={formAction}
-        className="flex flex-wrap items-center gap-3 border-t border-line pt-4"
+        className={`flex flex-wrap items-center gap-3 ${reviewed ? "" : "border-t border-line pt-4"}`}
       >
         <input type="hidden" name="injury_id" value={injuryId} />
         {status === "activa" && (
@@ -158,7 +171,15 @@ export function ReviewForm({
 
       {state.error && <ErrorMessage>{state.error}</ErrorMessage>}
       {state.ok && !pending && (
-        <SuccessMessage>Cambios guardados.</SuccessMessage>
+        <SuccessMessage>
+          {state.decision === "confirmar"
+            ? "Lesión confirmada y guardada."
+            : state.decision === "cerrar"
+              ? "Lesión dada de alta."
+              : state.decision === "descartar"
+                ? "Lesión descartada."
+                : "Cambios guardados."}
+        </SuccessMessage>
       )}
     </div>
   );
