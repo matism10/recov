@@ -50,6 +50,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 
+- 16 nov · PR pendiente · Seguridad: migración `20261116120000_security_hardening` (sin escrituras directas en lesiones, fases, documentos y jugadores; staff solo lee documentos y archivos médicos; sin privilegios de escritura sobrantes; sobrecargas viejas eliminadas). Prueba: `supabase/tests/security_hardening_test.sql`.
 - 13 nov · PR pendiente · Botones "Volver": nuevo `BackLink` (`src/app/back-link.tsx`) que regresa a la pantalla de origen (p. ej. detalle de lesión → /lesiones) y usa un destino fijo solo si no hay historial interno. Aplicado en detalle y completar de lesión, marcar lesionado, registrar lesión, ficha del jugador, perfil, nómina y disponibles/participación/reportes/asistencia del evento.
 - 13 nov · PR pendiente · Detalle de lesión: una lesión ya confirmada no vuelve a mostrar el formulario "Confirma la lesión" (solo Da de alta y Descarta); al confirmar queda el mensaje "Lesión confirmada y guardada.".
 - 9 nov · PR pendiente · Páginas legales y aceptación.
@@ -277,6 +278,7 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Plantel:** `club_members` es la única fuente de plantel, roles y estado; `profiles` solo guarda identidad (0043). RLS usa el `club_id` de cada fila; las funciones toman el plantel activo del header `x-club-id`, validado contra las membresías (inválido o ajeno: sin permisos).
 - **App:** las listas filtran por el plantel activo (RLS devuelve las filas de todos los planteles de la cuenta). La clave de servicio solo se usa en el servidor (correos y recuperación de contraseña).
 - **Correos de Auth:** máximo 1 por minuto y 5 por hora por correo (`allow_auth_email`, se guarda el hash del correo).
+- **Escritura:** `injuries`, `injury_phases`, `documents` y `players` solo cambian por funciones `SECURITY DEFINER`; `authenticated` no tiene escritura en tablas sin política de escritura y `anon` no escribe en ninguna. Se mantiene `register_member` de 9 argumentos (segundo plantel) y `squad_current_phases` visible para el plantel (fase en curso de los compañeros).
 - **Avisos de Supabase intencionales:** funciones `SECURITY DEFINER` ejecutables por `authenticated`; `club_public_info`, `club_public_card` y `club_logo_path` para anon (link sin sesión); tablas privadas con RLS y sin políticas.
 - **Avisos abiertos:** "Leaked password protection" desactivado; `pg_net` en el esquema `public` (sin uso).
 
