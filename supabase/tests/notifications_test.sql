@@ -328,7 +328,7 @@ select pg_temp.check(pg_temp.n('61000000-0000-0000-0000-0000000000f1', 'evaluaci
 -- 5. Cuenta, registros, Sevens, posición y funciones (14 a 17, 20, 23)
 -- =======================================================================
 select pg_temp.as_user('90000000-0000-0000-0000-0000000000f1');
-select public.register_member('club-a-n', 'staff', 'Nuevo', 'Staff', null, null, null, null, 'entrenador');
+select public.register_member('club-a-n', 'staff', 'Nuevo', 'Staff', null, null, null, null, 'entrenador', '2026-11-09');
 select pg_temp.back();
 select pg_temp.check(pg_temp.n('10000000-0000-0000-0000-0000000000f1', 'registro_pendiente') = 1, 'head coach: registro nuevo');
 select pg_temp.check(pg_temp.n('20000000-0000-0000-0000-0000000000f1', 'registro_pendiente') = 1, 'manager: registro nuevo');
