@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { CalendarOff, Plus } from "lucide-react";
 import { canManageEvents, isStaff } from "@/lib/roles";
 import { canManageNominas } from "@/lib/match-load";
 import { addDays, parseIsoDate, todayInChile } from "@/lib/injuries";
@@ -13,7 +13,9 @@ import {
   type EventRow,
   type GymEntry,
 } from "@/lib/events";
-import { PageTitle, buttonPrimary } from "@/app/ui";
+import { PageTitle, buttonPrimary, buttonSecondary } from "@/app/ui";
+import { can } from "@/lib/permissions";
+import { absenceTag, getEventAbsences, type ExpectedAbsence } from "@/lib/absences";
 import { CalendarView } from "../calendar-view";
 import { requireMember } from "../member";
 import { getActiveFormat, getSevensPlayerIds } from "@/lib/format";
@@ -43,6 +45,8 @@ export default async function CalendarPage({
   const staff = isStaff(roles);
   const canManage = canManageEvents(roles);
   const canNomina = canManageNominas(roles, userId, club?.nomina_delegate_id);
+  // Ausencias avisadas: quien pasa lista las ve (y las declara con ausencias_declarar).
+  const canAbsences = can(roles, "lista_pasar");
 
   // Eventos del plantel activo. Se pide un día de margen a cada lado (en UTC) y
   // luego se filtra por el día en hora de Chile.
@@ -74,6 +78,9 @@ export default async function CalendarPage({
   // Staff: disponibilidad proyectada de cada evento visible no cancelado, una
   // llamada por evento. Solo viajan al cliente los conteos y los primeros nombres.
   const availability: Record<string, EventAvailabilitySummary> = {};
+  // "Asistencia prevista": quiénes avisaron que no van (sin lesionados: ya salen en la
+  // disponibilidad). Solo viajan nombre y etiqueta; la nota queda en la pantalla de Ausencias.
+  const absences: Record<string, ExpectedAbsence[]> = {};
   const sevensIds = await sevensIdsPromise;
   // Staff: entrenamientos ya empezados que tienen lista guardada (los demás muestran
   // "Asistencia sin registrar").
@@ -100,6 +107,17 @@ export default async function CalendarPage({
           availability[e.id] = summarizeAvailability(rows);
         }),
     );
+    if (canAbsences) {
+      await Promise.all(
+        events
+          .filter((e) => !e.cancelled)
+          .map(async (e) => {
+            const rows = await getEventAbsences(supabase, e.id);
+            const list = rows.filter((r) => r.kind !== "lesionado").map((r) => ({ name: r.full_name, tag: absenceTag(r) }));
+            if (list.length > 0) absences[e.id] = list;
+          }),
+      );
+    }
   }
   const attendanceSaved = await attendancePromise;
 
@@ -107,12 +125,20 @@ export default async function CalendarPage({
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-6 flex items-start justify-between gap-4">
         <PageTitle>Calendario</PageTitle>
-        {canManage && (
-          <Link href={`/calendario/nuevo?fecha=${anchor}`} className={`text-sm ${buttonPrimary}`}>
-            <Plus aria-hidden="true" className="size-4" />
-            Nuevo evento
-          </Link>
-        )}
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          {canAbsences && (
+            <Link href="/calendario/ausencias" className={`text-sm ${buttonSecondary}`}>
+              <CalendarOff aria-hidden="true" className="size-4" />
+              Ausencias
+            </Link>
+          )}
+          {canManage && (
+            <Link href={`/calendario/nuevo?fecha=${anchor}`} className={`text-sm ${buttonPrimary}`}>
+              <Plus aria-hidden="true" className="size-4" />
+              Nuevo evento
+            </Link>
+          )}
+        </div>
       </header>
 
       <CalendarView
@@ -125,6 +151,7 @@ export default async function CalendarPage({
         gym={gym}
         gymHref={staff ? "/planes" : "/mi-plan"}
         availability={availability}
+        absences={absences}
         staff={staff}
         canManage={canManage}
         canNomina={canNomina}

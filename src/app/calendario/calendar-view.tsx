@@ -30,6 +30,7 @@ import {
   cardClass,
   textButton,
 } from "@/app/ui";
+import type { ExpectedAbsence } from "@/lib/absences";
 import { cancelEvent } from "./actions";
 import { EventDetails, EventSheet } from "./event-sheet";
 
@@ -42,6 +43,7 @@ type Props = {
   gym: GymEntry[]; // sesiones de gimnasio (solo lectura, todo el día)
   gymHref: string; // /mi-plan (jugador) o /planes (staff)
   availability: Record<string, EventAvailabilitySummary>;
+  absences: Record<string, ExpectedAbsence[]>; // avisos de ausencia por evento (staff)
   staff: boolean;
   canManage: boolean;
   canNomina: boolean;
@@ -61,6 +63,7 @@ export function CalendarView({
   gym,
   gymHref,
   availability,
+  absences,
   staff,
   canManage,
   canNomina,
@@ -147,6 +150,7 @@ export function CalendarView({
           key={selected.id}
           event={selected}
           summary={availability[selected.id]}
+          expected={absences[selected.id] ?? []}
           staff={staff}
           canManage={canManage}
           canNomina={canNomina}
@@ -682,6 +686,7 @@ function AvailabilityCount({
 function EventPanel({
   event,
   summary,
+  expected,
   staff,
   canManage,
   canNomina,
@@ -690,6 +695,7 @@ function EventPanel({
 }: {
   event: CalendarEvent;
   summary: EventAvailabilitySummary | undefined;
+  expected: ExpectedAbsence[];
   staff: boolean;
   canManage: boolean;
   canNomina: boolean;
@@ -847,7 +853,7 @@ function EventPanel({
       </div>
 
       {staff && !event.cancelled && (
-        <SquadSummary eventId={event.id} summary={summary} past={event.past} />
+        <SquadSummary eventId={event.id} summary={summary} past={event.past} expected={expected} />
       )}
     </div>
     </EventSheet>
@@ -865,10 +871,12 @@ function SquadSummary({
   eventId,
   summary,
   past,
+  expected,
 }: {
   eventId: string;
   summary: EventAvailabilitySummary | undefined;
   past: boolean;
+  expected: ExpectedAbsence[];
 }) {
   if (!summary) {
     return (
@@ -917,6 +925,27 @@ function SquadSummary({
       <div className="sm:grid sm:grid-cols-2 sm:gap-6">
         <NameList title="No disponibles" players={summary.no_players} total={summary.no} />
         <NameList title="En duda" players={summary.duda_players} total={summary.duda} />
+      </div>
+
+      {/* Asistencia prevista: quiénes avisaron que no van (aviso, período o parón). */}
+      <div className="mt-4">
+        <h4 className="text-xs font-medium text-muted">Asistencia prevista</h4>
+        {expected.length === 0 ? (
+          <p className="mt-1 text-sm text-muted">Nadie avisó que no va.</p>
+        ) : (
+          <>
+            <p className="mt-1 text-sm text-ink">
+              {expected.length === 1 ? "1 jugador no va" : `${expected.length} jugadores no van`}
+            </p>
+            <ul className="mt-1 space-y-1 text-sm text-ink">
+              {expected.map((a, i) => (
+                <li key={i}>
+                  {a.name} <span className="text-muted">· {a.tag}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       <Link

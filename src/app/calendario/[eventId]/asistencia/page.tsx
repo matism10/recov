@@ -10,6 +10,7 @@ import {
 } from "@/lib/events";
 import { isStaff } from "@/lib/roles";
 import { getSevensPlayerIds } from "@/lib/format";
+import { absenceTag, getEventAbsences } from "@/lib/absences";
 import { PageTitle, cardClass } from "@/app/ui";
 import { getSupabase } from "@/lib/session";
 import { requireMember } from "../../member";
@@ -61,7 +62,7 @@ export default async function AttendancePage({
   }
 
   const sevens = row.format === "7";
-  const [{ data: players }, { data: saved }, sevensIds] = await Promise.all([
+  const [{ data: players }, { data: saved }, sevensIds, absences] = await Promise.all([
     supabase
       .from("players")
       .select("id, full_name, position, availability")
@@ -71,7 +72,10 @@ export default async function AttendancePage({
       .order("full_name"),
     savedPromise,
     sevens ? getSevensPlayerIds(userId) : Promise.resolve(null),
+    // Avisos de ausencia (aviso, período o parón). Los lesionados siguen como hoy: sin premarcar.
+    getEventAbsences(supabase, eventId),
   ]);
+  const notices = new Map(absences.filter((a) => a.kind !== "lesionado").map((a) => [a.player_id, absenceTag(a)]));
 
   const entries: AttendanceEntry[] = (players ?? [])
     .filter((p) => !sevensIds || sevensIds.has(p.id))
@@ -80,9 +84,14 @@ export default async function AttendancePage({
       name: p.full_name,
       position: p.position,
       injured: p.availability === "lesionado",
+      notice: notices.get(p.id) ?? null,
     }));
   const savedRows = saved ?? [];
-  const initialAbsent = savedRows.filter((r) => !r.present).map((r) => r.player_id);
+  // Con lista guardada manda la lista; sin ella, los avisados parten como ausentes.
+  const initialAbsent =
+    savedRows.length > 0
+      ? savedRows.filter((r) => !r.present).map((r) => r.player_id)
+      : entries.filter((e) => e.notice).map((e) => e.playerId);
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
