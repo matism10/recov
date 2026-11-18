@@ -50,6 +50,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 
+- 17 nov · PR pendiente · Métricas, tarjeta "Carga sRPE": las listas "Carga alta" y "Bajo lo habitual" se abren y se cierran (`<details>`, abiertas por defecto).
 - 13 nov · PR pendiente · Botones "Volver": nuevo `BackLink` (`src/app/back-link.tsx`) que regresa a la pantalla de origen (p. ej. detalle de lesión → /lesiones) y usa un destino fijo solo si no hay historial interno. Aplicado en detalle y completar de lesión, marcar lesionado, registrar lesión, ficha del jugador, perfil, nómina y disponibles/participación/reportes/asistencia del evento.
 - 13 nov · PR pendiente · Detalle de lesión: una lesión ya confirmada no vuelve a mostrar el formulario "Confirma la lesión" (solo Da de alta y Descarta); al confirmar queda el mensaje "Lesión confirmada y guardada.".
 - 9 nov · PR pendiente · Páginas legales y aceptación.
