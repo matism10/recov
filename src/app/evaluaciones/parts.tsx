@@ -122,7 +122,7 @@ export function ProgressChart({ points, test, height = 180 }: { points: Progress
   const last = points[n - 1];
   const summary = `${test.name}: ${points.map((p) => `${shortDateLabel(p.measured_on)} ${formatValue(p.value, test)}`).join(", ")}`;
   return (
-    <div role="img" aria-label={summary} className="relative pt-3 pr-3 pb-6 pl-12" style={{ height }}>
+    <div role="img" aria-label={summary} className="relative pt-8 pr-3 pb-6 pl-12" style={{ height }}>
       <div aria-hidden="true" className="relative h-full">
         {[hi, (hi + lo) / 2, lo].map((v, k) => (
           <span key={k} className="absolute right-full mr-2 -translate-y-1/2 text-xs text-muted tabular-nums" style={{ top: `${y(v)}%` }}>

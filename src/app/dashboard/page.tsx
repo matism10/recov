@@ -545,13 +545,13 @@ export default async function DashboardPage() {
         <section className="mb-8">
           <SectionTitle className="mb-3">Lesiones activas</SectionTitle>
           {injuredPlayers.length > 0 ? (
-            <>
-              <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line lg:hidden">
+              <ul className="space-y-2">
                 {injuredPlayers.map((p) => {
                   const status = p.availability as Availability;
                   const injury = openByPlayer.get(p.id);
+                  const phase = phaseByPlayer.get(p.id);
                   return (
-                    <li key={p.id}>
+                    <li key={p.id} className="overflow-hidden rounded-xl bg-mist">
                       <Link
                         href={injuryHref(p.id, injury)}
                         className="block space-y-3 px-5 py-4 transition hover:bg-white"
@@ -562,7 +562,9 @@ export default async function DashboardPage() {
                             <p className="font-medium text-ink">{p.full_name}</p>
                             {injury && <p className="text-sm text-ink">{injury.type}</p>}
                             <p className="text-sm text-muted">
-                              {returnLabel(injury?.expectedReturnOn ?? null)}
+                              {[phase, returnLabel(injury?.expectedReturnOn ?? null)]
+                                .filter(Boolean)
+                                .join(" · ")}
                             </p>
                           </div>
                           <AvailabilityBadge status={status} />
@@ -579,77 +581,6 @@ export default async function DashboardPage() {
                   );
                 })}
               </ul>
-              {/* En escritorio, la misma lista como tabla. */}
-              <div className="hidden overflow-x-auto rounded-xl border border-line bg-mist lg:block">
-                <table className="w-full text-left">
-                  <thead className="text-sm text-muted">
-                    <tr className="border-b border-line">
-                      <th scope="col" className="py-3 pr-3 pl-5 font-medium">
-                        Jugador
-                      </th>
-                      <th scope="col" className="px-3 py-3 font-medium">
-                        Fase en curso
-                      </th>
-                      <th scope="col" className="px-3 py-3 font-medium">
-                        Regreso estimado
-                      </th>
-                      <th scope="col" className="px-3 py-3 font-medium">
-                        Progreso
-                      </th>
-                      <th scope="col" className="py-3 pl-3 font-medium">
-                        Estado
-                      </th>
-                      {/* Columna del chevron: decorativa. */}
-                      <td aria-hidden="true" className="w-10 pr-5" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {injuredPlayers.map((p) => {
-                      const injury = openByPlayer.get(p.id);
-                      return (
-                        // Fila clicable: el único enlace (el nombre) se extiende sobre toda la fila.
-                        <tr key={p.id} className="relative transition hover:bg-white">
-                          <td className="py-3 pr-3 pl-5">
-                            <Link
-                              href={injuryHref(p.id, injury)}
-                              className="flex min-h-11 items-center gap-3 after:absolute after:inset-0 after:content-['']"
-                            >
-                              <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
-                              <span>
-                                <span className="block font-medium text-ink">{p.full_name}</span>
-                                {injury && (
-                                  <span className="block text-sm text-ink">{injury.type}</span>
-                                )}
-                              </span>
-                            </Link>
-                          </td>
-                          <td className="px-3 py-3 text-sm text-muted">
-                            {phaseByPlayer.get(p.id)}
-                          </td>
-                          <td className="px-3 py-3 text-sm text-muted">
-                            {returnLabel(injury?.expectedReturnOn ?? null)}
-                          </td>
-                          <td className="w-56 px-3 py-3">
-                            {injury?.expectedReturnOn && (
-                              <InjuryProgress
-                                startedOn={injury.startedOn}
-                                expectedReturnOn={injury.expectedReturnOn}
-                              />
-                            )}
-                          </td>
-                          <td className="py-3 pl-3">
-                            <AvailabilityBadge status={p.availability as Availability} />
-                          </td>
-                          <td aria-hidden="true" className="w-10 py-3 pr-5">
-                            <ChevronRight className="size-5 text-muted" />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </>
           ) : (
             <p className={`p-5 text-sm text-muted ${cardClass}`}>
               No hay jugadores lesionados ni en reintegro.
