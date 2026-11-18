@@ -17,6 +17,7 @@ import { getTeamLoad } from "@/lib/match-load";
 import { getActiveFormat } from "@/lib/format";
 import { LoadSection } from "../load-section";
 import { SrpeCard } from "../srpe-card";
+import { getTeamReturnSummary } from "@/lib/return-break";
 import { TeamLoadTable } from "../team-load-table";
 import { currentWeek, getGymAdherence, type LoadBreakdownRow } from "@/lib/gym";
 import type { TeamSrpeRow, WellnessFlag } from "@/lib/srpe";
@@ -44,7 +45,7 @@ export default async function MetricsPage() {
   // Formato activo: en Sevens, todas las métricas son del grupo Sevens (0046).
   const format = await getActiveFormat(user.id);
   const week = currentWeek();
-  const [me, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, load, srpeTeam, srpeFlags, breakdown, adherence] = await Promise.all([
+  const [me, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, load, srpeTeam, srpeFlags, breakdown, adherence, returns] = await Promise.all([
     getProfile(user.id),
     getDashSummary(supabase, format),
     getAvailabilitySeries(supabase, 12, format),
@@ -66,6 +67,8 @@ export default async function MetricsPage() {
       .rpc("team_load_breakdown", { p_format: format })
       .then(({ data, error }) => (error ? null : ((data ?? []) as LoadBreakdownRow[]))),
     getGymAdherence(supabase, week.monday, week.sunday),
+    // Vuelta tras parón (solo informativa).
+    getTeamReturnSummary(supabase, format),
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
@@ -142,7 +145,7 @@ export default async function MetricsPage() {
         result={load}
         srpe={
           <div className="space-y-3">
-            <SrpeCard team={srpeTeam} flags={srpeFlags} />
+            <SrpeCard team={srpeTeam} flags={srpeFlags} returns={returns} />
             {srpeTeam && <TeamLoadTable team={srpeTeam} breakdown={breakdown} adherence={adherence} />}
           </div>
         }

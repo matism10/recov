@@ -4,13 +4,17 @@
 // wellness_flags (umbrales provisorios en la base).
 import Link from "next/link";
 import { formatLoad, wellnessReason, type TeamSrpeRow, type WellnessFlag } from "@/lib/srpe";
+import { RETURN_LEGEND, causeText, weeksText, type TeamReturnSummary } from "@/lib/return-break";
+import { compactDayLabel } from "@/lib/events";
 
 export function SrpeCard({
   team,
   flags,
+  returns,
 }: {
   team: TeamSrpeRow[] | null;
   flags: WellnessFlag[] | null;
+  returns?: TeamReturnSummary | null;
 }) {
   if (!team || !flags) {
     return (
@@ -51,6 +55,46 @@ export function SrpeCard({
           items={low.map((f) => ({ id: f.player_id, name: f.full_name, detail: `${f.total} / 25 · ${wellnessReason(f)}` }))}
         />
       </div>
+      {returns && <ReturnBlock returns={returns} />}
+    </div>
+  );
+}
+
+// "Vuelven tras parón": un banner de equipo (sin marcar jugador por jugador) o la lista de
+// quienes vuelven. Solo informativo: no cambia la regla de "Carga alta".
+function ReturnBlock({ returns }: { returns: TeamReturnSummary }) {
+  const { team, individual } = returns;
+  const total = (team?.count ?? 0) + individual.length;
+  return (
+    <div className="rounded-lg bg-mist p-3">
+      <p className="flex items-baseline gap-2">
+        <span className="font-display text-3xl font-bold text-ink tabular-nums">{total}</span>
+        <span className="text-sm font-medium text-ink">
+          Vuelven tras parón<span className="font-normal text-muted"> · últimos {returns.window_days} días · {RETURN_LEGEND.toLowerCase()}</span>
+        </span>
+      </p>
+      {total === 0 && <p className="mt-1 text-sm text-muted">Nadie vuelve de un parón por ahora.</p>}
+      {team && (
+        <p className="mt-2 rounded-md bg-brand-soft px-3 py-2 text-sm text-ink">
+          <span className="font-medium">El plantel vuelve tras {weeksText(team.weeks)} sin entrenar.</span>{" "}
+          {team.count} de {team.roster} jugadores
+          {team.squad_break ? " (parón del plantel)" : " vuelven juntos"}. Conviene retomar la carga de a poco.
+        </p>
+      )}
+      {individual.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {individual.map((i) => (
+            <li key={i.player_id}>
+              <Link href={`/jugadores/${i.player_id}`} className="block rounded-md px-1 py-1 text-sm hover:bg-white">
+                <span className="font-medium text-brand-text underline">{i.full_name}</span>
+                <span className="block text-xs text-muted">
+                  {weeksText(i.weeks)} sin entrenar · {causeText(i.cause)} · volvió el {compactDayLabel(i.returned_on).toLowerCase()}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

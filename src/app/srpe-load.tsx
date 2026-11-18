@@ -7,6 +7,7 @@ import { CircleAlert } from "lucide-react";
 import { EVENT_TYPE_LABEL, chileDateTime, WEEKDAY_LABELS } from "@/lib/events";
 import { cardClass } from "@/app/ui";
 import { LOAD_KINDS, LOAD_KIND_COLOR, LOAD_KIND_LABEL } from "@/lib/gym";
+import { RETURN_LEGEND, breakWeekStarts, causeText, weeksText, type PlayerReturnFlag } from "@/lib/return-break";
 import {
   WELLNESS_ITEMS,
   dayLabel,
@@ -18,7 +19,7 @@ import {
 
 const CHART_PX = 96;
 
-export function SrpeLoad({ data }: { data: WeeklyLoad | null }) {
+export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null; returnFlag?: PlayerReturnFlag | null }) {
   if (!data) {
     return <p className={`p-5 text-sm text-muted ${cardClass}`}>No se pudo cargar la carga semanal.</p>;
   }
@@ -30,9 +31,32 @@ export function SrpeLoad({ data }: { data: WeeklyLoad | null }) {
   const total = weeks.reduce((n, w) => n + w.load, 0);
   const gym = weeks.reduce((n, w) => n + (w.gimnasio ?? 0), 0);
   const gymShare = total > 0 && gym > 0 ? Math.round((gym / total) * 100) : null;
+  const breakWeeks = returnFlag ? breakWeekStarts(returnFlag) : new Set<string>();
 
   return (
     <div className={`space-y-4 p-5 ${cardClass}`}>
+      {returnFlag && (
+        <div className="space-y-1 rounded-xl bg-[#F0F9FF] px-4 py-3">
+          <p className="text-sm font-semibold text-brand-text">
+            <span className="rounded-full bg-brand-soft px-2.5 py-0.5">
+              Vuelve tras {weeksText(returnFlag.weeks)} · {causeText(returnFlag.cause)}
+            </span>
+          </p>
+          <dl className="grid grid-cols-2 gap-3 pt-1 text-sm">
+            <div>
+              <dt className="text-xs text-muted">Promedio antes del parón</dt>
+              <dd className="font-display text-xl font-bold text-ink tabular-nums">
+                {returnFlag.baseline !== null ? formatLoad(returnFlag.baseline) : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted">Esta semana</dt>
+              <dd className="font-display text-xl font-bold text-ink tabular-nums">{formatLoad(returnFlag.current_load)}</dd>
+            </div>
+          </dl>
+          <p className="text-xs text-muted">{RETURN_LEGEND}. Conviene retomar de a poco.</p>
+        </div>
+      )}
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[13px] text-muted">Esta semana (esfuerzo × minutos)</span>
@@ -102,7 +126,7 @@ export function SrpeLoad({ data }: { data: WeeklyLoad | null }) {
                       )}
                   </div>
                   <span aria-hidden="true" className="text-[11px] text-muted">
-                    {label}
+                    {breakWeeks.has(w.week_start) ? "Parón" : label}
                   </span>
                 </li>
               );
