@@ -6,6 +6,7 @@ import { Fragment, useEffect, useRef } from "react";
 import { CirclePlus, Ellipsis, LogOut, X } from "lucide-react";
 import {
   CONFIGURACION,
+  MIS_AUSENCIAS,
   NAV_SCREEN_ITEM,
   PERFIL,
   REGISTRAR_LESION_HREF,
@@ -74,6 +75,7 @@ export function MobileNavBar({
   // coach, manager y preparador físico); el preparador físico ahí solo ve el check.
   const moreItems = [
     ...more.map((s) => NAV_SCREEN_ITEM[s]),
+    ...(player ? [MIS_AUSENCIAS] : []),
     ...(headCoach || wellnessConfig ? [CONFIGURACION] : []),
   ];
   const current = activeHref([...barItems, ...moreItems, PERFIL], pathname);

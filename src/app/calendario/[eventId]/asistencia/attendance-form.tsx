@@ -10,6 +10,7 @@ export type AttendanceEntry = {
   name: string;
   position: string | null;
   injured: boolean; // availability = lesionado (solo informativo)
+  notice?: string | null; // "Avisó: vacaciones" (ausencia avisada; el staff igual confirma)
 };
 
 // Lista del plantel: todos parten presentes y se toca a quien faltó. Guardar envía
@@ -25,6 +26,7 @@ export function AttendanceForm({
   initialAbsent: string[];
   saved: boolean; // ya había una lista guardada
 }) {
+  const hasNotices = entries.some((e) => e.notice);
   const [absent, setAbsent] = useState(() => new Set(initialAbsent));
   const [state, setState] = useState<AttendanceState>({});
   const [pending, startTransition] = useTransition();
@@ -63,7 +65,9 @@ export function AttendanceForm({
 
       <p className="text-sm text-muted">
         {saved ? "Lista guardada: puedes corregirla y volver a guardar. " : ""}
-        Todos parten como presentes. Toca a quien faltó.
+        {hasNotices && !saved
+          ? "Quienes avisaron parten como ausentes: confírmalo o corrígelo. Los demás parten presentes. Toca a quien cambió."
+          : "Todos parten como presentes. Toca a quien faltó."}
       </p>
 
       <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist">
@@ -86,6 +90,11 @@ export function AttendanceForm({
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                     {e.position ?? "Sin posición"}
                     {e.injured && <AvailabilityBadge status="lesionado" />}
+                    {e.notice && (
+                      <span className="inline-flex items-center rounded-full bg-brand-soft px-2 py-0.5 font-medium text-brand-text">
+                        {e.notice}
+                      </span>
+                    )}
                   </span>
                 </span>
                 <span

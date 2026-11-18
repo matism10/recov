@@ -14,6 +14,7 @@ import { isBodyZone, isLaterality, zoneLabel } from "@/lib/body-zones";
 import { formatValue, type DisplayFormat } from "@/lib/evaluations";
 import { lowItemsText, sessionWhen, type WellnessItem } from "@/lib/srpe";
 import { PITCH_LAYOUTS, pitchKind } from "@/lib/pitch";
+import { periodText, reasonText } from "@/lib/absences";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -234,7 +235,10 @@ const RED_KINDS = new Set(["evento_cancelado", "evento_modificado", "carga_alta"
 // ---------------------------------------------------------------------------
 // Tarjetas de evento
 // ---------------------------------------------------------------------------
-export function storedCard(n: StoredNotification, ctx: { clubName: string | null }): NoticeCard | null {
+export function storedCard(
+  n: StoredNotification,
+  ctx: { clubName: string | null; isPlayer?: boolean },
+): NoticeCard | null {
   const p = n.payload ?? {};
   const base = {
     key: n.id,
@@ -498,6 +502,61 @@ export function storedCard(n: StoredNotification, ctx: { clubName: string | null
             : "Puedes revisar lesiones, sus documentos y la disponibilidad.",
         href: p.funcion === "nominas" ? "/nominas" : "/lesiones",
       };
+    // 30 · N jugadores avisaron que no van a un evento (staff con lista_pasar)
+    case "ausencias_evento": {
+      const count = num(p.count) ?? 1;
+      const startsAt = str(p.starts_at);
+      const day = startsAt ? compactDayLabel(chileDateTime(startsAt).date).toLowerCase() : null;
+      return {
+        ...base,
+        tone: "celeste",
+        icon: "user-minus",
+        title: `${count === 1 ? "1 jugador avisó que no va" : `${count} jugadores avisaron que no van`} al ${eventNoun(p.event_type)}${day ? ` del ${day}` : ""}${sevens}`,
+        detail: null,
+        href: calendarHref(p),
+      };
+    }
+    // 31 · Ausencia por varios días de un jugador (staff con lista_pasar)
+    case "ausencia_periodo": {
+      const from = str(p.starts_on);
+      return {
+        ...base,
+        tone: "celeste",
+        icon: "calendar-clock",
+        title: `${str(p.player_name) ?? "Un jugador"} estará ausente por ${reasonText(p.reason)}${from ? ` (${periodText(from, str(p.ends_on))})` : ""}`,
+        detail: null,
+        href: "/calendario/ausencias",
+      };
+    }
+    // 32 · Parón del plantel (todos los confirmados)
+    case "paron_plantel": {
+      const from = str(p.starts_on);
+      return {
+        ...base,
+        tone: "celeste",
+        icon: "users",
+        title: "El plantel está en parón",
+        detail: [reasonText(p.reason), from ? periodText(from, str(p.ends_on)) : null]
+          .filter(Boolean)
+          .join(" · "),
+        href: ctx.isPlayer ? "/ausencias" : "/calendario/ausencias",
+      };
+    }
+    // 33 · Tu staff registró una ausencia (jugador)
+    case "ausencia_registrada_por_staff": {
+      const from = str(p.starts_on);
+      return {
+        ...base,
+        tone: "celeste",
+        icon: "calendar-check",
+        title: "Tu staff registró una ausencia",
+        detail:
+          p.scope === "evento"
+            ? [`No vas al ${eventNoun(p.event_type)}`, eventWhen(p.starts_at), reasonText(p.reason)].filter(Boolean).join(" · ")
+            : [`Ausente por ${reasonText(p.reason)}`, from ? periodText(from, str(p.ends_on)) : null].filter(Boolean).join(" · "),
+        href: "/ausencias",
+      };
+    }
     default:
       return null;
   }

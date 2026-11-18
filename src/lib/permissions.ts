@@ -24,15 +24,22 @@ export const PERMISSIONS = [
   "check_dias",
   "registros_aprobar",
   "posicion_cambiar",
+  "ausencias_declarar",
   // No delegables (solo por rol: head coach y manager).
   "staff_gestionar",
   "sevens_activar",
   "sevens_grupo",
+  "paron_declarar",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
 
-export const NON_DELEGABLE: readonly Permission[] = ["staff_gestionar", "sevens_activar", "sevens_grupo"];
+export const NON_DELEGABLE: readonly Permission[] = [
+  "staff_gestionar",
+  "sevens_activar",
+  "sevens_grupo",
+  "paron_declarar",
+];
 
 // Grupos y textos de /staff (en el orden en que se muestran).
 export const PERMISSION_GROUPS: { title: string; items: { key: Permission; label: string }[] }[] = [
@@ -52,6 +59,7 @@ export const PERMISSION_GROUPS: { title: string; items: { key: Permission; label
       { key: "eventos_editar", label: "Crear y editar eventos" },
       { key: "eventos_cancelar", label: "Cancelar eventos" },
       { key: "lista_pasar", label: "Pasar lista" },
+      { key: "ausencias_declarar", label: "Declarar ausencias de jugadores" },
     ],
   },
   {
@@ -89,9 +97,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   head_coach: PERMISSIONS,
   manager: [
     ...ALL_STAFF, "eventos_editar", "eventos_cancelar", ...NOMINA, "check_dias", "registros_aprobar",
-    "staff_gestionar", "sevens_activar", "sevens_grupo",
+    "staff_gestionar", "sevens_activar", "sevens_grupo", "ausencias_declarar", "paron_declarar",
   ],
-  entrenador: [...ALL_STAFF, "eventos_editar", "eventos_cancelar"],
+  entrenador: [...ALL_STAFF, "eventos_editar", "eventos_cancelar", "ausencias_declarar"],
   kinesiologo: [...ALL_STAFF, ...KINE, "evaluaciones_cargar", "tests_catalogo"],
   nutricionista: ALL_STAFF,
   preparador_fisico: [...ALL_STAFF, "evaluaciones_cargar", "tests_catalogo", "gimnasio_planes", "check_dias"],

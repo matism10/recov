@@ -50,6 +50,9 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 
+- 17 nov · PR pendiente · Ausencias avisadas (PR 1 de 2).
+  - Migración `20261110120000_absences`: tabla `absences` (aviso de un evento o de varios días; `player_id` nulo = parón del plantel; la columna `note` no se lee directo), permisos `ausencias_declarar` (delegable; manager, entrenador y head coach) y `paron_declarar` (no delegable; manager y head coach), funciones `declare_absence`, `end_absence`, `my_absences`, `club_absences` y `event_absences`, 4 tipos de notificación nuevos (`ausencias_evento`, `ausencia_periodo`, `paron_plantel`, `ausencia_registrada_por_staff`, categoría calendario). `my_pending_reports` y `event_rpe_summary` excluyen a los avisados; `cancel_event` y `set_event_attendance` descartan "N avisaron". Prueba: `absences_test.sql`.
+  - App: `/ausencias` y `/ausencias/nueva` (jugador), `/calendario/ausencias` (staff con `lista_pasar`), "Asistencia prevista" en el detalle del evento y avisados precargados en Pasar lista.
 - 13 nov · PR pendiente · Detalle de lesión: una lesión ya confirmada no vuelve a mostrar el formulario "Confirma la lesión" (solo Da de alta y Descarta); al confirmar queda el mensaje "Lesión confirmada y guardada.".
 - 9 nov · PR pendiente · Páginas legales y aceptación.
   - Migración `20261109120000_legal_acceptance`: `profiles.terms_accepted_at/terms_version`, `clubs.guardian_declared_at/by`, `accept_terms(p_version)` y `declare_guardian_authorization()` (exige `staff_gestionar` en el plantel activo; idempotente). `register_member` de 10 argumentos (con `p_terms_version`, atómico) que llama a la de 9, que ahora exige haber aceptado. Prueba: `supabase/tests/legal_acceptance_test.sql`.
@@ -174,6 +177,12 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - **Plazo:** marcar la sesión y responder el esfuerzo, el día de la sesión y hasta 2 días después; se corrige en ese plazo. Minutos de una sesión del plan = su duración estimada.
 - **Mi semana** (Resumen, todos los confirmados): 7 días L a D con G, E o P (letras juntas si hay varias; "·" si nada), hoy en #082F49, leyenda y detalle al tocar un día. Tocar un entrenamiento o partido abre la misma hoja de detalle del calendario (tipo, título, fecha, horario, lugar, rival, notas; sin acciones), sin navegar; el gimnasio lleva a `/mi-plan` o `/planes/[id]`. Jugador: eventos del formato activo y sus sesiones del plan; staff: eventos del club y los días con algún plan publicado.
 - **Staff:** ficha → "Carga" con barras apiladas (Cancha #7DD3FC, Gimnasio #0369A1, Partido #F97316), leyenda y "El gimnasio es el X % de su carga" (6 semanas); ficha → "Gimnasio": plan asignado, cumplimiento de 6 semanas y últimas sesiones. Métricas → "Carga del plantel": "Carga por jugador" con barra apilada, total, vs su promedio y "Plan de gimnasio" ("2 de 2"; incompleto en gris), y "Plan de gimnasio cumplido: X %" (hechas / las que ya tocaban esta semana).
+
+**7c. Ausencias avisadas** (20261110120000). Un aviso no escribe la asistencia: la lista oficial sigue siendo del staff.
+- **Jugador:** botón "Avisar una ausencia" en el Resumen y `/ausencias/nueva` (selector "Un evento" / "Varios días"; evento = próximos eventos del formato activo; varios días = desde, hasta o "Aún no sé cuándo vuelvo"; motivo y nota de hasta 200 caracteres con el aviso de no escribir datos de salud). "Mis ausencias" (`/ausencias`, en la sidebar y en "Más"): activas, próximas, las del plantel, "Quitar aviso" y "Ya volví" (cierra el período hoy). Con un período en curso, el Resumen muestra "Ausente: motivo, hasta X" y no hay sRPE ni bienestar por responder.
+- **Staff:** Calendario → "Ausencias" (`/calendario/ausencias`: ahora, próximas, parón del plantel e historial, "Quitar aviso", "Ya volvió") y el modal "Declarar ausencia" (un jugador, o todo el plantel solo con `paron_declarar`). El detalle del evento trae "Asistencia prevista" y Pasar lista precarga a los avisados como ausentes con la etiqueta "Avisó: motivo" (los lesionados siguen sin premarcar). La nota la ven solo el staff con `lista_pasar` y el propio jugador.
+- **Reglas:** el jugador solo avisa por sí mismo (la base ignora `p_player`); evento futuro, no cancelado y del formato del jugador; un aviso por jugador y evento; períodos hasta 60 días atrás y 366 de largo. Motivos: vacaciones, viaje o trabajo, estudios, salud, otro.
+- **Notificaciones:** `ausencias_evento` (staff con `lista_pasar`; una viva por evento con `dedupe_key` `ausencias-evento:<id>`, se descarta al guardar la asistencia, al cancelar el evento o al quedar en 0), `ausencia_periodo` (staff), `paron_plantel` (todos los confirmados) y `ausencia_registrada_por_staff` (al jugador).
 
 **7e. Notificaciones del Resumen** (20261107180000–184000). Solo en el Resumen; sin push ni correo.
 - **Sección "Notificaciones"** arriba del Resumen (todas las cuentas): las 3 más urgentes (de estado que vencen en menos de 12 h, rojas, de estado y de evento) y "Ver todas (N)", hoja inferior (cuadro en escritorio) separada por color, con "Descartar todas". Cada tarjeta: franja izquierda de 4 px, ícono, título, detalle y link. Sin notificaciones, no aparece. Textos, íconos y colores en `src/lib/notifications.ts`; componente `src/app/dashboard/notifications.tsx`; las tres lecturas van en paralelo con el resto del Resumen.
@@ -301,8 +310,12 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
   - al cambiar formato o plantel, Next vuelve a pedir el prefetch de todos los links visibles (~24 pedidos de fondo);
   - el selector de plantel (`club-header.tsx`) sigue llamando a `router.refresh()` después de `setActiveClub`, que ya cambia la cookie (pide la página dos veces);
   - la carga del jugador en el Resumen (`getMyLoad`) y `/lesiones` en Sevens (`formatPlayerIds`) siguen encadenando consultas.
+- **Ausencias avisadas:**
+  - verificado a mano solo el lado del jugador (pantallas y Resumen); las pantallas del staff (`/calendario/ausencias`, modal y "Asistencia prevista") compilan y pasan lint pero falta abrirlas con una cuenta de staff;
+  - no se volvieron a correr `load_wellness_test`, `notifications_test`, `staff_permissions_test` ni `events_test` tras la migración;
+  - la notificación `ausencias_evento` suma por evento, no avisa de avisos que se quitan (solo baja la cuenta).
 - **Asistencia:**
-  - fuera de este PR: motivo de ausencia, auto-registro del jugador y carga acumulada combinada (asistencia + partidos);
+  - fuera de este PR: auto-registro del jugador y carga acumulada combinada (asistencia + partidos);
   - el ranking no separa formatos: en Sevens muestra todo el plantel y suma entrenamientos de 15 y de 7;
   - "Temporada" = desde el 1 de enero del año en curso (confirmar si el club usa otra definición).
 - **sRPE y bienestar:**

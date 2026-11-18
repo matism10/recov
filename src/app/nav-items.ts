@@ -5,6 +5,7 @@ import {
   Activity,
   BicepsFlexed,
   CalendarDays,
+  CalendarOff,
   CircleUserRound,
   ChartColumn,
   ClipboardList,
@@ -155,7 +156,7 @@ export function sidebarItems({
   main.push(NOMINAS);
   if (evaluations) main.push(EVALUACIONES);
   if (gymPlanner) main.push(PLANES);
-  if (player) main.push(MI_PLAN);
+  if (player) main.push(MI_PLAN, MIS_AUSENCIAS);
   const admin = direction ? [REGISTROS, STAFF, CONFIGURACION] : wellnessConfig ? [CONFIGURACION] : [];
   return { main, admin };
 }
@@ -173,6 +174,13 @@ export const MIS_EVALUACIONES: NavItem = {
   label: "Mis evaluaciones",
   Icon: Dumbbell,
   isActive: (p) => startsWith(p, "/evaluaciones/mias"),
+};
+// Aviso de ausencias del jugador: va en "Más" y en la sidebar (no es una pantalla de la barra).
+export const MIS_AUSENCIAS: NavItem = {
+  href: "/ausencias",
+  label: "Mis ausencias",
+  Icon: CalendarOff,
+  isActive: (p) => startsWith(p, "/ausencias"),
 };
 export const PERFIL: NavItem = {
   href: "/perfil",

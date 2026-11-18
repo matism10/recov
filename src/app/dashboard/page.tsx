@@ -63,6 +63,8 @@ import { Notifications } from "./notifications";
 import { getMyGymToday } from "@/lib/gym";
 import { GymTodayCard } from "./gym-today";
 import { MyWeek } from "./my-week";
+import { MyAbsenceBlock } from "./my-absence";
+import { getMyAbsences } from "@/lib/absences";
 import { getWeekData } from "./week-data";
 
 // Jugadores disponibles que muestra el Resumen; el resto está en /plantel.
@@ -130,7 +132,7 @@ export default async function DashboardPage() {
     // Kinesiólogo, delegado y head coach: cambian disponibilidad y gestionan lesiones.
     // Solo decide qué se muestra; las funciones de la base validan el permiso real.
     const canManage = canManageInjuries(roles, user.id, profile.club?.kine_delegate_id);
-    const [myLoad, open, myInjuries, toReview, myPending, myState, myWellness, myGym, week, notices, staffState] = await Promise.all([
+    const [myLoad, open, myInjuries, toReview, myPending, myState, myWellness, myGym, week, notices, staffState, myAbsences] = await Promise.all([
       // Jugador: su carga de partidos y sus convocatorias del formato activo (solo datos propios).
       isPlayer ? withActiveFormat(user.id, (format) => getMyLoad(supabase, format)) : null,
       // "Lesiones activas" (staff): lesiones abiertas del club (RLS); abajo se toman
@@ -205,8 +207,10 @@ export default async function DashboardPage() {
       getMyNotifications(supabase, profile.club_id!),
       // Notificaciones de estado del staff, según sus permisos y el formato activo.
       staff ? withActiveFormat(user.id, (format) => getMyStaffStateNotifications(supabase, format)) : [],
+      // Ausencias avisadas del jugador (propias y parón del plantel).
+      isPlayer ? getMyAbsences(supabase) : [],
     ]);
-    return { myLoad, open, myInjuries, toReview, myPending, myState, myWellness, myGym, week, notices, staffState };
+    return { myLoad, open, myInjuries, toReview, myPending, myState, myWellness, myGym, week, notices, staffState, myAbsences };
   });
 
   // Franja de métricas (staff): sus datos salen ya, en paralelo con el resto, y la
@@ -376,7 +380,7 @@ export default async function DashboardPage() {
   // Las de estado del jugador solo si tiene ficha en el plantel del formato activo.
   const noticeCards = sortCards(
     [
-      ...byRole.notices.map((n) => storedCard(n, { clubName: club?.name ?? null })),
+      ...byRole.notices.map((n) => storedCard(n, { clubName: club?.name ?? null, isPlayer })),
       ...(me ? byRole.myState.map(playerStateCard) : []),
       ...byRole.staffState.map(staffStateCard),
     ].filter((c): c is NoticeCard => c !== null),
@@ -438,6 +442,8 @@ export default async function DashboardPage() {
       {/* Notificaciones: las 3 más urgentes y "Ver todas". Incluye lo que antes era
           "Pendientes" (sRPE, esfuerzo del gimnasio y check de bienestar). */}
       <Notifications cards={noticeCards} />
+      {/* Jugador: "Avisar una ausencia" y su estado si está ausente varios días. */}
+      {me && <MyAbsenceBlock absences={byRole.myAbsences} />}
       {/* Jugador: "Hoy toca gimnasio" y el registro de una sesión por su cuenta. */}
       {me && <GymTodayCard data={byRole.myGym} />}
       <MyWeek data={byRole.week} />
