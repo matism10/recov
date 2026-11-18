@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PageTitle, SectionTitle, cardClass, textButton } from "@/app/ui";
+import { PageTitle, SectionTitle, cardClass } from "@/app/ui";
+import { BackLink } from "@/app/back-link";
 import { requireMember } from "../member";
 import { can } from "@/lib/permissions";
 import {
@@ -112,9 +112,7 @@ export default async function AbsencesPage() {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/calendario" className={textButton}>
-          ← Volver al calendario
-        </Link>
+        <BackLink fallback="/calendario">← Volver al calendario</BackLink>
         <div className="mt-2 flex items-start justify-between gap-4">
           <PageTitle>Ausencias</PageTitle>
           {canDeclare && (

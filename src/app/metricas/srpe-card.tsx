@@ -3,6 +3,7 @@
 // bienestar, con link a cada ficha. Los cálculos vienen de team_srpe_load y
 // wellness_flags (umbrales provisorios en la base).
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { formatLoad, wellnessReason, type TeamSrpeRow, type WellnessFlag } from "@/lib/srpe";
 import { RETURN_LEGEND, causeText, weeksText, type TeamReturnSummary } from "@/lib/return-break";
 import { compactDayLabel } from "@/lib/events";
@@ -36,7 +37,7 @@ export function SrpeCard({
           {responded} de {team.length} {team.length === 1 ? "jugador respondió" : "jugadores respondieron"} esta semana.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid items-start gap-3 sm:grid-cols-2">
         <Group
           title="Carga alta"
           count={high.length}
@@ -112,17 +113,21 @@ function Group({
   empty: string;
   items: { id: string; name: string; detail: string }[];
 }) {
+  // <details> nativo: se abre y se cierra sin JS; abierto por defecto para no cambiar lo de siempre.
   return (
-    <div className="rounded-lg bg-mist p-3">
-      <p className="flex items-baseline gap-2">
-        <span className={`font-display text-3xl font-bold tabular-nums ${count > 0 ? "text-alerta-fg" : "text-ink"}`}>
-          {count}
+    <details open className="group rounded-lg bg-mist p-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+        <span className="flex items-baseline gap-2">
+          <span className={`font-display text-3xl font-bold tabular-nums ${count > 0 ? "text-alerta-fg" : "text-ink"}`}>
+            {count}
+          </span>
+          <span className="text-sm font-medium text-ink">
+            {title}
+            {subtitle && <span className="font-normal text-muted"> · {subtitle}</span>}
+          </span>
         </span>
-        <span className="text-sm font-medium text-ink">
-          {title}
-          {subtitle && <span className="font-normal text-muted"> · {subtitle}</span>}
-        </span>
-      </p>
+        <ChevronDown aria-hidden="true" className="size-5 shrink-0 text-muted transition group-open:rotate-180" />
+      </summary>
       {items.length === 0 ? (
         <p className="mt-1 text-sm text-muted">{empty}</p>
       ) : (
@@ -137,6 +142,6 @@ function Group({
           ))}
         </ul>
       )}
-    </div>
+    </details>
   );
 }

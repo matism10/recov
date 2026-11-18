@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
-import { PageTitle, SectionTitle, buttonPrimary, cardClass, textButton } from "@/app/ui";
+import { PageTitle, SectionTitle, buttonPrimary, cardClass } from "@/app/ui";
+import { BackLink } from "@/app/back-link";
 import { requireMember } from "@/app/calendario/member";
 import {
   ABSENCE_REASON_LABEL,
@@ -48,9 +49,7 @@ export default async function MyAbsencesPage() {
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/dashboard" className={textButton}>
-          ← Volver al Resumen
-        </Link>
+        <BackLink fallback="/dashboard">← Volver al Resumen</BackLink>
         <div className="mt-2 flex items-start justify-between gap-4">
           <PageTitle>Mis ausencias</PageTitle>
           <Link href="/ausencias/nueva" className={`shrink-0 text-sm ${buttonPrimary}`}>
