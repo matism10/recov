@@ -50,6 +50,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 
+- 18 nov · PR pendiente · Tarjetas por jugador en Lesiones (lista y "Lesiones activas" del Resumen) y por persona en Staff; Evaluaciones: valor y mejora separados del gráfico; `BackLink` ahora usa un contador de navegaciones internas (`NavTracker` en el layout) porque `document.referrer` no cambia con la navegación del cliente.
 - 17 nov · PR pendiente · Vuelta tras parón (PR 2 de 2, informativo).
   - Migración `20261110130000_return_after_break`: sin tablas; umbrales `private.break_days()` = 10, `return_window_days()` = 14 y `team_break_share()` = 0,6 (provisorios); señales y vueltas en `private.activity_days`, `inactivity_days`, `return_flags` y `return_team`; lecturas `player_return_flag` (ficha) y `team_return_summary` (Métricas); `my_state_notifications` y `my_staff_state_notifications` suman la vuelta. Prueba: `return_break_test.sql`.
   - App: tarjeta "Vuelven tras parón" en Métricas → Carga sRPE, insignia y promedio en Carga de la ficha, avisos del Resumen.

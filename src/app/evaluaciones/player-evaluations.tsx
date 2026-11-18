@@ -34,9 +34,9 @@ export async function PlayerEvaluations({ playerId, clubId }: { playerId: string
           const prev = points.length > 1 ? points[points.length - 2].value : null;
           return (
             <div key={t.id} className={`p-5 ${cardClass}`}>
-              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+              <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <h3 className="font-medium text-ink">{t.name}</h3>
-                <span className="flex items-baseline gap-2">
+                <span className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                   <span className="font-semibold text-ink tabular-nums">{formatValue(last.value, t)}</span>
                   <ChangeBadge current={last.value} previous={prev} test={t} />
                 </span>

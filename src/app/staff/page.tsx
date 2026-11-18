@@ -48,12 +48,12 @@ export default async function StaffPage() {
       <div className="space-y-8">
         <section>
           <SectionTitle className="mb-3">Staff ({staff.length})</SectionTitle>
-          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist">
+          <ul className="space-y-2">
             {staff.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} className="overflow-hidden rounded-xl bg-mist">
                 <Link
                   href={`/staff/${p.id}`}
-                  className="flex min-h-16 items-center gap-3 px-5 py-3 hover:bg-white focus-visible:outline-2 focus-visible:outline-brand-strong"
+                  className="flex min-h-16 items-center gap-3 px-5 py-3 transition hover:bg-white focus-visible:outline-2 focus-visible:outline-brand-strong"
                 >
                   <Avatar name={p.full_name ?? ""} url={avatarUrls.get(p.id)} />
                   <div className="min-w-0 flex-1">

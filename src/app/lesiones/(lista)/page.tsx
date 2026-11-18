@@ -128,13 +128,13 @@ export default async function InjuriesPage({
               {s.title} ({s.total})
             </SectionTitle>
             {s.items.length > 0 ? (
-              <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
+              <ul className="space-y-2">
                 {s.items.map((i) => {
                   const player = playerOf(i);
                   // Staff: jugador arriba y lesión debajo. Jugador: la lesión es el título.
                   const showPlayer = staff && player;
                   return (
-                    <li key={i.id}>
+                    <li key={i.id} className="overflow-hidden rounded-xl bg-mist">
                       <Link
                         href={`/lesiones/${i.id}`}
                         className="block min-h-11 space-y-2 px-5 py-4 transition hover:bg-white"
