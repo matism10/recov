@@ -102,13 +102,13 @@ insert into public.injuries (club_id, player_id, type, severity) values
 select pg_temp.expect_eq($q$select pg_temp.perms_of('f1000000-0000-0000-0000-000000000001')$q$,
   (select string_agg(key, ',' order by key) from private.permissions), 'head coach: todos los permisos');
 select pg_temp.expect_eq($q$select pg_temp.perms_of('f1000000-0000-0000-0000-000000000002')$q$,
-  'carga_ver,check_dias,eventos_cancelar,eventos_editar,lesiones_ver,lista_pasar,nomina_armar,participacion_cargar,registros_aprobar,sevens_activar,sevens_grupo,staff_gestionar',
+  'ausencias_declarar,carga_ver,check_dias,eventos_cancelar,eventos_editar,lesiones_ver,lista_pasar,nomina_armar,paron_declarar,participacion_cargar,registros_aprobar,sevens_activar,sevens_grupo,staff_gestionar',
   'manager: lo de hoy');
 select pg_temp.expect_eq($q$select pg_temp.perms_of('f1000000-0000-0000-0000-000000000003')$q$,
   'carga_ver,disponibilidad_cambiar,documentos_ver,evaluaciones_cargar,lesionado_marcar,lesiones_revisar,lesiones_ver,lista_pasar,tests_catalogo',
   'kinesiólogo: lo de hoy');
 select pg_temp.expect_eq($q$select pg_temp.perms_of('f1000000-0000-0000-0000-000000000004')$q$,
-  'carga_ver,eventos_cancelar,eventos_editar,lesiones_ver,lista_pasar', 'entrenador: lo de hoy');
+  'ausencias_declarar,carga_ver,eventos_cancelar,eventos_editar,lesiones_ver,lista_pasar', 'entrenador: lo de hoy');
 select pg_temp.expect_eq($q$select pg_temp.perms_of('f1000000-0000-0000-0000-000000000005')$q$,
   'carga_ver,lesiones_ver,lista_pasar', 'nutricionista: lo de hoy');
 select pg_temp.expect_eq($q$select pg_temp.perms_of('f1000000-0000-0000-0000-000000000006')$q$,
@@ -120,7 +120,7 @@ update public.clubs set kine_delegate_id = 'f1000000-0000-0000-0000-000000000009
                         nomina_delegate_id = 'f1000000-0000-0000-0000-000000000009'
  where id = 'aaaaaaaa-0000-0000-0000-0000000000f1';
 select pg_temp.expect_eq($q$select pg_temp.perms_of('f1000000-0000-0000-0000-000000000009')$q$,
-  'carga_ver,disponibilidad_cambiar,documentos_ver,eventos_cancelar,eventos_editar,lesionado_marcar,lesiones_revisar,lesiones_ver,lista_pasar,nomina_armar,participacion_cargar',
+  'ausencias_declarar,carga_ver,disponibilidad_cambiar,documentos_ver,eventos_cancelar,eventos_editar,lesionado_marcar,lesiones_revisar,lesiones_ver,lista_pasar,nomina_armar,participacion_cargar',
   'entrenador delegado (kine y nóminas)');
 update public.clubs set kine_delegate_id = null, nomina_delegate_id = null where id = 'aaaaaaaa-0000-0000-0000-0000000000f1';
 select pg_temp.expect_count($q$select 1 from public.club_members where club_id = 'aaaaaaaa-0000-0000-0000-0000000000f1' and is_principal
@@ -248,7 +248,7 @@ select pg_temp.expect_count($q$select 1 from public.member_permissions where clu
 select pg_temp.back();
 select pg_temp.as_user('f2000000-0000-0000-0000-000000000002');   -- entrenador de B
 select pg_temp.expect_count($q$select 1 from public.member_permissions where club_id = 'aaaaaaaa-0000-0000-0000-0000000000f1'$q$, 0, 'B no lee ajustes de A');
-select pg_temp.expect_eq($q$select array_to_string(public.my_permissions(), ',')$q$, 'carga_ver,eventos_cancelar,eventos_editar,lesiones_ver,lista_pasar', 'B: sus permisos no cambian por ajustes de A');
+select pg_temp.expect_eq($q$select array_to_string(public.my_permissions(), ',')$q$, 'ausencias_declarar,carga_ver,eventos_cancelar,eventos_editar,lesiones_ver,lista_pasar', 'B: sus permisos no cambian por ajustes de A');
 select pg_temp.back();
 select pg_temp.as_anon();
 select pg_temp.expect_fail($q$select public.my_permissions()$q$, 'anónimo pide permisos');
