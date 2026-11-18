@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { redirect } from "next/navigation";
 import { isStaff } from "@/lib/roles";
 import { canManageNominas, getLineupSize } from "@/lib/match-load";
@@ -16,7 +16,7 @@ import {
   type EventRow,
   eventTimeLabel,
 } from "@/lib/events";
-import { ErrorMessage, cardClass, textButton } from "@/app/ui";
+import { ErrorMessage, cardClass } from "@/app/ui";
 import { getSupabase } from "@/lib/session";
 import { requireMember } from "../../member";
 import { AvailablePlayers } from "./available-players";
@@ -97,9 +97,7 @@ export default async function EventAvailablePage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-6">
-        <Link href={`/calendario?fecha=${event.day}&evento=${event.id}`} className={textButton}>
-          ← Volver al calendario
-        </Link>
+        <BackLink fallback={`/calendario?fecha=${event.day}&evento=${event.id}`}>← Volver</BackLink>
         <p className="mt-2 text-sm text-muted">
           {nomina ? "Nómina" : EVENT_TYPE_LABEL[event.type]}
           {sevens && " · Sevens"}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { redirect } from "next/navigation";
 import { ArrowDown } from "lucide-react";
 import {
@@ -11,7 +12,7 @@ import {
 } from "@/lib/events";
 import { isStaff } from "@/lib/roles";
 import { Avatar } from "@/app/avatar";
-import { PageTitle, SectionTitle, cardClass, textButton } from "@/app/ui";
+import { PageTitle, SectionTitle, cardClass } from "@/app/ui";
 import { getSupabase } from "@/lib/session";
 import {
   formatAvg,
@@ -42,9 +43,7 @@ export default async function EventReportsPage({ params }: { params: Promise<{ e
 
   const header = (
     <header className="mb-6">
-      <Link href={back} className={textButton}>
-        ← Volver al calendario
-      </Link>
+      <BackLink fallback={back}>← Volver</BackLink>
       <p className="mt-2 text-sm text-muted">
         {EVENT_TYPE_LABEL[event.type]}
         {event.type === "competencia" && event.opponent ? ` vs. ${event.opponent}` : ""} ·{" "}
