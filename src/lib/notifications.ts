@@ -15,6 +15,7 @@ import { formatValue, type DisplayFormat } from "@/lib/evaluations";
 import { lowItemsText, sessionWhen, type WellnessItem } from "@/lib/srpe";
 import { PITCH_LAYOUTS, pitchKind } from "@/lib/pitch";
 import { periodText, reasonText } from "@/lib/absences";
+import { causeText, weeksText } from "@/lib/return-break";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -116,7 +117,8 @@ export async function getMyNotifications(supabase: Client, clubId: string): Prom
 }
 
 export type PlayerStateRow = {
-  kind: "session" | "gym" | "wellness";
+  // "return": vuelta tras parón (minutes = semanas, location = causa, opponent = equipo | individual).
+  kind: "session" | "gym" | "wellness" | "return";
   ref_id: string | null;
   event_type: EventType | null;
   starts_at: string | null;
@@ -612,6 +614,23 @@ export function playerStateCard(r: PlayerStateRow): NoticeCard | null {
       href: "/bienestar",
     };
   }
+  if (r.kind === "return") {
+    const weeks = r.minutes ?? 1;
+    const team = r.opponent === "equipo";
+    return {
+      ...base,
+      key: "return",
+      tone: "celeste",
+      icon: "activity",
+      title: team
+        ? `El plantel vuelve tras ${weeksText(weeks)} sin entrenar`
+        : `Vuelves tras ${weeksText(weeks)} sin entrenar`,
+      detail: team
+        ? "Retomen de a poco: súbanle la exigencia con calma estas semanas."
+        : "Retoma de a poco: sube la exigencia con calma estas semanas. Tu staff lo sabe.",
+      href: null,
+    };
+  }
   return null;
 }
 
@@ -650,6 +669,31 @@ export function staffStateCard(r: StaffStateRow): NoticeCard | null {
         href: r.ref_id ? `/jugadores/${r.ref_id}` : null,
       };
     }
+    // Vuelta tras parón (solo informativa): un aviso de equipo o uno por jugador.
+    case "vuelta_equipo": {
+      const count = num(p.count) ?? 0;
+      const roster = num(p.roster) ?? 0;
+      const weeks = num(p.weeks) ?? 1;
+      return {
+        ...base,
+        key: "vuelta-equipo",
+        tone: "celeste",
+        icon: "activity",
+        title: `El plantel vuelve tras ${weeksText(weeks)} sin entrenar`,
+        detail: [`${count} de ${roster} jugadores`, p.squad_break ? "parón del plantel" : "vuelven juntos"].join(" · "),
+        href: "/metricas",
+      };
+    }
+    case "vuelta_jugador":
+      return {
+        ...base,
+        key: `vuelta:${r.ref_id}`,
+        tone: "celeste",
+        icon: "activity",
+        title: `Vuelve ${causeText(str(p.cause))}: ${name}`,
+        detail: `${weeksText(num(p.weeks) ?? 1)} sin entrenar · solo informativo`,
+        href: r.ref_id ? `/jugadores/${r.ref_id}` : null,
+      };
     case "sin_lista":
       return {
         ...base,

@@ -50,6 +50,9 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 
+- 17 nov · PR pendiente · Vuelta tras parón (PR 2 de 2, informativo).
+  - Migración `20261110130000_return_after_break`: sin tablas; umbrales `private.break_days()` = 10, `return_window_days()` = 14 y `team_break_share()` = 0,6 (provisorios); señales y vueltas en `private.activity_days`, `inactivity_days`, `return_flags` y `return_team`; lecturas `player_return_flag` (ficha) y `team_return_summary` (Métricas); `my_state_notifications` y `my_staff_state_notifications` suman la vuelta. Prueba: `return_break_test.sql`.
+  - App: tarjeta "Vuelven tras parón" en Métricas → Carga sRPE, insignia y promedio en Carga de la ficha, avisos del Resumen.
 - 17 nov · PR pendiente · Métricas, tarjeta "Carga sRPE": las listas "Carga alta" y "Bajo lo habitual" se abren y se cierran (`<details>`, abiertas por defecto).
 - 13 nov · PR pendiente · Botones "Volver": nuevo `BackLink` (`src/app/back-link.tsx`) que regresa a la pantalla de origen (p. ej. detalle de lesión → /lesiones) y usa un destino fijo solo si no hay historial interno. Aplicado en detalle y completar de lesión, marcar lesionado, registrar lesión, ficha del jugador, perfil, nómina y disponibles/participación/reportes/asistencia del evento.
 - 17 nov · PR pendiente · Ausencias avisadas (PR 1 de 2).
@@ -188,6 +191,12 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - **Reglas:** el jugador solo avisa por sí mismo (la base ignora `p_player`); evento futuro, no cancelado y del formato del jugador; un aviso por jugador y evento; períodos hasta 60 días atrás y 366 de largo. Motivos: vacaciones, viaje o trabajo, estudios, salud, otro.
 - **Notificaciones:** `ausencias_evento` (staff con `lista_pasar`; una viva por evento con `dedupe_key` `ausencias-evento:<id>`, se descarta al guardar la asistencia, al cancelar el evento o al quedar en 0), `ausencia_periodo` (staff), `paron_plantel` (todos los confirmados) y `ausencia_registrada_por_staff` (al jugador).
 
+**7d. Vuelta tras parón** (20261110130000). Solo informativa (leyenda "Solo informativo"); no cambia "Carga alta". Todo se calcula al leer.
+- **Señal positiva** (un día con alguna): sRPE con esfuerzo > 0, presente en una lista, participación en un partido o sesión de gimnasio hecha. **Evidencia negativa**: ausencia declarada (aviso, período o parón del plantel; un aviso quitado no cuenta), "No fui", ausente en la lista o lesión abierta (no descartada). Sin respuesta no es parón.
+- **Parón**: 10 días o más (sin contar los días con señal) entre dos señales, con evidencia en el hueco. **Vuelta** = la señal que lo cierra; el aviso dura 14 días. **Causa**: lesión; si no, el último motivo declarado (vacaciones, viaje o trabajo, estudios, salud, otro); si no, ausencia. Semanas = días / 7 redondeado (mínimo 1).
+- **Aviso de equipo** (uno solo, sin marcar jugador por jugador): si el hueco incluyó un parón del plantel declarado, o si 60 % o más del plantel del formato vuelve en la misma ventana; si no, avisos individuales.
+- **Pantallas:** Métricas → Carga sRPE, bloque "Vuelven tras parón" (banner de equipo o lista con link a cada ficha); ficha → Carga: insignia "Vuelve tras 3 semanas · tras lesión", "Promedio antes del parón" (hasta 4 semanas con carga) y "Esta semana", y las semanas enteras del parón marcadas "Parón" en el gráfico. Notificaciones de estado: jugador ("Vuelves tras N semanas sin entrenar. Retoma de a poco…", sin números de carga; de equipo si corresponde) y staff con `carga_ver` (`vuelta_equipo`, `vuelta_jugador`). Textos en `src/lib/return-break.ts` y `src/lib/notifications.ts`.
+
 **7e. Notificaciones del Resumen** (20261107180000–184000). Solo en el Resumen; sin push ni correo.
 - **Sección "Notificaciones"** arriba del Resumen (todas las cuentas): las 3 más urgentes (de estado que vencen en menos de 12 h, rojas, de estado y de evento) y "Ver todas (N)", hoja inferior (cuadro en escritorio) separada por color, con "Descartar todas". Cada tarjeta: franja izquierda de 4 px, ícono, título, detalle y link. Sin notificaciones, no aparece. Textos, íconos y colores en `src/lib/notifications.ts`; componente `src/app/dashboard/notifications.tsx`; las tres lecturas van en paralelo con el resto del Resumen.
 - **Colores (por tipo):** rojo #E24B4A (evento cancelado o modificado, carga alta, bienestar bajo), celeste #7DD3FC (calendario, nóminas, sRPE, bienestar, sin lista, sin nómina o participación), naranjo #F97316 (lesiones), azul #0369A1 (gimnasio, evaluaciones, plan sin test), gris #888780 (cuenta, registros, Sevens, posición, funciones).
@@ -315,12 +324,17 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
   - el selector de plantel (`club-header.tsx`) sigue llamando a `router.refresh()` después de `setActiveClub`, que ya cambia la cookie (pide la página dos veces);
   - la carga del jugador en el Resumen (`getMyLoad`) y `/lesiones` en Sevens (`formatPlayerIds`) siguen encadenando consultas.
 - **Ausencias avisadas:**
-  - verificado a mano solo el lado del jugador (pantallas y Resumen); las pantallas del staff (`/calendario/ausencias`, modal y "Asistencia prevista") compilan y pasan lint pero falta abrirlas con una cuenta de staff;
+  - revisado a mano el lado del jugador y las pantallas del staff (`/calendario/ausencias`, botón "Ausencias"); falta probar el modal "Declarar ausencia" y "Asistencia prevista" con datos reales (no se guardaron avisos en el plantel demo);
   - la notificación `ausencias_evento` suma por evento, no avisa de avisos que se quitan (solo baja la cuenta).
 - **Asistencia:**
   - fuera de este PR: auto-registro del jugador y carga acumulada combinada (asistencia + partidos);
   - el ranking no separa formatos: en Sevens muestra todo el plantel y suma entrenamientos de 15 y de 7;
   - "Temporada" = desde el 1 de enero del año en curso (confirmar si el club usa otra definición).
+- **Vuelta tras parón:**
+  - umbrales provisorios (10 días, ventana de 14, 60 % del plantel): ajustarlos con datos reales; no hay botón "Descartar" para el staff (el aviso vence solo a los 14 días);
+  - la regla de "Carga alta" (1,3 × el promedio de las 4 semanas con datos) no se tocó en este PR: tras un parón la carga baja a 0 sin contar esas semanas en el promedio y puede dar falsos "Carga alta" al volver; falta decidir si las semanas del parón se excluyen del promedio;
+  - las señales cuentan en cualquier formato (Sevens o 15); solo el plantel del aviso de equipo y la carga siguen el formato activo;
+  - el aviso individual del jugador se calcula con el plantel del formato activo: en Sevens, un jugador fuera del grupo no lo ve.
 - **sRPE y bienestar:**
   - umbrales provisorios: "Carga alta" con 1,3 × el promedio de 4 semanas (`private.srpe_high_load_ratio()`) y "Bajo lo habitual" con −4 puntos (`private.wellness_drop()`); ajustarlos con datos reales;
   - sin botón "Recordar" para el staff (el jugador ve el sRPE por responder en sus notificaciones);

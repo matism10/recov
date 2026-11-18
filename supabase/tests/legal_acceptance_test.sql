@@ -42,12 +42,18 @@ select pg_temp.expect_fail($q$select public.accept_terms('x')$q$, 'versi√≥n inv√
 do $$
 declare n int;
 begin
-  update public.profiles set terms_accepted_at = null, terms_version = 'hack'
-   where id = 'e1000000-0000-0000-0000-000000000001';
-  get diagnostics n = row_count;
+  begin
+    update public.profiles set terms_accepted_at = null, terms_version = 'hack'
+     where id = 'e1000000-0000-0000-0000-000000000001';
+    get diagnostics n = row_count;
+  exception when insufficient_privilege then n := 0;  -- sin permiso de escritura directa: tampoco cambia filas
+  end;
   if n <> 0 then raise exception 'FAIL: update directo sobre otro perfil'; end if;
-  update public.profiles set terms_version = 'hack' where id = 'e1000000-0000-0000-0000-000000000003';
-  get diagnostics n = row_count;
+  begin
+    update public.profiles set terms_version = 'hack' where id = 'e1000000-0000-0000-0000-000000000003';
+    get diagnostics n = row_count;
+  exception when insufficient_privilege then n := 0;  -- sin permiso de escritura directa: tampoco cambia filas
+  end;
   if n <> 0 then raise exception 'FAIL: update directo sobre el propio perfil'; end if;
 end $$;
 select pg_temp.back();
@@ -68,8 +74,11 @@ select pg_temp.expect_fail($q$select public.declare_guardian_authorization()$q$,
 do $$
 declare n int;
 begin
-  update public.clubs set guardian_declared_at = now() where id = 'aaaaaaaa-0000-0000-0000-0000000000e1';
-  get diagnostics n = row_count;
+  begin
+    update public.clubs set guardian_declared_at = now() where id = 'aaaaaaaa-0000-0000-0000-0000000000e1';
+    get diagnostics n = row_count;
+  exception when insufficient_privilege then n := 0;  -- sin permiso de escritura directa: tampoco cambia filas
+  end;
   if n <> 0 then raise exception 'FAIL: update directo de clubs'; end if;
 end $$;
 select pg_temp.back();

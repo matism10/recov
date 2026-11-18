@@ -28,6 +28,7 @@ import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import { WhatsAppButton } from "@/app/whatsapp-button";
 import { SrpeLoad, WellnessHistory } from "@/app/srpe-load";
+import { getPlayerReturnFlag } from "@/lib/return-break";
 import { can } from "@/lib/permissions";
 import { PositionSection } from "./position-section";
 import { WELLNESS_COLUMNS, getPlayerWeeklyLoad, type WeeklyLoad, type WellnessReport } from "@/lib/srpe";
@@ -85,7 +86,7 @@ export default async function PlayerPage({
     .then(({ data }) => data ?? []);
 
   const formatPromise = getActiveFormat(user.id);
-  const [me, staff, player, all, loadResult, phases, avatarUrl, phone, weekly, wellness, gym] = await Promise.all([
+  const [me, staff, player, all, loadResult, phases, avatarUrl, phone, weekly, wellness, gym, returnFlag] = await Promise.all([
     profilePromise,
     staffPromise,
     playerPromise,
@@ -141,6 +142,10 @@ export default async function PlayerPage({
     ),
     // Plan de gimnasio: asignado, cumplimiento y últimas sesiones (staff).
     staffPromise.then((isStaffUser) => (isStaffUser ? getPlayerGymSummary(supabase, id) : null)),
+    // Vuelta tras parón (staff; solo informativa), del formato activo.
+    Promise.all([staffPromise, formatPromise]).then(([isStaffUser, format]) =>
+      isStaffUser ? getPlayerReturnFlag(supabase, id, format) : null,
+    ),
   ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
@@ -328,7 +333,7 @@ export default async function PlayerPage({
         <div className="mt-8 space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
           <section>
             <SectionTitle className="mb-3">Carga</SectionTitle>
-            <SrpeLoad data={weekly} />
+            <SrpeLoad data={weekly} returnFlag={returnFlag} />
           </section>
           <section>
             <SectionTitle className="mb-3">Bienestar</SectionTitle>
