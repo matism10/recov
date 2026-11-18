@@ -1,11 +1,11 @@
-import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { redirect } from "next/navigation";
 import { isStaff } from "@/lib/roles";
 import { getLineupSize } from "@/lib/match-load";
 import { getFormatContext } from "@/lib/format";
 import { pitchKind, slotLabel } from "@/lib/pitch";
 import { EVENT_COLUMNS, eventTimeLabel, eventTitle, longDayLabel, toCalendarEvent, type EventRow } from "@/lib/events";
-import { SectionTitle, cardClass, textButton } from "@/app/ui";
+import { SectionTitle, cardClass } from "@/app/ui";
 import { getSupabase } from "@/lib/session";
 import { requireMember } from "@/app/calendario/member";
 
@@ -106,9 +106,7 @@ export default async function NominaReadOnlyPage({ params }: { params: Promise<{
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/nominas" className={textButton}>
-          ← Volver a Nóminas
-        </Link>
+        <BackLink fallback="/nominas">← Volver</BackLink>
         <p className="mt-2 text-sm text-muted">
           Nómina{sevens && " · Sevens"}
           {event.cancelled && " · Cancelado"}

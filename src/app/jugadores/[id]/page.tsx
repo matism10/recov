@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { notFound, redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import {
@@ -39,8 +40,7 @@ import {
   PhaseDot,
   SectionTitle,
   cardClass,
-  textButton,
-} from "@/app/ui";
+  } from "@/app/ui";
 
 const OPEN_STATUSES: InjuryStatus[] = ["en_evaluacion", "activa"];
 
@@ -172,9 +172,7 @@ export default async function PlayerPage({
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
       <header className="mb-6">
-        <Link href="/dashboard" className={textButton}>
-          ← Volver
-        </Link>
+        <BackLink fallback="/plantel">← Volver</BackLink>
         <div className="mt-3 flex items-center gap-4">
           <Avatar name={player.full_name} url={avatarUrl} size="lg" />
           <div>

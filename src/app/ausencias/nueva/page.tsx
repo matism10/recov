@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PageTitle, textButton } from "@/app/ui";
+import { PageTitle } from "@/app/ui";
+import { BackLink } from "@/app/back-link";
 import { requireMember } from "@/app/calendario/member";
 import { getActiveFormat } from "@/lib/format";
 import { getUpcomingEventOptions } from "@/lib/absences";
@@ -18,9 +18,7 @@ export default async function NewAbsencePage() {
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
       <header className="mb-6">
-        <Link href="/ausencias" className={textButton}>
-          ← Volver a Mis ausencias
-        </Link>
+        <BackLink fallback="/ausencias">← Volver a Mis ausencias</BackLink>
         <PageTitle className="mt-2">Avisar una ausencia</PageTitle>
         <p className="mt-1 text-sm text-muted">
           Tu staff verá el aviso. La lista de asistencia la sigue pasando el staff.

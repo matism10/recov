@@ -50,6 +50,8 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 
+- 17 nov · PR pendiente · Métricas, tarjeta "Carga sRPE": las listas "Carga alta" y "Bajo lo habitual" se abren y se cierran (`<details>`, abiertas por defecto).
+- 13 nov · PR pendiente · Botones "Volver": nuevo `BackLink` (`src/app/back-link.tsx`) que regresa a la pantalla de origen (p. ej. detalle de lesión → /lesiones) y usa un destino fijo solo si no hay historial interno. Aplicado en detalle y completar de lesión, marcar lesionado, registrar lesión, ficha del jugador, perfil, nómina y disponibles/participación/reportes/asistencia del evento.
 - 17 nov · PR pendiente · Ausencias avisadas (PR 1 de 2).
   - Migración `20261110120000_absences`: tabla `absences` (aviso de un evento o de varios días; `player_id` nulo = parón del plantel; la columna `note` no se lee directo), permisos `ausencias_declarar` (delegable; manager, entrenador y head coach) y `paron_declarar` (no delegable; manager y head coach), funciones `declare_absence`, `end_absence`, `my_absences`, `club_absences` y `event_absences`, 4 tipos de notificación nuevos (`ausencias_evento`, `ausencia_periodo`, `paron_plantel`, `ausencia_registrada_por_staff`, categoría calendario). `my_pending_reports` y `event_rpe_summary` excluyen a los avisados; `cancel_event` y `set_event_attendance` descartan "N avisaron". Prueba: `absences_test.sql`.
   - Migración `20261110140000_register_member_notify_fix`: la migración legal (20261109) había quitado de `register_member` (9 argumentos) el aviso `registro_pendiente` a la dirección; vuelve.

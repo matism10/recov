@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/app/back-link";
 import { redirect } from "next/navigation";
 import {
   EVENT_COLUMNS,
@@ -11,7 +11,7 @@ import {
 import { isStaff } from "@/lib/roles";
 import { getSevensPlayerIds } from "@/lib/format";
 import { absenceTag, getEventAbsences } from "@/lib/absences";
-import { PageTitle, cardClass, textButton } from "@/app/ui";
+import { PageTitle, cardClass } from "@/app/ui";
 import { getSupabase } from "@/lib/session";
 import { requireMember } from "../../member";
 import { AttendanceForm, type AttendanceEntry } from "./attendance-form";
@@ -41,9 +41,7 @@ export default async function AttendancePage({
 
   const header = (
     <header className="mb-6">
-      <Link href={back} className={textButton}>
-        ← Volver al calendario
-      </Link>
+      <BackLink fallback={back}>← Volver</BackLink>
       <PageTitle className="mt-2">Pasar lista</PageTitle>
       <p className="mt-1 text-sm text-muted">
         {EVENT_TYPE_LABEL[event.type]} · {longDayLabel(event.day)} · {eventTimeLabel(event)}
