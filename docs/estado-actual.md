@@ -55,6 +55,8 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - App: tarjeta "Vuelven tras parón" en Métricas → Carga sRPE, insignia y promedio en Carga de la ficha, avisos del Resumen.
 - 17 nov · PR pendiente · Ausencias avisadas (PR 1 de 2).
   - Migración `20261110120000_absences`: tabla `absences` (aviso de un evento o de varios días; `player_id` nulo = parón del plantel; la columna `note` no se lee directo), permisos `ausencias_declarar` (delegable; manager, entrenador y head coach) y `paron_declarar` (no delegable; manager y head coach), funciones `declare_absence`, `end_absence`, `my_absences`, `club_absences` y `event_absences`, 4 tipos de notificación nuevos (`ausencias_evento`, `ausencia_periodo`, `paron_plantel`, `ausencia_registrada_por_staff`, categoría calendario). `my_pending_reports` y `event_rpe_summary` excluyen a los avisados; `cancel_event` y `set_event_attendance` descartan "N avisaron". Prueba: `absences_test.sql`.
+  - Migración `20261110140000_register_member_notify_fix`: la migración legal (20261109) había quitado de `register_member` (9 argumentos) el aviso `registro_pendiente` a la dirección; vuelve.
+  - Pruebas al día: `staff_permissions_test` (permisos nuevos de manager y entrenador), `notifications_test` (registro de 10 argumentos) y `legal_acceptance_test` (la escritura directa sin permiso cuenta como 0 filas).
   - App: `/ausencias` y `/ausencias/nueva` (jugador), `/calendario/ausencias` (staff con `lista_pasar`), "Asistencia prevista" en el detalle del evento y avisados precargados en Pasar lista.
 - 13 nov · PR pendiente · Detalle de lesión: una lesión ya confirmada no vuelve a mostrar el formulario "Confirma la lesión" (solo Da de alta y Descarta); al confirmar queda el mensaje "Lesión confirmada y guardada.".
 - 9 nov · PR pendiente · Páginas legales y aceptación.
@@ -321,7 +323,6 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
   - la carga del jugador en el Resumen (`getMyLoad`) y `/lesiones` en Sevens (`formatPlayerIds`) siguen encadenando consultas.
 - **Ausencias avisadas:**
   - revisado a mano el lado del jugador y las pantallas del staff (`/calendario/ausencias`, botón "Ausencias"); falta probar el modal "Declarar ausencia" y "Asistencia prevista" con datos reales (no se guardaron avisos en el plantel demo);
-  - no se volvieron a correr `load_wellness_test`, `notifications_test`, `staff_permissions_test` ni `events_test` tras la migración;
   - la notificación `ausencias_evento` suma por evento, no avisa de avisos que se quitan (solo baja la cuenta).
 - **Asistencia:**
   - fuera de este PR: auto-registro del jugador y carga acumulada combinada (asistencia + partidos);
