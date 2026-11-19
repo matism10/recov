@@ -20,7 +20,7 @@ export function MyWeek({ data }: { data: WeekData }) {
   const day = data.days.find((d) => d.date === selected) ?? data.days[0];
 
   return (
-    <section className="mb-8" aria-labelledby="mi-semana-title">
+    <section id="mi-semana" className="mb-8 scroll-mt-4" aria-labelledby="mi-semana-title">
       <SectionTitle className="mb-3">
         <span id="mi-semana-title">Mi semana</span>
       </SectionTitle>

@@ -22,6 +22,9 @@ export type SearchData = {
   permissions: string[];
   staff: boolean;
   evaluations: boolean;
+  // Deporte del club y si tiene Sevens activo (para los destinos de Configuración).
+  sport: string;
+  hasSevens: boolean;
   // Texto del chip: "Rugby 15", "Sevens" o el deporte del club.
   scopeLabel: string;
   // null si no es staff: el jugador no ve resultados de otros jugadores.
@@ -64,6 +67,8 @@ export async function loadSearchData(): Promise<{ ok: true; data: SearchData } |
       permissions: profile.permissions,
       staff,
       evaluations: canReadEvaluations(roles),
+      sport,
+      hasSevens: !!profile.club?.has_sevens,
       scopeLabel,
       players,
     },

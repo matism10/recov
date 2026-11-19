@@ -77,7 +77,7 @@ export default async function StaffPage() {
         </section>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          <section className={`p-5 ${cardClass}`}>
+          <section id="funciones-kinesiologo" className={`scroll-mt-4 p-5 ${cardClass}`}>
             <SectionTitle>Funciones de kinesiólogo</SectionTitle>
             <p className="mt-1 mb-4 text-sm text-muted">
               Si el plantel no tiene kinesiólogo, delega sus funciones en alguien del staff:
@@ -86,7 +86,7 @@ export default async function StaffPage() {
             <DelegateForm staff={delegateOptions} currentDelegateId={delegateId} />
           </section>
 
-          <section className={`p-5 ${cardClass}`}>
+          <section id="delegado-nominas" className={`scroll-mt-4 p-5 ${cardClass}`}>
             <SectionTitle>Nóminas</SectionTitle>
             <p className="mt-1 mb-4 text-sm text-muted">
               El head coach y el manager arman la convocatoria de cada partido y cargan la

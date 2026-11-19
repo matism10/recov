@@ -145,7 +145,7 @@ export default async function NominasPage() {
       </header>
 
       {canNomina && (
-        <Link href={armarHref} className={`mb-8 flex w-full flex-col py-4 text-base ${buttonPrimary}`}>
+        <Link id="armar-nomina" href={armarHref} className={`mb-8 flex w-full flex-col py-4 text-base ${buttonPrimary}`}>
           <span className="flex items-center gap-2 text-lg font-semibold">
             <ClipboardList aria-hidden="true" className="size-6" />
             Armar nómina

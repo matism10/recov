@@ -103,8 +103,9 @@ export default async function InjuriesPage({
     : new Map<string, string>();
 
   const sections = [
-    { title: "Actuales", items: open, total: open.length, empty: "No hay lesiones actuales." },
+    { id: "actuales", title: "Actuales", items: open, total: open.length, empty: "No hay lesiones actuales." },
     {
+      id: "historial",
       title: "Historial",
       items: past,
       total: pastCount,
@@ -123,7 +124,7 @@ export default async function InjuriesPage({
 
       <div className="space-y-8">
         {sections.map((s) => (
-          <section key={s.title}>
+          <section key={s.title} id={s.id} className="scroll-mt-4">
             <SectionTitle className="mb-3">
               {s.title} ({s.total})
             </SectionTitle>

@@ -477,7 +477,7 @@ export default async function DashboardPage() {
       )}
 
       {canManage && (
-        <section className="mb-8">
+        <section id="por-revisar" className="mb-8 scroll-mt-4">
           <div className="mb-3 flex items-center justify-between gap-4">
             <SectionTitle>
               Por revisar
@@ -589,9 +589,12 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {staff && zoneMarks.length > 0 && (
+      {staff && (
         <section id="zonas" className="mb-8 scroll-mt-4">
           <SectionTitle className="mb-3">Zonas lesionadas</SectionTitle>
+          {zoneMarks.length === 0 ? (
+            <p className={`p-5 text-sm text-muted ${cardClass}`}>No hay lesiones abiertas con zona registrada.</p>
+          ) : (
           <div className={`grid grid-cols-1 items-center gap-6 p-5 sm:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] ${cardClass}`}>
             <BodyMapPair heat={zoneMarks} legend className="mx-auto w-full max-w-80" />
             <div className="min-w-0">
@@ -610,6 +613,7 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
+          )}
         </section>
       )}
 
@@ -628,7 +632,7 @@ export default async function DashboardPage() {
       )}
 
       {isPlayer && (
-        <section className="mb-8">
+        <section id="mis-lesiones" className="mb-8 scroll-mt-4">
           <div className="mb-3 flex items-center justify-between gap-4">
             <SectionTitle>Mis lesiones</SectionTitle>
             <Link
