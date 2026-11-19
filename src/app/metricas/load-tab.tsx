@@ -1,4 +1,5 @@
-// Pestaña Carga de /metricas: franja de 4 números, "Carga por jugador" (sRPE de la semana
+// Pestaña Carga de /metricas: franja de 4 números, carga por semana y bienestar del
+// plantel, "Carga por jugador" (sRPE de la semana
 // con alertas), "Minutos jugados" y "Asistencia a entrenamientos". Las funciones validan
 // en la base el permiso (carga_ver o staff, según la función); en Sevens, todo es del grupo.
 import Link from "next/link";
@@ -15,12 +16,14 @@ import { InfoBox } from "@/app/info-box";
 import { buttonSecondary } from "@/app/ui";
 import { MinutesSection } from "./load-section";
 import { PlayerLoadTable, type PlayerLoadItem } from "./player-load";
+import { TeamWellnessBlock, WeeklyLoadBlock } from "./weekly-blocks";
+import { getTeamLoadWeekly, getTeamWellness } from "@/lib/team-weekly";
 
 type Client = Awaited<ReturnType<typeof getSupabase>>;
 
 export async function LoadTab({ supabase, format }: { supabase: Client; format: Format }) {
   const week = currentWeek();
-  const [load, team, flags, breakdown, adherence, returns, attendance] = await Promise.all([
+  const [load, team, flags, breakdown, adherence, returns, attendance, weekly, wellness] = await Promise.all([
     getTeamLoad(supabase, 4, format),
     supabase
       .rpc("team_srpe_load", { p_format: format })
@@ -34,6 +37,8 @@ export async function LoadTab({ supabase, format }: { supabase: Client; format: 
     getGymAdherence(supabase, week.monday, week.sunday),
     getTeamReturnSummary(supabase, format),
     getAttendanceRanking(supabase, "mes"),
+    getTeamLoadWeekly(supabase, format),
+    getTeamWellness(supabase, format),
   ]);
 
   // Jugadores del formato (team_srpe_load ya viene filtrado): el gimnasio y la asistencia
@@ -44,7 +49,10 @@ export async function LoadTab({ supabase, format }: { supabase: Client; format: 
   return (
     <div className="space-y-4">
       <LoadKpis team={team} flags={flags} gym={adherence ? gymRows : null} />
-      {/* PR 4: "Carga del plantel por semana" y "Bienestar del plantel" van aquí. */}
+      <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
+        <WeeklyLoadBlock weeks={weekly} />
+        <TeamWellnessBlock data={wellness} />
+      </div>
       <PlayerLoadBlock team={team} flags={flags} breakdown={breakdown} gym={gymRows} returns={returns} />
       <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
         <MinutesSection result={load} />
