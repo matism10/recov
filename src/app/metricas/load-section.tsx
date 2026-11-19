@@ -1,45 +1,71 @@
-// Sección "Carga del plantel" de /metricas (solo staff): resumen (jugadores con
-// carga alta y sin minutos o sin partidos, cada uno con su lista) y el ranking ordenado por carga, con
-// mini barras de los últimos partidos escaladas a la duración del deporte. En
-// Métricas se muestran los primeros 5; /metricas/carga tiene el ranking completo.
+// "Minutos jugados" (Métricas → Carga) y el ranking completo de /metricas/carga: minutos de
+// los últimos partidos con participación cargada, con mini barras escaladas a la duración
+// del partido del deporte. Sin semáforo ni etiqueta "Alta": solo los minutos. En Métricas
+// van los primeros 5 y una lista desplegable con quienes no sumaron minutos.
 import Link from "next/link";
 import { CircleAlert } from "lucide-react";
-import { NOMINA_MODE_LABEL, type LoadResult, type TeamLoad } from "@/lib/match-load";
+import { NOMINA_MODE_LABEL, type LoadResult, type PlayerLoad, type TeamLoad } from "@/lib/match-load";
 import { matchDateLabel } from "@/app/load-chart";
 import { LoadRow } from "./load-row";
-import { LoadSummary } from "./load-summary";
-import { MetricsError, metricCardClass } from "@/app/metrics";
-import { SectionTitle, buttonSecondary } from "@/app/ui";
-import type { ReactNode } from "react";
+import { MetricsBlock, MetricsError } from "@/app/metrics";
+import { buttonSecondary } from "@/app/ui";
 
 export const RANKING_PREVIEW = 5;
 
-export function LoadSection({ result, srpe }: { result: LoadResult<TeamLoad>; srpe?: ReactNode }) {
-  return (
-    // Una sola lámina: título, carga sRPE, resumen, ranking y el enlace al ranking completo.
-    <section className={`mb-8 ${metricCardClass}`}>
-      <SectionTitle className="mb-1">Carga del plantel</SectionTitle>
-      {srpe && <div className="mt-3 mb-4">{srpe}</div>}
-      {!result.ok ? (
+// Sin minutos (o sin partidos en "jugó") en la ventana.
+export function withoutMinutes(load: TeamLoad) {
+  return load.players.filter(
+    (p) =>
+      p.status === "sin_minutos" ||
+      p.status === "sin_partidos" ||
+      (p.status === null && (load.mode === "jugo" ? p.played_count === 0 : p.total === 0) && p.other_mode === 0),
+  );
+}
+
+export function MinutesSection({ result }: { result: LoadResult<TeamLoad> }) {
+  const heading = "Minutos jugados";
+  if (!result.ok) {
+    return (
+      <MetricsBlock heading={heading} info="minutos">
         <MetricsError />
-      ) : result.data.matches_count === 0 ? (
-        <p className="mt-2 text-sm text-muted">
-          Aún no hay partidos con participación cargada. Se carga desde Nóminas o desde el
-          calendario, en cada partido.
+      </MetricsBlock>
+    );
+  }
+  const load = result.data;
+  if (load.matches_count === 0) {
+    return (
+      <MetricsBlock heading={heading} info="minutos">
+        <p className="text-sm text-muted">
+          Aún no hay partidos con participación cargada. Se carga desde Nóminas o desde el calendario, en cada partido.
         </p>
-      ) : (
-        <div className="space-y-4">
-          <LoadIntro load={result.data} />
-          <LoadSummary load={result.data} />
-          <LoadRanking load={result.data} limit={RANKING_PREVIEW} bare />
-          {result.data.players.length > RANKING_PREVIEW && (
-            <Link href="/metricas/carga" className={`w-full text-sm sm:w-auto ${buttonSecondary}`}>
-              Ver ranking completo
-            </Link>
-          )}
-        </div>
-      )}
-    </section>
+      </MetricsBlock>
+    );
+  }
+  const n = load.matches_count;
+  const none = withoutMinutes(load);
+  return (
+    <MetricsBlock heading={heading} info="minutos">
+      <div className="space-y-4">
+        <LoadIntro load={load} />
+        <LoadList load={load} players={load.players.slice(0, RANKING_PREVIEW)} ranked />
+        {load.players.length > RANKING_PREVIEW && (
+          <Link href="/metricas/carga" className={`w-full text-sm sm:w-auto ${buttonSecondary}`}>
+            Ver ranking completo
+          </Link>
+        )}
+        {none.length > 0 && (
+          <details className="group rounded-lg bg-mist px-3 py-2">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
+              {load.mode === "jugo"
+                ? `Sin partidos en los últimos ${n} (${none.length})`
+                : `Sin minutos en los últimos ${n} ${n === 1 ? "partido" : "partidos"} (${none.length})`}
+              <span aria-hidden="true" className="text-muted transition group-open:rotate-180">▾</span>
+            </summary>
+            <LoadList load={load} players={none} />
+          </details>
+        )}
+      </div>
+    </MetricsBlock>
   );
 }
 
@@ -69,42 +95,28 @@ export function LoadIntro({ load }: { load: TeamLoad }) {
         </p>
       )}
       {n < 3 && (
-        <p className="text-sm text-muted">Con menos de 3 partidos no se calcula el semáforo de carga.</p>
+        <p className="text-sm text-muted">Con menos de 3 partidos cargados, los minutos todavía dicen poco.</p>
       )}
     </div>
   );
 }
 
-// Ranking por carga (todos o los primeros `limit`).
-// `bare`: sin tarjeta propia, para ir dentro de otra lámina.
-export function LoadRanking({
-  load,
-  limit,
-  bare = false,
-}: {
-  load: TeamLoad;
-  limit?: number;
-  bare?: boolean;
-}) {
-  const n = load.matches_count;
-  const rows = limit ? load.players.slice(0, limit) : load.players;
+// Lista de filas de minutos; `ranked` numera según el orden del ranking.
+export function LoadList({ load, players, ranked = false }: { load: TeamLoad; players: PlayerLoad[]; ranked?: boolean }) {
   return (
-    <div className={bare ? "border-t border-line pt-4" : metricCardClass}>
-      <h3 className="mb-2 font-medium text-ink">
-        Ranking por carga{limit ? ` · primeros ${Math.min(limit, load.players.length)}` : ""}
-      </h3>
-      <ol className="divide-y divide-line">
-        {rows.map((p, i) => (
-          <LoadRow
-            key={p.player_id}
-            player={p}
-            rank={i + 1}
-            mode={load.mode}
-            matchMinutes={load.match_minutes}
-            matchesCount={n}
-          />
-        ))}
-      </ol>
-    </div>
+    <ol className="divide-y divide-line">
+      {players.map((p, i) => (
+        <LoadRow
+          key={p.player_id}
+          player={p}
+          rank={ranked ? i + 1 : undefined}
+          mode={load.mode}
+          matchMinutes={load.match_minutes}
+          matchesCount={load.matches_count}
+          matches={load.matches}
+          scale={load.scale}
+        />
+      ))}
+    </ol>
   );
 }
