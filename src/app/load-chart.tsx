@@ -22,7 +22,7 @@ export function matchDateLabel(iso: string) {
 
 const pct = (value: number, max: number) => Math.max(0, Math.min(100, (value / max) * 100));
 
-function valueText(v: LoadValue, mode: NominaMode, scale: LoadScaleRow[]) {
+export function valueText(v: LoadValue, mode: NominaMode, scale: LoadScaleRow[]) {
   if (v.other_mode) return "cargado en otro modo";
   if (!v.convocado) return "no convocado";
   if (!v.loaded) return "sin cargar";

@@ -23,6 +23,22 @@ export const METRICS_HELP = {
   posicion: [
     "Lesiones de los últimos 12 meses por posición del jugador, y cuántos jugadores distintos se lesionaron.",
   ],
+  carga_jugador: [
+    "sRPE = esfuerzo que reporta el jugador (0 a 10) × minutos de la sesión. La carga de la semana suma cancha, gimnasio y partidos, de lunes a domingo.",
+    "\"vs su promedio\" compara esta semana con el promedio de sus 4 semanas anteriores con datos. \"Carga alta\" = más de 1,3 veces ese promedio (con al menos 3 semanas previas).",
+    "\"Bienestar bajo\": su último check (7 días) está 4 puntos o más bajo su promedio, o tiene algún ítem en el peor valor.",
+  ],
+  minutos: [
+    "Minutos de cada jugador en los últimos partidos con participación cargada. Cada mini barra es un partido, escalada a la duración del partido.",
+    "Si el plantel carga por rango, los minutos se estiman con el punto medio de cada rango (≈). Un no convocado suma 0.",
+  ],
+  paron: [
+    "Un jugador vuelve tras parón cuando pasó 10 días o más sin actividad (ausencia avisada, \"No fui\", ausente en la lista o lesión) y volvió en los últimos 14 días.",
+    "Si vuelve el 60 % del plantel o más (o hubo parón del plantel), se muestra un solo aviso de equipo. Es solo informativo: no cambia \"Carga alta\".",
+  ],
+  asistencia: [
+    "Asistencia a entrenamientos con lista en los últimos 30 días: los 5 con menor porcentaje. Verde desde 85 %, ámbar de 70 a 84 % y rojo bajo 70 %.",
+  ],
 } as const satisfies Record<string, readonly string[]>;
 
 export type MetricsHelpKey = keyof typeof METRICS_HELP;

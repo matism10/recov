@@ -7,7 +7,7 @@ import { useId, useState } from "react";
 import { Info } from "lucide-react";
 import { METRICS_HELP, type MetricsHelpKey } from "@/lib/metrics-help";
 
-export function InfoBox({ topic }: { topic: MetricsHelpKey }) {
+export function InfoBox({ topic, label = "¿Cómo se lee?" }: { topic: MetricsHelpKey; label?: string }) {
   const [open, setOpen] = useState(false);
   const id = useId();
   const help = METRICS_HELP[topic];
@@ -21,7 +21,7 @@ export function InfoBox({ topic }: { topic: MetricsHelpKey }) {
         className="inline-flex items-center gap-1 rounded-md text-xs font-medium text-brand-text hover:underline focus-visible:outline-2 focus-visible:outline-brand-strong"
       >
         <Info aria-hidden="true" className="size-4" />
-        ¿Cómo se lee?
+        {label}
       </button>
       <div id={id} hidden={!open} className="mt-2 space-y-1.5 rounded-lg bg-brand-soft/60 px-3 py-2.5 text-ink">
         {help.map((p) => (
