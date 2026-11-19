@@ -87,7 +87,7 @@ export default async function ProfilePage() {
       </header>
 
       <div className="space-y-6">
-        <section className={`p-5 ${cardClass}`}>
+        <section id="foto" className={`scroll-mt-4 p-5 ${cardClass}`}>
           <h2 className="mb-4 font-semibold text-ink">Foto</h2>
           <AvatarForm
             name={profile.full_name ?? ""}
@@ -96,7 +96,7 @@ export default async function ProfilePage() {
           />
         </section>
 
-        <section className={`p-5 ${cardClass}`}>
+        <section id="datos" className={`scroll-mt-4 p-5 ${cardClass}`}>
           <h2 className="mb-4 font-semibold text-ink">Tus datos</h2>
           <ProfileForm
             firstName={firstName}
@@ -107,13 +107,13 @@ export default async function ProfilePage() {
         </section>
 
         {playerRow && (
-          <section className={`p-5 ${cardClass}`}>
+          <section id="contacto" className={`scroll-mt-4 p-5 ${cardClass}`}>
             <h2 className="mb-4 font-semibold text-ink">Contacto</h2>
             <PhoneForm phone={(phone as string | null) ?? null} />
           </section>
         )}
 
-        <section className={`p-5 ${cardClass}`}>
+        <section id="cuenta" className={`scroll-mt-4 p-5 ${cardClass}`}>
           <h2 className="mb-4 font-semibold text-ink">Cuenta</h2>
           <dl className="mb-4 text-sm">
             <dt className="text-muted">Correo</dt>
@@ -123,7 +123,7 @@ export default async function ProfilePage() {
         </section>
 
         {/* Barra inferior: solo existe en el celular. */}
-        <section className={`p-5 lg:hidden ${cardClass}`}>
+        <section id="barra-principal" className={`scroll-mt-4 p-5 lg:hidden ${cardClass}`}>
           <h2 className="mb-4 font-semibold text-ink">Barra principal</h2>
           <NavSlotsForm
             current={navSlots}
@@ -133,7 +133,7 @@ export default async function ProfilePage() {
           />
         </section>
 
-        <form action={signOut}>
+        <form id="cerrar-sesion" action={signOut} className="scroll-mt-4">
           <button className={signOutButtonClass}>
             <LogOut aria-hidden="true" className="size-5" />
             Cerrar sesión

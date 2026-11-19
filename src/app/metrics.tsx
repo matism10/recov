@@ -9,6 +9,8 @@ import { InfoBox } from "@/app/info-box";
 import type { MetricsHelpKey } from "@/lib/metrics-help";
 
 // Tarjeta de métricas: la misma en la franja de /dashboard y en /metricas.
+import { anchorId } from "@/lib/anchors";
+
 export const metricCardClass = "rounded-xl border border-line bg-white p-5";
 
 // Tono de la tarjeta: el color fijo del estado que cuenta, o neutro para el total.
@@ -100,13 +102,6 @@ export function MetricsError() {
   return <p className="text-sm text-muted">No se pudieron cargar las métricas.</p>;
 }
 
-// Anclas de los bloques que enlaza el buscador (src/lib/search-index.ts).
-const BLOCK_ANCHOR: Record<string, string | undefined> = {
-  "Carga por jugador": "carga-jugador",
-  "Carga del plantel por semana": "carga-semana",
-  "Bienestar del plantel": "bienestar-plantel",
-};
-
 // Bloque de /metricas: título, subtítulo opcional, "¿Cómo se lee?" opcional, contenido y pie.
 export function MetricsBlock({
   heading,
@@ -124,7 +119,7 @@ export function MetricsBlock({
   children: ReactNode;
 }) {
   return (
-    <section id={BLOCK_ANCHOR[heading]} className={`${metricCardClass} scroll-mt-20 ${className}`}>
+    <section id={anchorId(heading)} className={`${metricCardClass} scroll-mt-20 ${className}`}>
       <SectionTitle>{heading}</SectionTitle>
       {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
       {info && (

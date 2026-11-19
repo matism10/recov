@@ -204,12 +204,30 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
+  // Destinos solo de celular (Perfil › Barra principal): el mismo corte lg que el resto de la app.
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023.98px)");
+    const update = () => setMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const ctx = useMemo<SearchContext | null>(
     () =>
       data
-        ? { roles: data.roles, permissions: data.permissions, staff: data.staff, evaluations: data.evaluations }
+        ? {
+            roles: data.roles,
+            permissions: data.permissions,
+            staff: data.staff,
+            evaluations: data.evaluations,
+            sport: data.sport,
+            hasSevens: data.hasSevens,
+            mobile,
+          }
         : null,
-    [data],
+    [data, mobile],
   );
 
   const trimmed = query.trim();

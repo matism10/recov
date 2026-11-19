@@ -121,7 +121,7 @@ export default async function SettingsPage() {
       </section>
 
       {club?.sport === "rugby" && (
-        <section className={`mt-6 p-5 ${cardClass}`}>
+        <section id="sevens" className={`mt-6 scroll-mt-4 p-5 ${cardClass}`}>
           <h2 className="font-medium text-ink">Rugby Sevens</h2>
           <p className="mt-1 mb-4 text-sm text-muted">
             Sevens usa el mismo plantel: fichas, lesiones y evaluaciones son las mismas. Con
