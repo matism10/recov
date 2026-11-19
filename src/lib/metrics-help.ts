@@ -28,6 +28,14 @@ export const METRICS_HELP = {
     "\"vs su promedio\" compara esta semana con el promedio de sus 4 semanas anteriores con datos. \"Carga alta\" = más de 1,3 veces ese promedio (con al menos 3 semanas previas).",
     "\"Bienestar bajo\": su último check (7 días) está 4 puntos o más bajo su promedio, o tiene algún ítem en el peor valor.",
   ],
+  carga_semana: [
+    "Cada barra es una semana (lunes a domingo): la carga sRPE promedio de los jugadores que respondieron, separada en cancha, gimnasio y partido.",
+    "La línea punteada es el promedio de las 4 semanas anteriores. La semana en curso va punteada porque aún puede subir.",
+  ],
+  bienestar_plantel: [
+    "Promedio del check de bienestar (total sobre 25; 25 = mejor) con el último check de cada jugador de los últimos 7 días. Las barras son el promedio de cada semana.",
+    "Abajo, los 3 checks más bajos, con los ítems que están mal tal como los ve el jugador (en Fatiga, Dolor muscular y Estrés, 5 = peor).",
+  ],
   minutos: [
     "Minutos de cada jugador en los últimos partidos con participación cargada. Cada mini barra es un partido, escalada a la duración del partido.",
     "Si el plantel carga por rango, los minutos se estiman con el punto medio de cada rango (≈). Un no convocado suma 0.",
