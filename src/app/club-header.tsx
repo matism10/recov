@@ -11,6 +11,7 @@ import { Avatar } from "@/app/avatar";
 import { isNavHidden } from "@/app/nav-items";
 import { setActiveClub } from "@/app/plantel-activo";
 import { SevensChip } from "./sevens-ui";
+import { SearchLauncher } from "./search/search-launcher";
 
 function initials(name: string) {
   return name
@@ -133,8 +134,11 @@ export function ClubHero({
       />
       </div>
       {/* En escritorio el perfil va abajo en la sidebar. */}
-      <div className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-3 lg:hidden">
-        <ProfileLink fullName={fullName} avatarUrl={avatarUrl} ring />
+      <div className="absolute top-[calc(env(safe-area-inset-top)+8px)] right-3 flex items-center gap-2 lg:top-4 lg:right-8">
+        <SearchLauncher tone="dark" />
+        <span className="lg:hidden">
+          <ProfileLink fullName={fullName} avatarUrl={avatarUrl} ring />
+        </span>
       </div>
       <div className="absolute bottom-4 left-4 flex min-w-0 items-center gap-3 pr-4 lg:left-8">
         <ClubShield
@@ -203,9 +207,12 @@ export function ClubHeader({
         </ClubSwitcher>
         {format && <SevensChip format={format} />}
       </div>
-      <span className="lg:hidden">
-        <ProfileLink fullName={fullName} avatarUrl={avatarUrl} />
-      </span>
+      <div className="flex shrink-0 items-center gap-2">
+        <SearchLauncher />
+        <span className="lg:hidden">
+          <ProfileLink fullName={fullName} avatarUrl={avatarUrl} />
+        </span>
+      </div>
     </header>
   );
 }
@@ -283,7 +290,7 @@ function ClubSwitcher({
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((v) => !v)}
-        className={`flex min-h-11 min-w-0 items-center gap-1.5 rounded-lg pr-1 text-left ${
+        className={`flex min-h-11 max-w-full min-w-0 items-center gap-1.5 rounded-lg pr-1 text-left ${
           tone === "dark" ? "text-white" : "text-ink"
         }`}
       >

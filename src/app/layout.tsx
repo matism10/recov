@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClubHeaderNav, MobileNav, Sidebar } from "./sidebar";
 import { LegalGate } from "./legal-gate";
 import { NavTracker } from "./back-link";
+import { AnchorReveal } from "./search/anchor-reveal";
 
 // Archivo: una sola familia para títulos, cuerpo y wordmark. Fuente variable con
 // eje de ancho: se usa semicondensada (font-stretch 87.5% en globals.css).
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {/* Encabezado con la identidad del club, en celular y escritorio. */}
             <ClubHeaderNav />
             <NavTracker />
+            <AnchorReveal />
             <LegalGate>{children}</LegalGate>
           </div>
         </div>
