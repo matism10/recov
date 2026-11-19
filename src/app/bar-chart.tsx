@@ -1,6 +1,8 @@
 // Gráfico de barras en SVG, renderizado en el servidor (sin JS en el cliente).
 // Misma técnica que LineChart: trazado en un viewBox 0–100 estirado al ancho
 // disponible y etiquetas en HTML para que se lean igual en cualquier ancho.
+// Encima, ChartColumnsTooltip muestra el dato exacto (mouse o toque).
+import { ChartColumnsTooltip } from "@/app/chart-tooltip";
 
 const PLOT_PADDING_PX = 32; // pt-2 + pb-6 del contenedor del trazado
 const ZERO_BAR_PX = 2; // una semana en 0 se ve como una línea, no desaparece
@@ -18,12 +20,15 @@ export function BarChart({
   label,
   highlightIndex,
   height = 200,
+  valueText = (v) => String(v),
 }: {
   values: number[];
   xLabels: string[];
   label: string;
   highlightIndex?: number;
   height?: number;
+  // Texto del dato en el tooltip ("3 lesiones").
+  valueText?: (v: number) => string;
 }) {
   const n = values.length;
   const max = axisMax(values);
@@ -96,6 +101,7 @@ export function BarChart({
               );
             })}
           </svg>
+          <ChartColumnsTooltip tips={values.map((v, i) => ({ title: `Semana del ${xLabels[i]}`, lines: [valueText(v)] }))} />
         </div>
       </div>
 
