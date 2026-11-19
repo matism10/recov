@@ -1,22 +1,19 @@
-// Esqueleto de Métricas (solo el panel; "carga" tiene su propia carga): tarjetas de
-// cifras, gráficos y la carga del plantel.
+// Esqueleto de Métricas (solo el panel; "carga" tiene su propia carga): título, pestañas,
+// la franja de estado y los bloques de gráficos.
 import { Block, Line, PageSkeleton, TitleSkeleton } from "@/app/skeleton";
 
 export default function Loading() {
   return (
     <PageSkeleton label="las métricas" width="metrics">
-      <TitleSkeleton subtitle />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <Block key={i} className="space-y-4 p-5">
-            <Line className="h-4 w-32" />
-            <Line className="h-10 w-14" />
-            <Line className="h-2 w-full rounded-full" />
-          </Block>
-        ))}
-      </div>
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
-        <Block className="h-72" />
+      <TitleSkeleton />
+      <Block className="mb-6 h-12 w-full sm:w-80" />
+      <Block className="mb-4 space-y-4 p-5">
+        <Line className="h-5 w-48" />
+        <Line className="h-10 w-full" />
+        <Line className="h-3 w-full rounded-full" />
+      </Block>
+      <div className="mb-4 grid gap-4 lg:grid-cols-3">
+        <Block className="h-72 lg:col-span-2" />
         <Block className="h-72" />
       </div>
       <Block className="h-80" />

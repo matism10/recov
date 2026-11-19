@@ -1,182 +1,53 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isStaff, type UserRole } from "@/lib/roles";
-import {
-  getAvailabilitySeries,
-  getDashSummary,
-  getInjuriesByPlace,
-  getInjuriesByPosition,
-  getInjuriesByWeek,
-  getPlayersStatus,
-  getRecurringPlayers,
-  getUpcomingReturns,
-} from "@/lib/metrics";
-import { getAvatarUrls } from "@/lib/avatars";
-import { getTeamLoad } from "@/lib/match-load";
+import { can } from "@/lib/permissions";
 import { getActiveFormat } from "@/lib/format";
-import { LoadSection } from "../load-section";
-import { SrpeCard } from "../srpe-card";
-import { getTeamReturnSummary } from "@/lib/return-break";
-import { TeamLoadTable } from "../team-load-table";
-import { currentWeek, getGymAdherence, type LoadBreakdownRow } from "@/lib/gym";
-import type { TeamSrpeRow, WellnessFlag } from "@/lib/srpe";
-import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
-import { PageTitle, SectionTitle, textButton } from "@/app/ui";
-import {
-  InjuriesByPlaceBlock,
-  InjuriesByPositionBlock,
-  InjuriesByWeekBlock,
-  RecurringPlayersBlock,
-  UpcomingReturnsBlock,
-} from "../blocks";
+import { PageTitle, cardClass } from "@/app/ui";
+import { MetricsTabs, type MetricsTab } from "../tabs";
+import { InjuriesTab } from "../injuries-tab";
+import { LoadTab } from "../load-tab";
 
-// Métricas del plantel para el staff. Las funciones dash_* validan en la base que
-// quien llama sea staff confirmado de su club.
-export default async function MetricsPage() {
+// Métricas del plantel para el staff, en pestañas Lesiones | Carga (?tab=). Solo se
+// muestran las pestañas que permite cada permiso (lesiones_ver, carga_ver) y solo se
+// consulta la activa. La base valida de nuevo en cada función.
+// Formato activo: en Sevens, todas las métricas son del grupo Sevens (0046).
+export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const supabase = await getSupabase();
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  // En paralelo: perfil y todas las métricas (las funciones dash_* y la carga validan
-  // que sea staff; si no lo es, se redirige antes de mostrar). Luego, estado y foto
-  // solo de los jugadores de "Jugadores recurrentes" y "Próximas altas"; si esa
-  // lectura falla, esos bloques usan iniciales y omiten el estado.
-  // Formato activo: en Sevens, todas las métricas son del grupo Sevens (0046).
-  const format = await getActiveFormat(user.id);
-  const week = currentWeek();
-  const [me, summary, series, byWeek, byPlace, byPosition, recurring, upcoming, load, srpeTeam, srpeFlags, breakdown, adherence, returns] = await Promise.all([
-    getProfile(user.id),
-    getDashSummary(supabase, format),
-    getAvailabilitySeries(supabase, 12, format),
-    getInjuriesByWeek(supabase, 12, format),
-    getInjuriesByPlace(supabase, format),
-    getInjuriesByPosition(supabase, format),
-    getRecurringPlayers(supabase, format),
-    getUpcomingReturns(supabase, format),
-    getTeamLoad(supabase, 4, format),
-    // Carga sRPE de la semana y bienestar bajo lo habitual (solo staff, en la base).
-    supabase
-      .rpc("team_srpe_load", { p_format: format })
-      .then(({ data, error }) => (error ? null : ((data ?? []) as TeamSrpeRow[]))),
-    supabase
-      .rpc("wellness_flags", { p_format: format })
-      .then(({ data, error }) => (error ? null : ((data ?? []) as WellnessFlag[]))),
-    // Desglose de la carga por tipo y cumplimiento del plan de gimnasio de la semana.
-    supabase
-      .rpc("team_load_breakdown", { p_format: format })
-      .then(({ data, error }) => (error ? null : ((data ?? []) as LoadBreakdownRow[]))),
-    getGymAdherence(supabase, week.monday, week.sunday),
-    // Vuelta tras parón (solo informativa).
-    getTeamReturnSummary(supabase, format),
-  ]);
-
+  const [me, format, params] = await Promise.all([getProfile(user.id), getActiveFormat(user.id), searchParams]);
   if (me?.status === "pendiente") redirect("/pendiente");
-  if (me?.status !== "confirmado" || !isStaff((me.roles ?? []) as UserRole[])) {
-    redirect("/dashboard");
-  }
+  const roles = (me?.roles ?? []) as UserRole[];
+  if (me?.status !== "confirmado" || !isStaff(roles)) redirect("/dashboard");
 
-  const listedIds = [
-    ...new Set([
-      ...(recurring.ok ? recurring.data.map((p) => p.player_id) : []),
-      ...(upcoming.ok ? upcoming.data.map((r) => r.player_id) : []),
-    ]),
+  const tabs: MetricsTab[] = [
+    ...(can(roles, "lesiones_ver") ? (["lesiones"] as const) : []),
+    ...(can(roles, "carga_ver") ? (["carga"] as const) : []),
   ];
-  const players = await getPlayersStatus(supabase, listedIds);
-  const status = players.ok ? players.data : null;
-  const avatarUrls = status
-    ? await getAvatarUrls(supabase, [...status.values()].map((p) => p.user_id))
-    : new Map<string, string>();
+  const active = tabs.find((t) => t === params.tab) ?? tabs[0];
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 lg:px-8">
-      <header className="mb-8">
-        <Link href="/dashboard" className={textButton}>
-          ← Volver a disponibilidad del plantel
-        </Link>
-        <PageTitle className="mt-2">
-          Métricas del plantel
-        </PageTitle>
+      <header className="mb-4 lg:mb-6">
+        <PageTitle>Métricas del plantel</PageTitle>
       </header>
 
-      <section className="mb-8">
-        {summary.ok ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Total de jugadores"
-              value={summary.data.total}
-              description="En el plantel"
-            />
-            <StatCard
-              label="Disponibles"
-              value={summary.data.disponibles}
-              tone="disponible"
-              description="Aptos para convocatoria"
-              percent={percentOf(summary.data.disponibles, summary.data.total)}
-            />
-            <StatCard
-              label="Lesionados"
-              value={summary.data.lesionados}
-              tone="lesionado"
-              description="Sin alta médica"
-              percent={percentOf(summary.data.lesionados, summary.data.total)}
-              extra={
-                summary.data.en_revision > 0 && (
-                  <span className="text-sm font-medium text-revision-fg">
-                    +{summary.data.en_revision} en revisión
-                  </span>
-                )
-              }
-            />
-            <StatCard
-              label="En reintegro"
-              value={summary.data.reintegro}
-              tone="reintegro"
-              description="Readaptación en curso"
-              percent={percentOf(summary.data.reintegro, summary.data.total)}
-            />
-          </div>
-        ) : (
-          <MetricsError />
-        )}
-      </section>
-
-      <LoadSection
-        result={load}
-        srpe={
-          <div className="space-y-3">
-            <SrpeCard team={srpeTeam} flags={srpeFlags} returns={returns} />
-            {srpeTeam && <TeamLoadTable team={srpeTeam} breakdown={breakdown} adherence={adherence} />}
-          </div>
-        }
-      />
-
-      <section className={`mb-8 ${metricCardClass}`}>
-        {series.ok ? (
-          <AvailabilityChart
-            heading="Disponibilidad en el tiempo"
-            sectionHeading
-            weeks={series.data}
-            keys={["disponible", "en_revision", "lesionado", "reintegro"]}
-            height={260}
-          />
-        ) : (
-          <>
-            <SectionTitle className="mb-3">Disponibilidad en el tiempo</SectionTitle>
-            <MetricsError />
-          </>
-        )}
-      </section>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <InjuriesByWeekBlock result={byWeek} />
-        <InjuriesByPlaceBlock result={byPlace} />
-        <InjuriesByPositionBlock result={byPosition} />
-        <RecurringPlayersBlock result={recurring} status={status} avatarUrls={avatarUrls} />
-        <div className="lg:col-span-2">
-          <UpcomingReturnsBlock result={upcoming} status={status} avatarUrls={avatarUrls} />
-        </div>
-      </div>
+      {!active ? (
+        <p className={`p-5 text-sm text-muted ${cardClass}`}>
+          No tienes permiso para ver lesiones ni carga. Pídeselo al head coach.
+        </p>
+      ) : (
+        <>
+          <MetricsTabs tabs={tabs} active={active} />
+          {active === "lesiones" ? (
+            <InjuriesTab supabase={supabase} format={format} />
+          ) : (
+            <LoadTab supabase={supabase} format={format} />
+          )}
+        </>
+      )}
     </main>
   );
 }

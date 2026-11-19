@@ -2,6 +2,7 @@
 // El trazado usa un viewBox 0–100 estirado al ancho disponible, con trazos que no
 // se deforman; las etiquetas van en HTML para que se lean igual en cualquier ancho.
 import { SectionTitle } from "@/app/ui";
+import { ChartColumnsTooltip } from "@/app/chart-tooltip";
 
 // Clases literales (Tailwind solo genera las que aparecen escritas en el código).
 const COLORS = {
@@ -215,6 +216,17 @@ export function LineChart({
             ))}
           </svg>
 
+          <ChartColumnsTooltip
+            centers={xLabels.map((_, i) => x(i))}
+            tips={xLabels.map((week, i) =>
+              series.every((s) => s.values[i] === null)
+                ? null
+                : {
+                    title: `Semana del ${week}`,
+                    lines: series.map((s) => `${s.label}: ${s.values[i] ?? "sin datos"}`),
+                  },
+            )}
+          />
           {lastLabels.map((l) => (
             <span
               key={l.key}

@@ -50,6 +50,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 ## Historial
 
+- 18 nov · PR pendiente · Métricas en pestañas Lesiones | Carga (`?tab=`, según `lesiones_ver`/`carga_ver`), tooltip en todos los gráficos, "¿Cómo se lee?" y pestaña Lesiones rediseñada (franja de estado, altas compactas, no disponibles por semana en barras apiladas). Sin migración.
 - 18 nov · PR pendiente · Check de bienestar: escala en la orientación de cada ítem (Fatiga, Dolor muscular y Estrés invertidos, 5 = más), solo presentación; la base sigue guardando 5 = mejor. Staff (ficha, reportes del evento, Métricas y notificaciones) ve el valor del jugador con su etiqueta y color por gravedad.
 - 18 nov · PR pendiente · Tarjetas por jugador en Lesiones (lista y "Lesiones activas" del Resumen) y por persona en Staff; Evaluaciones: valor y mejora separados del gráfico; `BackLink` ahora usa un contador de navegaciones internas (`NavTracker` en el layout) porque `document.referrer` no cambia con la navegación del cliente.
 - 17 nov · PR pendiente · Vuelta tras parón (PR 2 de 2, informativo).
@@ -158,6 +159,11 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - **Métricas → "Carga del plantel"** (staff): resumen (cuántos con carga alta y cuántos sin minutos o sin partidos) y los primeros 5 del ranking, con mini barras de los últimos 4 partidos y semáforo (con 3 partidos o más); "Ver ranking completo" abre `/metricas/carga`.
 - **Ficha del jugador → "Carga"** (staff): últimos 6 partidos, carga de la ventana, comparación con el promedio del plantel y última lesión.
 - **Jugador:** en su Resumen, arriba, una tarjeta grande con su estado (Disponible, En revisión, Lesionado o Reintegro, con sus colores) y, si está lesionado o en reintegro, la fase en curso (solo datos propios; ya no ve el plantel ahí, lo tiene en `/plantel`), `src/app/dashboard/my-status.tsx`; luego "Mi carga" (sin semáforo) y "Mis partidos"; también ve su propia ficha. En Nóminas ve cada nómina en lectura (`/nominas/[eventId]`, 0048): titulares, banca y convocados sin puesto, sin disponibilidad ni minutos. Nunca la carga ni los minutos de otros jugadores.
+
+**6b. Métricas** (`/metricas`, staff)
+- Pestañas Lesiones | Carga (barra segmentada, fija arriba al hacer scroll en el celular). La pestaña va en `?tab=lesiones|carga` y se renderiza en el servidor: solo se consulta la activa. Se ven solo las pestañas permitidas (`lesiones_ver` → Lesiones, `carga_ver` → Carga); por defecto, Lesiones si se puede, si no Carga; sin ninguno, un aviso.
+- **Lesiones:** franja "Estado del plantel hoy" (Disponibles con %, Lesionados +N en revisión, En reintegro, total y barra proporcional); "Próximas altas estimadas" compacta (4 filas, vencidas primero y resaltadas, "Ver las N altas") junto a "Jugadores recurrentes"; "Jugadores no disponibles por semana" (barras apiladas de 12 semanas: lesionados, en revisión y reintegro, "Hoy N de M"; misma serie de `dash_availability_series`); "Lesiones nuevas por semana" y "Lugar de la lesión" lado a lado ("Sin dato" solo si es más de 0); "Lesiones por posición" en 2 columnas.
+- Componentes: `ChartTooltip` (`src/app/chart-tooltip.tsx`: dato exacto con el mouse o al tocar; en BarChart, LineChart/AvailabilityChart, BarList, barras apiladas y la franja; las tablas sr-only siguen), `InfoBox` "¿Cómo se lee?" (`src/app/info-box.tsx`, aria-expanded; textos en `src/lib/metrics-help.ts`) y `StackedBarChart` (`src/app/stacked-bar-chart.tsx`).
 
 **7. Calendario**
 - Las competencias solo piden hora de inicio; los entrenamientos, inicio y término.
