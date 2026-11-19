@@ -6,7 +6,7 @@ import { WELLNESS_COLUMNS, dayLabel, wellnessDaysText, wellnessTargetDate, type 
 import { requireMember } from "@/app/calendario/member";
 import { WellnessForm } from "./wellness-form";
 
-// Check de bienestar del jugador: 5 preguntas de 1 a 5, los días que eligió el plantel
+// Check de bienestar del jugador: 5 preguntas de 1 a 5 (cada una con sus etiquetas), los días que eligió el plantel
 // (o al día siguiente). submit_wellness valida el día; aquí solo se decide qué mostrar.
 export default async function WellnessPage() {
   const { supabase, roles, clubId, userId } = await requireMember();
@@ -35,9 +35,7 @@ export default async function WellnessPage() {
           ← Volver al Resumen
         </Link>
         <PageTitle className="mt-2">¿Cómo estás {target && target !== today ? "desde ayer" : "hoy"}?</PageTitle>
-        <p className="mt-1 text-sm text-muted">
-          {target && target !== today ? `Check del ${dayLabel(target)} · ` : ""}1 = muy mal · 5 = muy bien
-        </p>
+        {target && target !== today && <p className="mt-1 text-sm text-muted">Check del {dayLabel(target)}</p>}
       </header>
 
       {target ? (

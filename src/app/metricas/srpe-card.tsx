@@ -53,7 +53,7 @@ export function SrpeCard({
           subtitle="bienestar"
           count={low.length}
           empty="Nadie con el bienestar bajo lo habitual en los últimos 7 días."
-          items={low.map((f) => ({ id: f.player_id, name: f.full_name, detail: `${f.total} / 25 · ${wellnessReason(f)}` }))}
+          items={low.map((f) => ({ id: f.player_id, name: f.full_name, detail: `Bienestar ${f.total} / 25 · ${wellnessReason(f)}` }))}
         />
       </div>
       {returns && <ReturnBlock returns={returns} />}

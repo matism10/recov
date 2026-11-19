@@ -5,6 +5,7 @@
 import type { createClient } from "@/lib/supabase/server";
 import type { Format } from "@/lib/sevens";
 import { chileDateTime, compactDayLabel, type EventType } from "@/lib/events";
+import { wellnessItemText, type WellnessItem } from "@/lib/wellness-scale";
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -27,25 +28,22 @@ export const RPE_SCALE: { label: string; hint: string; color: string }[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Bienestar: 5 preguntas de 1 a 5 (5 = mejor siempre)
+// Bienestar: 5 preguntas de 1 a 5. La escala (qué ve el jugador, qué se guarda y las
+// etiquetas de cada extremo) vive en wellness-scale.ts; aquí se reexporta.
 // ---------------------------------------------------------------------------
-export type WellnessItem = "fatigue" | "sleep" | "soreness" | "stress" | "mood";
-
-export const WELLNESS_ITEMS: { key: WellnessItem; title: string; low: string; high: string }[] = [
-  { key: "fatigue", title: "Fatiga", low: "Muy cansado", high: "Fresco" },
-  { key: "sleep", title: "Calidad del sueño", low: "Dormí muy mal", high: "Dormí muy bien" },
-  { key: "soreness", title: "Dolor muscular", low: "Mucho dolor", high: "Sin dolor" },
-  { key: "stress", title: "Estrés", low: "Muy estresado", high: "Relajado" },
-  { key: "mood", title: "Ánimo", low: "Muy bajo", high: "Muy bueno" },
-];
-
-export const WELLNESS_ITEM_LABEL: Record<WellnessItem, string> = {
-  fatigue: "fatiga",
-  sleep: "sueño",
-  soreness: "dolor muscular",
-  stress: "estrés",
-  mood: "ánimo",
-};
+export {
+  WELLNESS_ITEMS,
+  WELLNESS_KEYS,
+  shownLabel,
+  toShown,
+  toStored,
+  wellnessItem,
+  wellnessItemText,
+  wellnessSeverity,
+  worseItemsText,
+  type WellnessItem,
+  type WellnessSeverity,
+} from "@/lib/wellness-scale";
 
 export const WELLNESS_MAX = 25;
 
@@ -59,15 +57,6 @@ export const WEEKDAYS: { iso: number; label: string; short: string }[] = [
   { iso: 6, label: "Sábado", short: "Sáb" },
   { iso: 7, label: "Domingo", short: "Dom" },
 ];
-
-// "fatiga y sueño bajos" / "dolor muscular bajo"
-export function lowItemsText(items: WellnessItem[]) {
-  if (items.length === 0) return "";
-  const names = items.map((i) => WELLNESS_ITEM_LABEL[i]);
-  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} y ${names.at(-1)}`;
-  const text = `${list} ${names.length === 1 ? "bajo" : "bajos"}`;
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
 
 // ---------------------------------------------------------------------------
 // Formato de números (es-CL: 1.240, 6,4)
@@ -242,14 +231,15 @@ export type WellnessFlag = {
   low_items: WellnessItem[];
 };
 
-// "5 puntos bajo su promedio" o los ítems bajos; para la lista del staff.
+// "5 puntos bajo su promedio · Dolor muscular 5 · Mucho dolor" o solo los ítems mal
+// (guardados en 1 o 2), en la orientación que ve el jugador; para las listas del staff.
 export function wellnessReason(f: WellnessFlag) {
   const drop = f.baseline !== null ? Math.round(f.baseline - f.total) : 0;
+  const items = f.low_items.map((k) => wellnessItemText(k, f[k])).join(", ");
   if (f.prior_reports >= 3 && drop >= 4) {
-    const items = f.low_items.length > 0 ? ` · ${lowItemsText(f.low_items).toLowerCase()}` : "";
-    return `${drop} puntos bajo su promedio${items}`;
+    return `${drop} puntos bajo su promedio${items ? ` · ${items}` : ""}`;
   }
-  return lowItemsText(f.low_items) || "Algún ítem en 1";
+  return items || "Algún ítem en el peor valor";
 }
 
 export type TeamSrpeRow = {

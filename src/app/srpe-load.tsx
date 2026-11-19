@@ -11,6 +11,10 @@ import { RETURN_LEGEND, breakWeekStarts, causeText, weeksText, type PlayerReturn
 import {
   WELLNESS_ITEMS,
   dayLabel,
+  shownLabel,
+  toShown,
+  wellnessItemText,
+  wellnessSeverity,
   formatLoad,
   isoWeekday,
   type WeeklyLoad,
@@ -194,7 +198,9 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
   );
 }
 
-// Últimos checks de bienestar del jugador, con el total y los 5 ítems.
+// Últimos checks de bienestar del jugador: "Bienestar" (total /25, 25 = mejor) y los 5
+// ítems en la orientación que ve el jugador (en Fatiga, Dolor y Estrés, 5 = peor). El color
+// sale de la gravedad (rojo = peor), no del número; debajo, los ítems mal con su etiqueta.
 export function WellnessHistory({ reports }: { reports: WellnessReport[] | null }) {
   if (!reports) {
     return <p className={`p-5 text-sm text-muted ${cardClass}`}>No se pudo cargar el bienestar.</p>;
@@ -204,31 +210,47 @@ export function WellnessHistory({ reports }: { reports: WellnessReport[] | null 
   }
   return (
     <ul className={`divide-y divide-line ${cardClass}`}>
-      {reports.map((r) => (
-        <li key={r.report_date} className="space-y-2 px-5 py-3">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-sm font-medium text-ink">{dayLabel(r.report_date)}</span>
-            <span className="font-display text-lg font-bold text-ink tabular-nums">
-              {r.total}
-              <span className="text-sm font-semibold text-muted"> / 25</span>
-            </span>
-          </div>
-          <dl className="grid grid-cols-5 gap-2 text-center">
-            {WELLNESS_ITEMS.map((q) => {
-              const v = r[q.key];
-              return (
-                <div
-                  key={q.key}
-                  className={`flex flex-col-reverse rounded-lg px-1 py-1.5 ${v <= 2 ? "bg-alerta-bg text-alerta-fg" : "bg-white text-ink"}`}
-                >
-                  <dt className="truncate text-[11px]">{q.title === "Calidad del sueño" ? "Sueño" : q.title}</dt>
-                  <dd className="font-display font-bold tabular-nums">{v}</dd>
-                </div>
-              );
-            })}
-          </dl>
-        </li>
-      ))}
+      {reports.map((r) => {
+        const bad = WELLNESS_ITEMS.filter((q) => wellnessSeverity(r[q.key]) === "mal");
+        return (
+          <li key={r.report_date} className="space-y-2 px-5 py-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm font-medium text-ink">{dayLabel(r.report_date)}</span>
+              <span className="text-sm text-muted">
+                Bienestar{" "}
+                <span className="font-display text-lg font-bold text-ink tabular-nums">{r.total}</span>
+                <span className="font-semibold"> / 25</span>
+              </span>
+            </div>
+            <dl className="grid grid-cols-5 gap-2 text-center">
+              {WELLNESS_ITEMS.map((q) => {
+                const stored = r[q.key];
+                const shown = toShown(q.key, stored);
+                const label = shownLabel(q.key, shown);
+                const sev = wellnessSeverity(stored);
+                return (
+                  <div
+                    key={q.key}
+                    title={`${q.title} ${shown}${label ? ` · ${label}` : ""}`}
+                    className={`flex flex-col-reverse rounded-lg px-1 py-1.5 ${
+                      sev === "mal" ? "bg-alerta-bg text-alerta-fg" : "bg-white text-ink"
+                    }`}
+                  >
+                    <dt className="truncate text-[11px]">{q.short}</dt>
+                    <dd className="font-display font-bold tabular-nums">
+                      {shown}
+                      {label && <span className="sr-only"> · {label}</span>}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+            {bad.length > 0 && (
+              <p className="text-xs text-alerta-fg">{bad.map((q) => wellnessItemText(q.key, r[q.key])).join(", ")}</p>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
