@@ -47,7 +47,7 @@ export default async function SettingsPage() {
   const isHeadCoach = roles.includes("head_coach");
 
   const wellnessSection = (
-    <section className={`p-5 ${cardClass}`}>
+    <section id="bienestar" className={`scroll-mt-4 p-5 ${cardClass}`}>
       <h2 className="font-medium text-ink">Check de bienestar</h2>
       <p className="mt-1 mb-4 text-sm text-muted">
         Elige qué días los jugadores responden las 5 preguntas de bienestar. Quien no alcanza a
@@ -83,7 +83,7 @@ export default async function SettingsPage() {
         <p className="mt-1 text-sm text-muted">Ajustes de {club?.name}.</p>
       </header>
 
-      <section className={`p-5 ${cardClass}`}>
+      <section id="logo" className={`scroll-mt-4 p-5 ${cardClass}`}>
         <h2 className="font-medium text-ink">Logo del plantel</h2>
         <p className="mt-1 mb-4 text-sm text-muted">
           Se muestra en el encabezado y en el link de registro del plantel.
@@ -95,7 +95,7 @@ export default async function SettingsPage() {
         />
       </section>
 
-      <section className={`mt-6 p-5 ${cardClass}`}>
+      <section id="portada" className={`mt-6 scroll-mt-4 p-5 ${cardClass}`}>
         <h2 className="font-medium text-ink">Portada</h2>
         <p className="mt-1 mb-4 text-sm text-muted">
           Se muestra arriba del Resumen. Arrastra la foto para encuadrarla.
@@ -108,7 +108,7 @@ export default async function SettingsPage() {
         />
       </section>
 
-      <section className={`mt-6 p-5 ${cardClass}`}>
+      <section id="partidos" className={`mt-6 scroll-mt-4 p-5 ${cardClass}`}>
         <h2 className="font-medium text-ink">Registro de partidos</h2>
         <p className="mt-1 mb-4 text-sm text-muted">
           Cómo se carga la participación de los convocados en cada partido. Define la carga
@@ -140,7 +140,7 @@ export default async function SettingsPage() {
       <div className="mt-6">{wellnessSection}</div>
 
       {isHeadCoach && (
-        <section className={`mt-6 p-5 ${cardClass}`}>
+        <section id="metricas-resumen" className={`mt-6 scroll-mt-4 p-5 ${cardClass}`}>
           <h2 className="font-medium text-ink">Métricas del Resumen</h2>
           <p className="mt-1 mb-4 text-sm text-muted">
             Elige qué métricas ve el staff del plantel en el Resumen, en computador y en celular.

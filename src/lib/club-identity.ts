@@ -13,7 +13,7 @@ export type ClubIdentity = {
   coverPosition: { x: number; y: number };
 };
 
-const SPORT_LABEL: Record<string, string> = {
+export const SPORT_LABEL: Record<string, string> = {
   futbol: "Fútbol",
   futsal: "Futsal",
   rugby: "Rugby",

@@ -96,3 +96,30 @@
     }
   }
 }
+
+/* Buscador universal (src/app/search): la hoja sube desde abajo en celular y la paleta
+   aparece con un leve fundido en escritorio. Sin movimiento si la persona lo reduce. */
+@media (prefers-reduced-motion: no-preference) {
+  .search-backdrop {
+    animation: search-fade 0.15s ease-out;
+  }
+  .search-panel {
+    animation: search-sheet-up 0.2s ease-out;
+  }
+  @media (min-width: 1024px) {
+    .search-panel {
+      animation: search-fade 0.15s ease-out;
+    }
+  }
+}
+@keyframes search-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes search-sheet-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}

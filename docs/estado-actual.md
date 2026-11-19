@@ -5,13 +5,13 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 **Stack:** Next.js 16 (App Router; `middleware` se llama `proxy.ts`) + Supabase (Auth, Postgres con RLS, Storage) + Vercel. Supabase se maneja por MCP (proyecto "Recov").
 
 ## Estado del repositorio
-- Todo está mergeado en `main` (último: PR #96, 7 nov).
-- Migraciones 0001 a 0048, 20261104230000 a 20261104233000, 20261105120000, 20261105180000, 20261105190000 20261105200000 a 20261105210000 y 20261106120000 a 20261106122000 y 20261107120000 a 20261107184000, 20261108120000, 20261109120000 y 20261118120000 aplicadas en Supabase (por MCP o, cuando el MCP rechaza `DROP`, por el SQL Editor). 0043 se aplicó desde el SQL Editor y falta anotarla en `supabase_migrations.schema_migrations`.
-- 43 pantallas (rutas de página en `src/app`).
+- Todo está mergeado en `main` (último: PR #117, 18 nov). Excepciones sin PR: la rama local `feat/fisico-grupos` (sus 2 migraciones están aplicadas, ver Historial) y `20261116220208_security_hardening` (aplicada, sin archivo en el repo).
+- Migraciones en el repo: 0001 a 0048 (con número) y, desde la 20261104230000, con fecha y hora en el nombre. Las que tienen archivo están aplicadas en Supabase, la última `20261118120000_team_weekly_load` (en Supabase figura con la versión `20261119011127`: la base asigna su propia marca de tiempo, así que el nombre es lo que las une). Algunas se aplicaron por el SQL Editor cuando el MCP rechazó `DROP`. `schema_migrations` no registra 0034 ni 0043 (0001–0006, 0016 y 0018 tampoco aparecen): están aplicadas, pero sin anotar. Hay 3 migraciones aplicadas sin archivo en el repo: `security_hardening`, `position_groups` y `gym_sevens_position_targets`.
+- 51 pantallas (archivos `page.tsx` en `src/app`, landing incluida; sin contar copias).
 - 0016: 7 deportes y 44 posiciones (en rugby, "Ala" pasó a "Flanker"; hockey reemplazó su catálogo). El trigger `players_validate_position` valida que `players.position` y `secondary_position` existan en `positions` del deporte del club, también en inserts y updates directos.
-- Tests (terminan en ROLLBACK, todos pasan): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones), `sevens_test.sql` (Rugby Sevens), `load_wellness_test.sql` (sRPE y bienestar), `staff_permissions_test.sql` (permisos del staff), `gym_plan_test.sql` (plan de gimnasio) `notifications_test.sql` (notificaciones) y `team_weekly_test.sql` (carga y bienestar del plantel por semana). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`), las superseries del gimnasio (`gym-groups.test.ts`) y la escala del bienestar (`wellness-scale.test.ts`).
+- Tests (terminan en ROLLBACK): `supabase/tests/rls_isolation_test.sql` (aislamiento y permisos), `injury_lifecycle_test.sql` (ciclo de la lesión y fases), `events_test.sql` (calendario y asistencia), `match_load_test.sql` (nóminas y carga), `evaluaciones_test.sql` (evaluaciones), `sevens_test.sql` (Rugby Sevens), `load_wellness_test.sql` (sRPE y bienestar), `staff_permissions_test.sql` (permisos del staff), `gym_plan_test.sql` (plan de gimnasio), `notifications_test.sql` (notificaciones), `legal_acceptance_test.sql` (aceptación legal), `access_requests_test.sql` (solicitudes de acceso), `absences_test.sql` (ausencias avisadas), `return_break_test.sql` (vuelta tras parón) y `team_weekly_test.sql` (carga y bienestar del plantel por semana). En la app, `npm test` (node --test) prueba el lado sugerido y el texto de la zona (`src/lib/body-zones.test.ts`), las superseries del gimnasio (`gym-groups.test.ts`) y la escala del bienestar (`wellness-scale.test.ts`).
 - 0027 y 0028 (20 oct 2026): nóminas, participación y carga del plantel. 0029: nómina por puestos (titulares y banca). 0030: teléfono opcional del jugador (solo base de datos, sin UI).
-- CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones.
+- CLAUDE.md está al día con roles, flujo, estados, reglas y el flujo de trabajo de migraciones. La regla "actualizar `docs/estado-actual.md` en cada PR" sigue vigente (sección "Estado de la plataforma"); desde esta revisión también cubre las migraciones sin número (nombre con fecha y hora): se anotan con su nombre completo.
 - Migraciones desde el 21 oct:
   - 0031–0034: correo al confirmar un registro; primero por base (pg_net) y luego desde la app (0034 quita la vía por base).
   - 0035–0036: verificación de correo (0035) y su retiro (0036); límite de correos de Auth (`allow_auth_email`).
@@ -48,47 +48,56 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
   - 20261107180000: notificaciones. Tabla `notifications` (`kind` validado por `private.notification_category`, `category` generada, `payload`, `dismissed_at`, `dedupe_key` con índice único parcial: lo que llega después actualiza la viva). RLS: cada uno lee solo las suyas y solo donde sigue confirmado; sin escritura directa. `private.notify`, `notify_players`, `notify_perm` y `dismiss_notification_keys`; `dismiss_notification(id)` y `dismiss_all_notifications()`; de estado, `my_state_notifications(formato)` (jugador) y `my_staff_state_notifications(formato)` (staff, por permiso).
   - 20261107181000–184000: las funciones existentes (copiadas de la base, misma firma) crean las notificaciones: eventos y nóminas (181000), lesiones y disponibilidad (182000), gimnasio y evaluaciones (183000), cuenta, registros, Sevens, posición y delegados (184000).
   - 20261107190000: `gym_calendar(desde, hasta, formato)` (SECURITY DEFINER, solo `authenticated`; rango máx. 62 días; el gimnasio no tiene formato, el parámetro solo se valida): jugador confirmado y activo, solo sus sesiones (`private.gym_assignments`); staff con `gimnasio_planes` o `lesiones_ver`, las sesiones de los planes publicados del club. Planes y sesiones archivados no salen. Probada en `gym_plan_test.sql`.
+  - 20261108120000: `access_requests` (solicitudes de la landing; RLS sin políticas) y `submit_access_request` (anon y authenticated; evita duplicados del mismo correo en 24 h). 20261109120000: aceptación legal (`accept_terms`, `declare_guardian_authorization`, `register_member` de 10 argumentos).
+  - 20261110120000: ausencias avisadas (`absences`, permisos `ausencias_declarar` y `paron_declarar`). 20261110130000: vuelta tras parón (solo lecturas). 20261110140000: `register_member` recupera el aviso `registro_pendiente`.
+  - 20261116220208 (`security_hardening`, sin archivo en el repo): ver Seguridad.
 
 ## Historial
 
+- 18 nov · PR por abrir · Buscador universal "ir a…" (sin migración): lupa en el encabezado de cada pantalla y Ctrl/Cmd+K; hoja inferior en celular, paleta de 760 px en escritorio. Destinos por rol y permiso reales (`src/lib/search-index.ts`, con prueba de rutas, anclas y permisos) y, solo para staff, jugadores del plantel y formato activo. Anclas nuevas en Resumen, Configuración y Métricas.
 - 18 nov · #117 · Migración `20261118120000_team_weekly_load` (`team_load_weekly`, `team_wellness_summary`) y en Métricas → Carga "Carga del plantel por semana" y "Bienestar del plantel".
 - 18 nov · #116 · Métricas → Carga rediseñada: franja de 4 números, "Carga por jugador" con chips de filtro, alertas primero y tarjetas en el celular, "Minutos jugados" sin semáforo (también en `/metricas/carga`) y tarjeta de asistencia. Se quitan `SrpeCard`, `TeamLoadTable` y `LoadSummary`. Sin migración.
 - 18 nov · #115 · Métricas en pestañas Lesiones | Carga (`?tab=`, según `lesiones_ver`/`carga_ver`), tooltip en todos los gráficos, "¿Cómo se lee?" y pestaña Lesiones rediseñada (franja de estado, altas compactas, no disponibles por semana en barras apiladas). Sin migración.
 - 18 nov · #114 · Check de bienestar: escala en la orientación de cada ítem (Fatiga, Dolor muscular y Estrés invertidos, 5 = más), solo presentación; la base sigue guardando 5 = mejor. Staff (ficha, reportes del evento, Métricas y notificaciones) ve el valor del jugador con su etiqueta y color por gravedad.
 - 18 nov · #113 · Tarjetas por jugador en Lesiones (lista y "Lesiones activas" del Resumen) y por persona en Staff; Evaluaciones: valor y mejora separados del gráfico; `BackLink` ahora usa un contador de navegaciones internas (`NavTracker` en el layout) porque `document.referrer` no cambia con la navegación del cliente.
-- 17 nov · #112 · Vuelta tras parón (PR 2 de 2, informativo).
+- 18 nov · #112 · Vuelta tras parón (PR 2 de 2, informativo).
   - Migración `20261110130000_return_after_break`: sin tablas; umbrales `private.break_days()` = 10, `return_window_days()` = 14 y `team_break_share()` = 0,6 (provisorios); señales y vueltas en `private.activity_days`, `inactivity_days`, `return_flags` y `return_team`; lecturas `player_return_flag` (ficha) y `team_return_summary` (Métricas); `my_state_notifications` y `my_staff_state_notifications` suman la vuelta. Prueba: `return_break_test.sql`.
   - App: tarjeta "Vuelven tras parón" en Métricas → Carga sRPE, insignia y promedio en Carga de la ficha, avisos del Resumen.
+- 16 nov · sin PR · Migración `20261116220208_security_hardening`, aplicada directo en Supabase (no hay archivo en `supabase/migrations/`; se recuperó el SQL desde `schema_migrations`). Ver Seguridad.
 - 17 nov · #110 · Métricas, tarjeta "Carga sRPE": las listas "Carga alta" y "Bajo lo habitual" se abren y se cierran (`<details>`, abiertas por defecto).
 - 13 nov · #109 · Botones "Volver": nuevo `BackLink` (`src/app/back-link.tsx`) que regresa a la pantalla de origen (p. ej. detalle de lesión → /lesiones) y usa un destino fijo solo si no hay historial interno. Aplicado en detalle y completar de lesión, marcar lesionado, registrar lesión, ficha del jugador, perfil, nómina y disponibles/participación/reportes/asistencia del evento.
-- 17 nov · #111 · Ausencias avisadas (PR 1 de 2).
+- 18 nov · #111 · Ausencias avisadas (PR 1 de 2).
   - Migración `20261110120000_absences`: tabla `absences` (aviso de un evento o de varios días; `player_id` nulo = parón del plantel; la columna `note` no se lee directo), permisos `ausencias_declarar` (delegable; manager, entrenador y head coach) y `paron_declarar` (no delegable; manager y head coach), funciones `declare_absence`, `end_absence`, `my_absences`, `club_absences` y `event_absences`, 4 tipos de notificación nuevos (`ausencias_evento`, `ausencia_periodo`, `paron_plantel`, `ausencia_registrada_por_staff`, categoría calendario). `my_pending_reports` y `event_rpe_summary` excluyen a los avisados; `cancel_event` y `set_event_attendance` descartan "N avisaron". Prueba: `absences_test.sql`.
   - Migración `20261110140000_register_member_notify_fix`: la migración legal (20261109) había quitado de `register_member` (9 argumentos) el aviso `registro_pendiente` a la dirección; vuelve.
   - Pruebas al día: `staff_permissions_test` (permisos nuevos de manager y entrenador), `notifications_test` (registro de 10 argumentos) y `legal_acceptance_test` (la escritura directa sin permiso cuenta como 0 filas).
   - App: `/ausencias` y `/ausencias/nueva` (jugador), `/calendario/ausencias` (staff con `lista_pasar`), "Asistencia prevista" en el detalle del evento y avisados precargados en Pasar lista.
 - 13 nov · #108 · Detalle de lesión: una lesión ya confirmada no vuelve a mostrar el formulario "Confirma la lesión" (solo Da de alta y Descarta); al confirmar queda el mensaje "Lesión confirmada y guardada.".
-- 9 nov · PR pendiente · Páginas legales y aceptación.
+- 9 nov · #107 · Landing: header con anclas, portada y deportes pensados para el celular. Sin migración.
+- 9 nov · #106 · Páginas legales y aceptación.
   - Migración `20261109120000_legal_acceptance`: `profiles.terms_accepted_at/terms_version`, `clubs.guardian_declared_at/by`, `accept_terms(p_version)` y `declare_guardian_authorization()` (exige `staff_gestionar` en el plantel activo; idempotente). `register_member` de 10 argumentos (con `p_terms_version`, atómico) que llama a la de 9, que ahora exige haber aceptado. Prueba: `supabase/tests/legal_acceptance_test.sql`.
   - `/privacidad` y `/terminos` públicas (`src/lib/legal/content.ts`, `LEGAL_VERSION = "2026-11-09"`); casilla obligatoria en el registro; pantalla bloqueante en el layout (`LegalGate`) para cuentas sin la versión vigente y, para head coach y manager, la declaración de autorización de apoderados.
-- 8 nov · PR pendiente · Landing pública en `/inicio` (route group `(landing)`, sin shell de la app), servida en la raíz de recov.cl y www.recov.cl por rewrite en `proxy.ts`; en los demás hosts `/inicio` redirige a `/`.
+- 7 nov · #105 · Landing: celulares completos, 51 disponibles y título con más funcionalidades.
+- 7 nov · #104 · Landing: capturas de staff, jugador y escritorio en `public/landing/`.
+- 7 nov · #103 · Landing pública en `/inicio` (route group `(landing)`, sin shell de la app), servida en la raíz de recov.cl y www.recov.cl por rewrite en `proxy.ts`; en los demás hosts `/inicio` redirige a `/`.
   - Migración `20261108120000_access_requests`: tabla `access_requests` (RLS sin policies) y `submit_access_request` (SECURITY DEFINER, anon/authenticated; valida y evita duplicados del mismo correo en 24 h). Prueba: `supabase/tests/access_requests_test.sql`.
   - Formulario de 5 campos: server action con honeypot y validación (`src/lib/landing/config.ts`); guarda y luego avisa a contacto@recov.cl con `sendEmail` (si el correo falla, queda guardada).
   - Capturas en `public/landing/` (nombres en `config.ts`); si falta una, bloque gris. La réplica de Plantel/Cancha usa `Pitch` y `PITCH_LAYOUTS` con datos ficticios.
-  - Pendiente: páginas `/terminos` y `/privacidad` (enlaces ya puestos), dominio en Vercel/Cloudflare y revisar Auth URLs en Supabase.
-- 4 nov · PR pendiente · Registro de lesión v2: el jugador elige la zona en un mapa del cuerpo (Frente/Espalda, o lista) y el lado (sugerido según dónde tocó), el documento médico es opcional con Reemplazar/Eliminar hasta la revisión, el kine ve "Sin documento", zona y lado, y el Resumen del staff tiene el mapa "Zonas lesionadas".
-- 7 nov · PR pendiente · Notificación de evento nuevo: la insignia muestra la fecha y hora del evento en hora de Chile ("sáb 8 nov, 19:00"; con año si es otro) en vez de "Hoy"; sin migración (el payload ya traía `starts_at`).
-- 7 nov · PR pendiente · Evaluaciones: los tiempos mm:ss se dan formato al escribir (`maskMmss` en `src/lib/evaluations.ts`; "345" → "3:45"; sin migración).
-- 7 nov · PR pendiente · Gimnasio en el calendario (20261107190000): `gym_calendar` y chip "Gimnasio" de solo lectura en `/calendario`.
-- 7 nov · PR pendiente · Resumen del jugador (sin migración): tarjeta grande con su estado y la fase en curso en vez del plantel y el título "Disponibilidad del plantel". El Resumen del staff y `/plantel` no cambian.
-- 7 nov · PR pendiente · Notificaciones en el Resumen (20261107180000–184000): 23 de evento y 9 de estado; "Pendientes" pasa a ser la parte de estado.
+  - Pendiente: dominio en Vercel/Cloudflare y revisar Auth URLs en Supabase (las páginas `/terminos` y `/privacidad` llegaron en #106).
+- 7 nov · #102 · Notificación de evento nuevo: la insignia muestra la fecha y hora del evento en hora de Chile ("sáb 8 nov, 19:00"; con año si es otro) en vez de "Hoy"; sin migración (el payload ya traía `starts_at`).
+- 7 nov · #100 · Evaluaciones: los tiempos mm:ss se dan formato al escribir (`maskMmss` en `src/lib/evaluations.ts`; "345" → "3:45"; sin migración).
+- 7 nov · #99 · Gimnasio en el calendario (20261107190000): `gym_calendar` y chip "Gimnasio" de solo lectura en `/calendario`.
+- 7 nov · #101 · Resumen del jugador (sin migración): tarjeta grande con su estado y la fase en curso en vez del plantel y el título "Disponibilidad del plantel". El Resumen del staff y `/plantel` no cambian.
+- 7 nov · #98 · Notificaciones en el Resumen (20261107180000–184000): 23 de evento y 9 de estado; "Pendientes" pasa a ser la parte de estado.
 - 7 nov · #97 · `/staff/[id]`: "Quita del staff" pasa a botón rojo con los colores de "Cerrar sesión" (`buttonDangerSoft` en `src/app/ui.tsx`; sin migración).
 - 7 nov · #96 · Cambio de posición desde la ficha ("Cambiar posición", con aviso de planes de gimnasio por posición) y "Participa en Sevens" por persona en `/staff/[id]` (20261107120000).
 - 7 nov · #95 · Permisos del staff (20261106120000–122000): rol = plantilla + ajustes por persona, co-head coach, head coach principal protegido, `/staff` con lista y detalle (`/staff/[id]`: chips de rol, interruptores, "Restablecer al rol", "Nombrar head coach" con confirmación); la app lee los permisos con `my_permissions`. Tests al día con lo ya aplicado.
 - 6 nov · #94 · Resumen del jugador (sin migración): fila-tarjeta "¿Entrenaste por tu cuenta?" en vez del link a `/mi-plan/propia`, y en Mi semana los eventos abren la hoja de detalle del calendario (extraída a `src/app/calendario/event-sheet.tsx`) en vez de un link roto a `/calendario/[id]`.
 - 6 nov · #93 · Esfuerzo con "número grande" (sin migración): componente único `EffortPicker`/`EffortScreen` en `/reportar/[eventId]`, `/mi-plan/esfuerzo/[logId]` y `/mi-plan/propia`; sin número por defecto y sin barra inferior en las pantallas de esfuerzo.
-- 5 nov · #91 · Planes: bloques, superseries (A1, A2) e intensidad por tiempo (20261105210000).
-- 5 nov · #91 · Editor de planes: selector Diaria (por defecto) / Semanal / Mensual.
+- 5 nov · sin PR · Migraciones `20261105222026_position_groups` y `20261105222144_gym_sevens_position_targets` (grupos de posiciones por deporte y destinatarios del plan por posición de Sevens), aplicadas desde la rama local `feat/fisico-grupos` (commit `f0857de`, sin PR; sus archivos tampoco están en `main`).
+- 5 nov · #92 · Planes: bloques, superseries (A1, A2) e intensidad por tiempo (20261105210000).
+- 5 nov · #92 · Editor de planes: selector Diaria (por defecto) / Semanal / Mensual.
 - 5 nov · #91 · Plan de gimnasio (20261105200000–202000): `/planes` y el editor (escritorio y celular), "Hoy toca gimnasio" y "Mi semana" en el Resumen, `/mi-plan` con kilos calculados, pantalla de felicitaciones, sesión por su cuenta, esfuerzo del gimnasio en Pendientes, carga apilada por tipo y "Gimnasio" en la ficha, y carga por jugador con el plan en Métricas.
+- 5 nov · #90 · Check de bienestar dentro de Configuración (la sección de los días del check).
 - 5 nov · #89 · sRPE y check de bienestar (20261105180000, 20261105190000): "Pendientes" y "Mi bienestar" en el Resumen del jugador, `/reportar/[eventId]`, `/bienestar`, "Reportes" en el detalle del evento, carga semanal y bienestar en la ficha, tarjeta "Carga sRPE" en Métricas y la sección "Check de bienestar" en Configuración.
 - 5 nov · #88 · Asistencia a entrenamientos (20261105120000): "Pasar lista" en el detalle del entrenamiento, etiqueta "Asistencia sin registrar", métrica opcional "Asistencia a entrenamientos" en el Resumen y pantalla `/asistencia`.
 - 4 nov · #87 · Versiones anteriores de `report_injury` y `complete_injury_report` sin permisos (20261104233000); los tests usan las versiones con zona.
@@ -112,6 +121,10 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Hasta el 20 oct: #1–#60, migraciones 0001–0030 (base, lesiones y fases, calendario, nóminas y carga, teléfono del jugador).
 
 ## Flujo de la plataforma
+
+**0. Landing y solicitud de acceso** (20261108120000, #103–#107)
+- `/inicio` es la landing pública (route group `(landing)`, sin el shell de la app): en recov.cl y www.recov.cl se sirve en la raíz por rewrite en `proxy.ts`; en los demás hosts `/inicio` redirige a `/`. Textos, capturas y orden en `src/lib/landing/config.ts` y `public/landing/`.
+- Formulario de 5 campos: la acción valida (con honeypot), guarda con `submit_access_request` y luego avisa a contacto@recov.cl con `sendEmail`; si el correo falla, la solicitud queda guardada. La tabla `access_requests` no tiene políticas y la app no tiene pantalla para verlas: se revisan por SQL en Supabase (y en el correo de aviso).
 
 **1. Entrada al plantel** (en la interfaz, "club" se llama "plantel")
 - El link de cada plantel (`/c/[slug]`) muestra logo, nombre y categoría, con pestañas Registro | Iniciar sesión. Registro: jugador o staff, con foto y teléfono opcionales.
@@ -197,13 +210,13 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - **Mi semana** (Resumen, todos los confirmados): 7 días L a D con G, E o P (letras juntas si hay varias; "·" si nada), hoy en #082F49, leyenda y detalle al tocar un día. Tocar un entrenamiento o partido abre la misma hoja de detalle del calendario (tipo, título, fecha, horario, lugar, rival, notas; sin acciones), sin navegar; el gimnasio lleva a `/mi-plan` o `/planes/[id]`. Jugador: eventos del formato activo y sus sesiones del plan; staff: eventos del club y los días con algún plan publicado.
 - **Staff:** ficha → "Carga" con barras apiladas (Cancha #7DD3FC, Gimnasio #0369A1, Partido #F97316), leyenda y "El gimnasio es el X % de su carga" (6 semanas); ficha → "Gimnasio": plan asignado, cumplimiento de 6 semanas y últimas sesiones. Métricas → Carga: "Carga por jugador" con barra apilada, total, vs su promedio y "Plan de gimnasio" ("2 de 2"; incompleto en gris; la columna se oculta si nadie tiene plan), y "Plan de gimnasio cumplido: X %" en la franja (hechas / las que ya tocaban esta semana).
 
-**7c. Ausencias avisadas** (20261110120000). Un aviso no escribe la asistencia: la lista oficial sigue siendo del staff.
+**7f. Ausencias avisadas** (20261110120000). Un aviso no escribe la asistencia: la lista oficial sigue siendo del staff.
 - **Jugador:** botón "Avisar una ausencia" en el Resumen y `/ausencias/nueva` (selector "Un evento" / "Varios días"; evento = próximos eventos del formato activo; varios días = desde, hasta o "Aún no sé cuándo vuelvo"; motivo y nota de hasta 200 caracteres con el aviso de no escribir datos de salud). "Mis ausencias" (`/ausencias`, en la sidebar y en "Más"): activas, próximas, las del plantel, "Quitar aviso" y "Ya volví" (cierra el período hoy). Con un período en curso, el Resumen muestra "Ausente: motivo, hasta X" y no hay sRPE ni bienestar por responder.
 - **Staff:** Calendario → "Ausencias" (`/calendario/ausencias`: ahora, próximas, parón del plantel e historial, "Quitar aviso", "Ya volvió") y el modal "Declarar ausencia" (un jugador, o todo el plantel solo con `paron_declarar`). El detalle del evento trae "Asistencia prevista" y Pasar lista precarga a los avisados como ausentes con la etiqueta "Avisó: motivo" (los lesionados siguen sin premarcar). La nota la ven solo el staff con `lista_pasar` y el propio jugador.
 - **Reglas:** el jugador solo avisa por sí mismo (la base ignora `p_player`); evento futuro, no cancelado y del formato del jugador; un aviso por jugador y evento; períodos hasta 60 días atrás y 366 de largo. Motivos: vacaciones, viaje o trabajo, estudios, salud, otro.
 - **Notificaciones:** `ausencias_evento` (staff con `lista_pasar`; una viva por evento con `dedupe_key` `ausencias-evento:<id>`, se descarta al guardar la asistencia, al cancelar el evento o al quedar en 0), `ausencia_periodo` (staff), `paron_plantel` (todos los confirmados) y `ausencia_registrada_por_staff` (al jugador).
 
-**7d. Vuelta tras parón** (20261110130000). Solo informativa (leyenda "Solo informativo"); no cambia "Carga alta". Todo se calcula al leer.
+**7g. Vuelta tras parón** (20261110130000). Solo informativa (leyenda "Solo informativo"); no cambia "Carga alta". Todo se calcula al leer.
 - **Señal positiva** (un día con alguna): sRPE con esfuerzo > 0, presente en una lista, participación en un partido o sesión de gimnasio hecha. **Evidencia negativa**: ausencia declarada (aviso, período o parón del plantel; un aviso quitado no cuenta), "No fui", ausente en la lista o lesión abierta (no descartada). Sin respuesta no es parón.
 - **Parón**: 10 días o más (sin contar los días con señal) entre dos señales, con evidencia en el hueco. **Vuelta** = la señal que lo cierra; el aviso dura 14 días. **Causa**: lesión; si no, el último motivo declarado (vacaciones, viaje o trabajo, estudios, salud, otro); si no, ausencia. Semanas = días / 7 redondeado (mínimo 1).
 - **Aviso de equipo** (uno solo, sin marcar jugador por jugador): si el hueco incluyó un parón del plantel declarado, o si 60 % o más del plantel del formato vuelve en la misma ventana; si no, avisos individuales.
@@ -240,6 +253,12 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - "Más": hoja flotante con las pantallas del rol que no están en la barra (grilla de 3), punto rojo en Registros si hay pendientes, Configuración para el head coach, el manager y el preparador físico, y abajo "Perfil" y "Cerrar sesión".
 - Perfil → "Barra principal" (solo celular): elegir las pestañas, "Guardar" y "Restablecer" (vuelve al valor por defecto del rol). Si cambian los roles y lo guardado ya no vale, se usa el valor por defecto.
 
+**11. Buscador universal** (celular y escritorio, sin migración)
+- Lupa a la derecha del encabezado de cada pantalla (en escritorio, "Buscar" y "Ctrl K") y atajo Ctrl/Cmd+K. Celular: hoja inferior; escritorio: paleta centrada de 760 px con pie de teclas (↑ ↓, Enter, Esc). Componentes en `src/app/search/`.
+- Una sola llamada al abrir (`loadSearchData`, no en el layout): permisos reales (`my_permissions`), formato activo y, solo para staff, los jugadores del plantel activo con la misma regla de `/plantel` (en Sevens, el grupo). Cada resultado lleva a `/jugadores/[id]`, que sigue exigiendo sus permisos y no muestra lesiones. El jugador solo ve destinos de su rol.
+- "Ir a": índice estático `src/lib/search-index.ts` (id, título, contexto, sinónimos, href con ancla, permiso o rol). Coincidencia sin tildes ni mayúsculas por palabras sueltas y sinónimos (`src/lib/search-match.ts`), máximo 5 por bloque. Prueba `search-index.test.ts`: cada href es una ruta de `src/app`, cada ancla existe y cada permiso está en el catálogo. Al agregar una pantalla, sumarla al índice.
+- Anclas: `#zonas` y `#lesiones-activas` (Resumen), `#bienestar`, `#logo`, `#portada`, `#partidos`, `#metricas-resumen` (Configuración) y `#carga-jugador`, `#carga-semana`, `#bienestar-plantel` (Métricas → Carga, por `MetricsBlock`). `AnchorReveal` y `revealAnchor` abren un `<details>` que contenga el ancla.
+
 ## Funciones por rol
 
 **Todos los roles**
@@ -248,9 +267,15 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Ver el plantel con la disponibilidad, la foto y la fase en curso de cada jugador (solo el nombre de la fase).
 - Elegir las pestañas de la barra inferior del celular (Perfil → "Barra principal"), solo entre las pantallas de su rol.
 - Ver el ranking de asistencia a entrenamientos (`/asistencia`) y, si el head coach la activó, su tarjeta en el Resumen.
+- Ver sus notificaciones en el Resumen (de evento y de estado) y descartarlas.
+- Aceptar los Términos y la Política de privacidad al registrarse (o al cambiar la versión); `/terminos` y `/privacidad` son públicas.
+- Ver "Mi semana" (gimnasio, entrenamientos y partidos) y el gimnasio como chip en el calendario (jugador: el suyo; staff: planes publicados).
 
 **Jugador**
 - Responder el esfuerzo de cada entrenamiento o partido (hasta 48 h después) y el check de bienestar; ver "Mi bienestar" y solo sus propios reportes.
+- Avisar ausencias (un evento o varios días, `/ausencias`), quitarlas o cerrarlas con "Ya volví"; con un aviso en curso no tiene sRPE ni bienestar por responder.
+- Ver su plan de gimnasio (`/mi-plan`), marcar sus sesiones y registrar las que hace por su cuenta.
+- Recibe un aviso informativo si vuelve tras un parón (sin números de carga).
 - Registrar su propia lesión por zona y lado, con documentos opcionales.
 - Completar el diagnóstico de una lesión en evaluación.
 - Reemplazar o eliminar sus documentos mientras el kine no revisa la lesión.
@@ -267,7 +292,8 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Bandeja "Por revisar": confirmar, descartar y dar de alta.
 - Cargar, editar y avanzar fases.
 
-**Permisos del staff** (20261106120000): cada rol trae una plantilla de permisos (la de siempre) y el head coach suma o quita permisos a cada persona en `/staff/[id]`. Catálogo: lesiones (ver, revisar y dar de alta, documentos, marcar lesionado, disponibilidad), calendario (crear y editar, cancelar, pasar lista), nóminas (armar, cargar participación), evaluaciones y gimnasio (cargar, catálogo de tests, planes), carga y bienestar (ver reportes, días del check), registros y cambiar posición. Gestionar el staff, activar Sevens y el Grupo Sevens no se delegan.
+**Permisos del staff** (20261106120000, 22 claves hoy): cada rol trae una plantilla de permisos y el head coach suma o quita permisos a cada persona en `/staff/[id]`. Catálogo: lesiones (ver, revisar y dar de alta, documentos, marcar lesionado, disponibilidad), calendario (crear y editar, cancelar, pasar lista, declarar ausencias), nóminas (armar, cargar participación), evaluaciones y gimnasio (cargar, catálogo de tests, planes), carga y bienestar (ver reportes, días del check), registros y cambiar posición. No se delegan: gestionar el staff, activar Sevens, el Grupo Sevens y declarar un parón del plantel (`paron_declarar`: manager y head coach).
+- Plantillas: entrenador = `lesiones_ver`, `carga_ver`, `eventos_editar`, `eventos_cancelar`, `lista_pasar`, `ausencias_declarar`; nutricionista = `lesiones_ver`, `carga_ver`, `lista_pasar`; preparador físico = esas tres más `check_dias`, `evaluaciones_cargar`, `tests_catalogo` y `gimnasio_planes`; kinesiólogo = lesiones (ver, revisar, documentos, marcar lesionado, disponibilidad), `carga_ver`, `lista_pasar`, `evaluaciones_cargar` y `tests_catalogo`; manager = calendario, nóminas, ausencias y parón, `check_dias`, `registros_aprobar` y los no delegables (menos las lesiones: solo `lesiones_ver`).
 
 **Head coach**
 - Todos los permisos (también el co-head coach). El principal (quien recibió la cuenta; en clubes existentes, el head coach confirmado más antiguo) no puede ser quitado ni degradado; él quita o degrada a un co-head coach; un co-head coach no toca a otro. El club nunca queda sin head coach.
@@ -279,6 +305,7 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 
 **Manager**
 - Todo lo del staff, más registros y gestión del staff (roles salvo head coach, quitar, delegaciones); ve los permisos pero no los edita.
+- Declara ausencias y paros del plantel, crea y cancela eventos y arma nóminas; en su primer ingreso, junto al head coach, declara la autorización de apoderados.
 - No gestiona lesiones ni ve documentos médicos.
 
 **Evaluaciones**
@@ -301,7 +328,8 @@ Plataforma web de seguimiento de lesiones para clubes deportivos amateur (7 depo
 - Ver "Lesiones activas" y la ficha de cada jugador.
 - Pasar lista en los entrenamientos (como todo el staff).
 - Ver el detalle de cualquier lesión del club (sin documentos) y sus fases.
-- No pueden modificar nada.
+- No pueden modificar lesiones ni fases. Con su plantilla, el entrenador además crea, edita y cancela eventos y declara ausencias; el preparador físico carga resultados y planes según su plantilla (ver Permisos del staff); el head coach puede darle más permisos a cualquiera.
+- Ver las señales de carga y vuelta tras parón (`carga_ver`) en Métricas, la ficha y las notificaciones de estado.
 
 Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFINER` con permisos explícitos), no solo la interfaz.
 
@@ -310,8 +338,11 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
 - **Plantel:** `club_members` es la única fuente de plantel, roles y estado; `profiles` solo guarda identidad (0043). RLS usa el `club_id` de cada fila; las funciones toman el plantel activo del header `x-club-id`, validado contra las membresías (inválido o ajeno: sin permisos).
 - **App:** las listas filtran por el plantel activo (RLS devuelve las filas de todos los planteles de la cuenta). La clave de servicio solo se usa en el servidor (correos y recuperación de contraseña).
 - **Correos de Auth:** máximo 1 por minuto y 5 por hora por correo (`allow_auth_email`, se guarda el hash del correo).
+- **Endurecimiento del 16 nov** (`20261116220208_security_hardening`, aplicada en Supabase sin archivo en el repo): `documents` solo se lee con `private.can_view_documents` (política `documents_select`; antes `documents_all`) y lo mismo en el bucket `medical-docs` (`medical_docs_staff_select`, antes `medical_docs_kine`); se quitaron las políticas de escritura directa `injuries_write`, `phases_write` y `players_update` (toda escritura de lesiones, fases y fichas va por funciones); `squad_current_phases` exige miembro confirmado y devuelve solo el nombre de la fase en curso; `anon` sin permisos sobre `club_members` ni escritura en ninguna tabla de `public`; `authenticated` sin escritura directa en las tablas sin política de escritura; y se borraron las versiones antiguas, sin formato, de `dash_*`, `my_match_load()` y `team_match_load(integer)` y las de `report_injury` y `complete_injury_report` sin zona.
+- **Permisos:** la base decide con `private.has_perm` (rol + delegaciones + ajuste por persona); la sidebar y los componentes de cliente solo deciden qué se muestra.
+- **Cuenta y legal:** aceptación de Términos y Privacidad registrada por versión (`accept_terms`, `register_member` de 10 argumentos); la declaración de autorización de apoderados solo con `declare_guardian_authorization` (`staff_gestionar`). La landing guarda solicitudes con `submit_access_request` (anon; `access_requests` sin políticas, honeypot en la acción).
 - **Avisos de Supabase intencionales:** funciones `SECURITY DEFINER` ejecutables por `authenticated`; `club_public_info`, `club_public_card` y `club_logo_path` para anon (link sin sesión); tablas privadas con RLS y sin políticas.
-- **Avisos abiertos:** "Leaked password protection" desactivado; `pg_net` en el esquema `public` (sin uso).
+- **Avisos abiertos** (revisados el 18 nov): "Leaked password protection" desactivado; `pg_net` en el esquema `public` (sin uso); 6 tablas con RLS y sin políticas (intencional: `auth_email_log`, `email_verification_tokens`, `member_emails`, `profiles_legacy_backup`, `access_requests` y `player_contacts`); 4 funciones `SECURITY DEFINER` ejecutables por `anon` y 102 por `authenticated` (las de la app; ver los intencionales).
 
 ## Pendiente
 - **Legal:** los textos están como "Borrador pendiente de revisión legal" (línea al inicio de cada página; quitarla cuando se pida); no hay pantalla de creación de plantel (se crea por SQL), así que la declaración va como pantalla bloqueante; al subir `LEGAL_VERSION` todas las cuentas vuelven a aceptar.
@@ -319,16 +350,18 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
   - `rls_isolation_test.sql` se corrió solo en parte con las funciones nuevas (secciones 1–12 y multi-plantel 0039): el archivo no cabe en una llamada del MCP;
   - las notificaciones descartadas se guardan (no se borran) y la lectura toma las de los últimos 30 días; falta decidir una limpieza;
   - ventanas provisorias de las de estado del staff (7 días, alta en 3 días).
-- **Permisos en la app:** los componentes de cliente que reciben `roles` por props usan la plantilla del rol (sin ajustes); la sidebar sigue mostrando Registros y Staff con `isDirection`. Las políticas de escritura directa del kine (`injuries_write`, `phases_write`, `players_update`) quedan para quitarlas en una limpieza aparte.
-- **Tests:** la rama local `feat/fisico-grupos` (sin PR) tiene sus migraciones aplicadas en la base; `gym_plan_test.sql` ya espera lo que hacen.
+- **Permisos en la app:** los componentes de cliente que reciben `roles` por props usan la plantilla del rol (sin ajustes); la sidebar sigue mostrando Registros y Staff con `isDirection`.
+- **Migraciones sin archivo:** `security_hardening`, `position_groups` y `gym_sevens_position_targets` están aplicadas pero no están en `supabase/migrations/` (las dos últimas viven solo en la rama local `feat/fisico-grupos`, sin PR; `gym_plan_test.sql` ya espera lo que hacen). Falta subirlas al repo (el SQL de `security_hardening` se recupera de `supabase_migrations.schema_migrations`).
+- **Tests:** la regla de CLAUDE.md pide correr los tests tras cada migración; las pruebas de este documento no se volvieron a correr al actualizarlo.
 - **Sevens:**
   - la escala de Sevens es provisoria (fila `rugby`/`7` de `sport_format_config`);
   - solo cuentas pueden estar en el grupo (`sevens_group.member_id` = `club_members.user_id`): un jugador sin cuenta no entra.
 - **Seguridad:** activar "Leaked password protection" en Supabase Auth (desde el panel).
 - **Base de datos:**
-  - anotar la 0043 en `supabase_migrations.schema_migrations`;
-  - 0049: borrar `private.profiles_legacy_backup` una semana después de aplicar la 0043 (desde ~1 nov);
+  - anotar la 0034 y la 0043 en `supabase_migrations.schema_migrations` (la 0043 se aplicó desde el SQL Editor; hoy no figuran);
+  - 0049: borrar `private.profiles_legacy_backup` (respaldo de `profiles` de la 0043; sigue existiendo el 18 nov, pasó más de una semana desde que se aplicó); preguntar a Mati antes, porque es un `DROP TABLE`;
   - quedan sin uso `pg_net`, `private.member_emails`, `profiles.email_verified_at`, `private.email_verification_tokens`, `create_email_verification` y `verify_email`.
+- **Landing:** dominio en Vercel/Cloudflare y revisar Auth URLs en Supabase; no hay pantalla para leer `access_requests`.
 - **Datos de demo:** hc.demo sigue como head coach confirmado en Demo - Fútbol; no hay cuentas demo de preparador físico ni de nutricionista.
 - **Rendimiento:**
   - el proxy consulta `club_members` en cada request (también en cada prefetch) para validar el plantel activo: un viaje a Supabase antes de cada pantalla;
@@ -361,7 +394,7 @@ Todos estos permisos los exige la base de datos (RLS y funciones `SECURITY DEFIN
   - en el editor, los destinatarios por posición se guardan por posición: un jugador que cambia de posición entra o sale del plan;
   - un plan editado cambia las asignaciones de días ya pasados (el cumplimiento se recalcula con el plan actual);
   - la ficha muestra "Gimnasio" como una sección más (la ficha no tiene pestañas);
-- **Limpieza:** borrar las ramas viejas ya mergeadas, en local y en GitHub.
+- **Limpieza:** borrar las ramas viejas ya mergeadas, en local y en GitHub. Borrar también las copias "… 2", "… 3" (duplicados de Finder, sin seguir por git) de `supabase/migrations/`, `supabase/tests/`, `src/` y `public/landing/`: no están aplicadas, pero confunden al listar migraciones.
 - **Funciones aún sin pantalla:**
   - Que el kine registre una lesión desde cero, sin marcarla primero.
   - Revisar documentos (pasar de borrador a revisado).

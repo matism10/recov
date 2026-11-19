@@ -542,7 +542,7 @@ export default async function DashboardPage() {
       )}
 
       {staff && (
-        <section className="mb-8">
+        <section id="lesiones-activas" className="mb-8 scroll-mt-4">
           <SectionTitle className="mb-3">Lesiones activas</SectionTitle>
           {injuredPlayers.length > 0 ? (
               <ul className="space-y-2">
@@ -590,7 +590,7 @@ export default async function DashboardPage() {
       )}
 
       {staff && zoneMarks.length > 0 && (
-        <section className="mb-8">
+        <section id="zonas" className="mb-8 scroll-mt-4">
           <SectionTitle className="mb-3">Zonas lesionadas</SectionTitle>
           <div className={`grid grid-cols-1 items-center gap-6 p-5 sm:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] ${cardClass}`}>
             <BodyMapPair heat={zoneMarks} legend className="mx-auto w-full max-w-80" />
