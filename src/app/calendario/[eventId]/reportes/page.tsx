@@ -158,7 +158,10 @@ export default async function EventReportsPage({ params }: { params: Promise<{ e
                       <span className="block font-semibold text-ink">{f.full_name}</span>
                       <span className="block text-xs text-alerta-fg">{wellnessReason(f)}</span>
                     </span>
-                    <span className="font-display font-bold text-ink tabular-nums">{f.total} / 25</span>
+                    <span className="shrink-0 text-right text-xs text-muted">
+                      Bienestar
+                      <span className="block font-display text-base font-bold text-ink tabular-nums">{f.total} / 25</span>
+                    </span>
                   </Link>
                 </li>
               ))}

@@ -12,7 +12,7 @@ import { AVAILABILITY_LABEL, ROLE_LABEL, type Availability, type UserRole } from
 import { SEVERITY_LABEL, todayInChile, type InjurySeverity } from "@/lib/injuries";
 import { isBodyZone, isLaterality, zoneLabel } from "@/lib/body-zones";
 import { formatValue, type DisplayFormat } from "@/lib/evaluations";
-import { lowItemsText, sessionWhen, type WellnessItem } from "@/lib/srpe";
+import { sessionWhen, worseItemsText, type WellnessItem } from "@/lib/srpe";
 import { PITCH_LAYOUTS, pitchKind } from "@/lib/pitch";
 import { periodText, reasonText } from "@/lib/absences";
 import { causeText, weeksText } from "@/lib/return-break";
@@ -663,7 +663,7 @@ export function staffStateCard(r: StaffStateRow): NoticeCard | null {
         tone: "rojo",
         icon: "trending-down",
         title: `Bajo lo habitual: ${name}`,
-        detail: [num(p.total) !== null ? `Bienestar ${p.total} / 25` : null, items.length ? lowItemsText(items) : null]
+        detail: [num(p.total) !== null ? `Bienestar ${p.total} / 25` : null, items.length ? worseItemsText(items) : null]
           .filter(Boolean)
           .join(" · "),
         href: r.ref_id ? `/jugadores/${r.ref_id}` : null,
