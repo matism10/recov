@@ -60,8 +60,8 @@ export const SEARCH_INDEX: readonly SearchDestination[] = [
   // --- Plantel y lesiones ---
   { id: "plantel", title: "Plantel", context: "Jugadores del club", keywords: ["jugadores", "equipo", "posiciones", "cancha", "disponibilidad", "lista de jugadores"], href: "/plantel", requires: "todos" },
   { id: "lesiones", title: "Lesiones", context: "Actuales e historial", keywords: ["lesionados", "lesion", "fases", "recuperacion", "alta", "diagnostico", "documentos"], href: "/lesiones", requires: { any: [perm("lesiones_ver"), "jugador"] } },
-  { id: "lesiones-actuales", title: "Actuales", context: "Lesiones › lesiones actuales", keywords: ["abiertas", "en curso", "lesionados ahora", "en recuperacion"], href: "/lesiones#actuales", requires: { any: [perm("lesiones_ver"), "jugador"] } },
-  { id: "lesiones-historial", title: "Historial", context: "Lesiones › cerradas y descartadas", keywords: ["pasadas", "antiguas", "cerradas", "descartadas", "dadas de alta"], href: "/lesiones#historial", requires: { any: [perm("lesiones_ver"), "jugador"] } },
+  { id: "lesiones-actuales", title: "Actuales", context: "Lesiones › lesiones actuales", keywords: ["abiertas", "en curso", "lesionados ahora", "en recuperacion"], href: "/lesiones?tab=actuales", requires: { any: [perm("lesiones_ver"), "jugador"] } },
+  { id: "lesiones-historial", title: "Historial", context: "Lesiones › cerradas y descartadas", keywords: ["pasadas", "antiguas", "cerradas", "descartadas", "dadas de alta"], href: "/lesiones?tab=historial", requires: { any: [perm("lesiones_ver"), "jugador"] } },
   { id: "registrar-lesion", title: "Registrar lesión", context: "Reportar una lesión", keywords: ["lesionarme", "me lesione", "reportar", "dolor", "golpe", "nueva lesion", "me duele"], href: "/registrar-lesion", requires: "jugador" },
 
   // --- Métricas ---

@@ -119,7 +119,7 @@ describe("índice: cada entrada apunta a algo que existe", () => {
     assert.ok(dashboard.includes("No hay lesiones por revisar."), "Por revisar sin estado vacío");
     assert.ok(dashboard.includes("No hay jugadores lesionados ni en reintegro."), "Lesiones activas sin estado vacío");
     const lesiones = read(join(APP, "lesiones/(lista)/page.tsx"));
-    assert.ok(lesiones.includes("No hay lesiones actuales.") && lesiones.includes("Aún no hay lesiones cerradas"));
+    assert.ok(lesiones.includes("No hay lesiones actuales") && lesiones.includes("Aún no hay lesiones en el historial"));
   });
 });
 
