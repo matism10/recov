@@ -63,13 +63,13 @@ export function NavSlotsForm({
 
       <div
         aria-hidden="true"
-        className="flex items-end gap-1 rounded-2xl border border-[#CDE8F8] bg-[#E3F1FB] p-1.5 text-[11px] leading-none text-[#0F1B33]"
+        className="flex items-end gap-1 rounded-2xl border border-bar-line bg-brand-soft p-1.5 text-[11px] leading-none text-ink"
       >
         {preview.map((s, i) => {
           if (s === "registrar")
             return (
               <span key="registrar" className="flex min-w-0 flex-1 flex-col items-center gap-1 py-1.5">
-                <span className="flex size-8 items-center justify-center rounded-full bg-[#63BCF2]">
+                <span className="flex size-8 items-center justify-center rounded-full bg-bar">
                   <CirclePlus className="size-5" />
                 </span>
               </span>

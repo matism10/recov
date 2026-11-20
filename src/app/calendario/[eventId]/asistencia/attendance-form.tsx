@@ -70,7 +70,7 @@ export function AttendanceForm({
           : "Todos parten como presentes. Toca a quien faltó."}
       </p>
 
-      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist">
+      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
         {entries.map((e) => {
           const isAbsent = absent.has(e.playerId);
           return (
@@ -81,7 +81,7 @@ export function AttendanceForm({
                 aria-pressed={isAbsent}
                 disabled={pending}
                 className={`flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left transition disabled:opacity-60 ${
-                  isAbsent ? "bg-lesionado-bg/40" : "hover:bg-white"
+                  isAbsent ? "bg-lesionado-bg/40" : "hover:bg-mist"
                 }`}
               >
                 <Avatar name={e.name} size="md" />

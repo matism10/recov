@@ -41,7 +41,7 @@ export function SevensGroupForm({ candidates, selected }: { candidates: GroupCan
           <ul className={`divide-y divide-line overflow-hidden ${cardClass}`}>
             {g.items.map((c) => (
               <li key={c.id}>
-                <label className="flex min-h-14 cursor-pointer items-center gap-3 px-4 py-2 transition hover:bg-white">
+                <label className="flex min-h-14 cursor-pointer items-center gap-3 px-4 py-2 transition hover:bg-mist">
                   <input
                     type="checkbox"
                     checked={chosen.has(c.id)}

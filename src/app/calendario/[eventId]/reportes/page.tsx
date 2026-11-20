@@ -92,7 +92,7 @@ export default async function EventReportsPage({ params }: { params: Promise<{ e
       {header}
 
       <div className="space-y-8">
-        <section className="space-y-3 rounded-2xl bg-mist p-4 sm:p-5" aria-label="Respuestas">
+        <section className="space-y-3 rounded-xl border border-line bg-card p-4 sm:p-5" aria-label="Respuestas">
           <div className="flex items-baseline justify-between gap-4">
             <span className="font-semibold text-ink">Respondieron</span>
             <span className="font-display text-2xl font-extrabold text-ink tabular-nums">

@@ -110,7 +110,7 @@ export function ResultsForm({
       <input type="hidden" name="date" value={date} />
       <input type="hidden" name="format" value={test.display_format} />
       {saved ? <SuccessMessage>Guardamos {saved} {saved === 1 ? "resultado" : "resultados"}.</SuccessMessage> : null}
-      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist">
+      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
         {rows.map((r) => {
           const bad = invalid.includes(r.playerId);
           return (
@@ -229,7 +229,7 @@ export function CatalogManager({ tests }: { tests: TestDefinition[] }) {
   const [archiveError, setArchiveError] = useState<string | null>(null);
   return (
     <div className="space-y-5">
-      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-white">
+      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
         {tests.map((t) => (
           <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
             <span className="text-sm text-ink">

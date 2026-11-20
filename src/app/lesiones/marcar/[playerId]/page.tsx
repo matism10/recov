@@ -51,7 +51,7 @@ export default async function MarkInjuredPage({
           El jugador quedará “En revisión” hasta que el kinesiólogo revise la lesión.
         </p>
       </header>
-      <div className="rounded-xl bg-mist p-6 border border-line">
+      <div className="rounded-xl bg-card p-6 border border-line">
         <MarkForm playerId={player.id} />
       </div>
     </main>

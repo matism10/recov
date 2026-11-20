@@ -72,7 +72,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
     <>
       {highlightParts(text, query).map((p, i) =>
         p.hit ? (
-          <mark key={i} className="rounded-sm bg-[#BAE6FD] text-inherit">
+          <mark key={i} className="rounded-sm bg-brand-line text-inherit">
             {p.text}
           </mark>
         ) : (
@@ -139,7 +139,7 @@ export function SearchLauncher(props: SearchLauncherProps) {
         <kbd
           aria-hidden="true"
           className={`hidden rounded-md px-1.5 py-0.5 font-sans text-[11px] font-medium lg:inline ${
-            tone === "dark" ? "bg-white/20 text-white" : "bg-[#F1F5F9] text-[#475569]"
+            tone === "dark" ? "bg-white/20 text-white" : "bg-fill-soft text-body"
           }`}
         >
           Ctrl K
@@ -318,12 +318,12 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
         onClick={() => go(row)}
         onMouseMove={() => setActive(i)}
         className={`flex min-h-[60px] w-full items-center gap-3 rounded-2xl px-3 py-2 text-left ring-2 transition-colors ${
-          isSel ? "bg-[#F0F9FF] ring-[#BAE6FD] lg:ring-[#38BDF8]" : "ring-transparent"
+          isSel ? "bg-brand-wash ring-brand-line lg:ring-brand" : "ring-transparent"
         }`}
       >
         {row.kind === "player" ? (
           <>
-            <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#E0F2FE] text-sm font-medium text-[#0369A1]">
+            <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-soft text-sm font-medium text-brand-text">
               {row.player.avatarUrl ? (
                 // Foto privada por /foto: no pasa por next/image.
                 // eslint-disable-next-line @next/next/no-img-element
@@ -333,10 +333,10 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
               )}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium text-[#082F49]">
+              <span className="block truncate font-medium text-brand-night">
                 <Highlight text={row.player.name} query={query} />
               </span>
-              <span className="block truncate text-sm text-[#475569]">{row.player.position ?? "Sin posición"}</span>
+              <span className="block truncate text-sm text-body">{row.player.position ?? "Sin posición"}</span>
             </span>
             <AvailabilityBadge status={row.player.availability} />
           </>
@@ -345,21 +345,21 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
             {(() => {
               const Icon = destIcon(row.dest);
               return (
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#E0F2FE] text-[#0369A1]">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
                   <Icon aria-hidden="true" className="size-5" />
                 </span>
               );
             })()}
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium text-[#082F49]">
+              <span className="block truncate font-medium text-brand-night">
                 <Highlight text={row.dest.title} query={query} />
               </span>
-              <span className="block truncate text-sm text-[#475569]">{row.dest.context}</span>
+              <span className="block truncate text-sm text-body">{row.dest.context}</span>
             </span>
           </>
         )}
         {isSel ? (
-          <span className="hidden shrink-0 items-center gap-1 rounded-md bg-white px-1.5 py-0.5 text-xs font-medium text-[#0369A1] ring-1 ring-[#BAE6FD] lg:inline-flex">
+          <span className="hidden shrink-0 items-center gap-1 rounded-md bg-white px-1.5 py-0.5 text-xs font-medium text-brand-text ring-1 ring-brand-line lg:inline-flex">
             Enter
             <CornerDownLeft aria-hidden="true" className="size-3" />
           </span>
@@ -367,20 +367,20 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
         {row.kind === "dest" && (
           <ArrowRight
             aria-hidden="true"
-            className={`size-5 shrink-0 text-[#0369A1] ${isSel ? "lg:hidden" : ""}`}
+            className={`size-5 shrink-0 text-brand-text ${isSel ? "lg:hidden" : ""}`}
           />
         )}
       </button>
     );
   };
 
-  const labelClass = "px-3 pt-3 pb-1 font-display text-[13px] font-semibold tracking-wide text-[#475569] uppercase";
+  const labelClass = "px-3 pt-3 pb-1 font-display text-[13px] font-semibold tracking-wide text-body uppercase";
 
   return (
     <div className="fixed inset-0 z-[60]" onKeyDown={onKeyDown}>
       <div
         aria-hidden="true"
-        className="search-backdrop absolute inset-0 bg-[#082F49]/50"
+        className="search-backdrop absolute inset-0 bg-brand-night/50"
         onClick={onClose}
       />
       <div
@@ -390,13 +390,13 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
         aria-labelledby={titleId}
         className="search-panel absolute inset-x-0 bottom-[var(--kb,0px)] flex max-h-[calc(var(--vvh,100dvh)-1rem)] flex-col rounded-t-3xl bg-white shadow-2xl lg:inset-x-auto lg:top-24 lg:bottom-auto lg:left-1/2 lg:max-h-[min(640px,calc(100dvh-8rem))] lg:w-[760px] lg:max-w-[calc(100vw-2rem)] lg:-translate-x-1/2 lg:rounded-2xl"
       >
-        <div aria-hidden="true" className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-[#CBD5E1] lg:hidden" />
+        <div aria-hidden="true" className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-line-strong lg:hidden" />
         <h2 id={titleId} className="sr-only">
           Buscar jugadores y secciones
         </h2>
         <div className="flex shrink-0 items-center gap-2 px-4 pt-3 pb-2 lg:px-5 lg:pt-5">
           <div className="relative min-w-0 flex-1">
-            <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-[#0369A1]" />
+            <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-brand-text" />
             <input
               ref={inputRef}
               type="text"
@@ -417,14 +417,14 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
                 setActive(0);
               }}
               // 16 px: evita el zoom de iOS al enfocar el campo.
-              className="h-[52px] w-full rounded-2xl bg-[#F8FAFC] pr-12 pl-12 text-base text-[#082F49] ring-2 ring-[#38BDF8] outline-none placeholder:text-[#64748B]"
+              className="h-[52px] w-full rounded-2xl bg-fill-faint pr-12 pl-12 text-base text-brand-night ring-2 ring-brand outline-none placeholder:text-placeholder"
             />
             {query && (
               <button
                 type="button"
                 onClick={clear}
                 aria-label="Borrar búsqueda"
-                className="absolute top-1/2 right-2.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-[#E2E8F0] text-[#334155] hover:bg-[#CBD5E1] focus-visible:outline-2 focus-visible:outline-[#0369A1]"
+                className="absolute top-1/2 right-2.5 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-line-soft text-body-strong hover:bg-line-strong focus-visible:outline-2 focus-visible:outline-brand-text"
               >
                 <X aria-hidden="true" className="size-4" />
               </button>
@@ -433,7 +433,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 shrink-0 rounded-xl px-3 text-sm font-semibold text-[#0369A1] hover:bg-[#F0F9FF] focus-visible:outline-2 focus-visible:outline-[#0369A1] lg:hidden"
+            className="min-h-11 shrink-0 rounded-xl px-3 text-sm font-semibold text-brand-text hover:bg-brand-wash focus-visible:outline-2 focus-visible:outline-brand-text lg:hidden"
           >
             Cerrar
           </button>
@@ -441,8 +441,8 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
 
         {data && canSearchPlayers && (
           <div className="flex shrink-0 flex-wrap items-center gap-2 px-4 pb-2 lg:px-5">
-            <span className="rounded-full bg-[#E0F2FE] px-2.5 py-0.5 text-xs font-semibold text-[#075985]">{data?.scopeLabel}</span>
-            <span className="text-sm text-[#475569]">Buscas entre los jugadores de este formato</span>
+            <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-deep">{data?.scopeLabel}</span>
+            <span className="text-sm text-body">Buscas entre los jugadores de este formato</span>
           </div>
         )}
 
@@ -454,18 +454,18 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3 lg:px-3"
         >
           {!hasQuery ? (
-            <p className="px-3 py-8 text-center text-sm text-[#475569]">Escribe un nombre o una sección</p>
+            <p className="px-3 py-8 text-center text-sm text-body">Escribe un nombre o una sección</p>
           ) : rows.length === 0 && loading ? (
-            <p className="px-3 py-8 text-center text-sm text-[#475569]" role="status">
+            <p className="px-3 py-8 text-center text-sm text-body" role="status">
               Buscando…
             </p>
           ) : rows.length === 0 ? (
             <div className="px-3 py-8 text-center">
-              <p className="text-sm text-[#082F49]">Sin resultados para “{trimmed}”</p>
+              <p className="text-sm text-brand-night">Sin resultados para “{trimmed}”</p>
               <button
                 type="button"
                 onClick={clear}
-                className="mt-3 min-h-11 rounded-xl px-4 text-sm font-semibold text-[#0369A1] hover:bg-[#F0F9FF] focus-visible:outline-2 focus-visible:outline-[#0369A1]"
+                className="mt-3 min-h-11 rounded-xl px-4 text-sm font-semibold text-brand-text hover:bg-brand-wash focus-visible:outline-2 focus-visible:outline-brand-text"
               >
                 Borrar búsqueda
               </button>
@@ -489,25 +489,25 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
                 </div>
               )}
               {loading && (
-                <p className="px-3 py-2 text-sm text-[#475569]" role="status">
+                <p className="px-3 py-2 text-sm text-body" role="status">
                   Cargando…
                 </p>
               )}
             </>
           )}
           {hasQuery && failed && (
-            <p className="px-3 py-2 text-sm text-[#475569]" role="status">
+            <p className="px-3 py-2 text-sm text-body" role="status">
               No se pudo cargar el buscador. Intenta de nuevo.
             </p>
           )}
         </div>
 
-        <div className="hidden shrink-0 items-center gap-4 border-t border-[#E2E8F0] px-5 py-3 text-xs text-[#475569] lg:flex">
+        <div className="hidden shrink-0 items-center gap-4 border-t border-line-soft px-5 py-3 text-xs text-body lg:flex">
           <span className="inline-flex items-center gap-1.5">
-            <kbd className="rounded-md bg-[#F1F5F9] px-1.5 py-0.5 font-sans font-medium">↑ ↓</kbd> Navegar
+            <kbd className="rounded-md bg-fill-soft px-1.5 py-0.5 font-sans font-medium">↑ ↓</kbd> Navegar
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <kbd className="rounded-md bg-[#F1F5F9] px-1.5 py-0.5 font-sans font-medium">Enter</kbd> Abrir
+            <kbd className="rounded-md bg-fill-soft px-1.5 py-0.5 font-sans font-medium">Enter</kbd> Abrir
           </span>
           <span className="ml-auto">Solo ves lo que tu rol permite</span>
         </div>

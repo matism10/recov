@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 import { formatShortDate, type AvailabilityWeek } from "@/lib/metrics";
 import { Users } from "lucide-react";
-import { AVAILABILITY_ICON, SectionTitle } from "@/app/ui";
+import { AVAILABILITY_ICON, SectionTitle, cardClass } from "@/app/ui";
 import { LineChart, type ChartColor } from "@/app/line-chart";
 import { TooltipTarget, type TooltipContent } from "@/app/chart-tooltip";
 import { InfoBox } from "@/app/info-box";
@@ -11,7 +11,7 @@ import type { MetricsHelpKey } from "@/lib/metrics-help";
 // Tarjeta de métricas: la misma en la franja de /dashboard y en /metricas.
 import { anchorId } from "@/lib/anchors";
 
-export const metricCardClass = "rounded-xl border border-line bg-white p-5";
+export const metricCardClass = `${cardClass} p-5`;
 
 // Tono de la tarjeta: el color fijo del estado que cuenta, o neutro para el total.
 // Clases literales: Tailwind solo genera las que aparecen escritas en el código.

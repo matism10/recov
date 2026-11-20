@@ -2,8 +2,8 @@
 
 import { RPE_SCALE } from "@/lib/srpe";
 
-const INK = "#082F49";
-const EMPTY = "#F1F5F9";
+const INK = "var(--color-brand-night)";
+const EMPTY = "var(--color-fill-soft)";
 
 // Esfuerzo de 0 a 10 con "número grande": círculo de 210 px con el número y su
 // etiqueta (el fondo cambia según el número), una frase corta, botones − y + y una
@@ -32,7 +32,7 @@ export function EffortPicker({
       >
         {value === null ? (
           <>
-            <span className="font-display text-8xl leading-none font-extrabold text-[#94A3B8]" aria-hidden="true">
+            <span className="font-display text-8xl leading-none font-extrabold text-faint" aria-hidden="true">
               ?
             </span>
             <span className="sr-only">Sin elegir</span>
@@ -47,7 +47,7 @@ export function EffortPicker({
           </>
         )}
       </div>
-      <p className="min-h-5 text-center text-[15px] text-[#334155]">
+      <p className="min-h-5 text-center text-[15px] text-body-strong">
         {value === null ? "Toca la barra o usa + y −" : step.hint}
       </p>
 
@@ -113,7 +113,7 @@ function StepButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-16 items-center justify-center rounded-full border-2 border-[#E2E8F0] bg-white text-[30px] leading-none text-[#082F49] transition hover:bg-mist disabled:opacity-40"
+      className="flex size-16 items-center justify-center rounded-full border-2 border-line-soft bg-white text-[30px] leading-none text-brand-night transition hover:bg-mist disabled:opacity-40"
     >
       <span aria-hidden="true">{children}</span>
     </button>

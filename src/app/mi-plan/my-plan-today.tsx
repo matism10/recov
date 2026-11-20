@@ -90,14 +90,14 @@ export function MyPlanToday({ session }: { session: GymTodaySession }) {
                       onClick={() => toggle(e.id)}
                       disabled={pending}
                       className={`flex w-full items-center gap-3 border px-3.5 py-3 text-left transition disabled:opacity-70 ${
-                        on ? "border-[#BAE6FD] bg-[#F0F9FF]" : "border-line bg-white hover:bg-mist"
+                        on ? "border-brand-line bg-brand-wash" : "border-line bg-white hover:bg-mist"
                       } ${withPrev ? "rounded-b-2xl border-t-0" : "rounded-t-2xl"} ${withNext ? "" : "rounded-b-2xl"} ${
-                        inSet ? "shadow-[inset_3px_0_0_#38BDF8]" : ""
+                        inSet ? "shadow-[inset_3px_0_0_var(--color-brand)]" : ""
                       }`}
                     >
                       <span
                         className={`flex size-7 shrink-0 items-center justify-center rounded-lg border-2 ${
-                          on ? "border-brand bg-brand text-[#082F49]" : "border-[#CBD5E1] bg-white text-transparent"
+                          on ? "border-brand bg-brand text-brand-night" : "border-line-strong bg-white text-transparent"
                         }`}
                       >
                         <Check aria-hidden="true" className="size-4" strokeWidth={3} />
@@ -129,7 +129,7 @@ export function MyPlanToday({ session }: { session: GymTodaySession }) {
           onClick={() => finish(false)}
           disabled={pending || count === 0}
           className={`flex h-13 w-full items-center justify-center rounded-2xl text-base font-semibold transition ${
-            count > 0 ? "bg-brand text-[#082F49] hover:bg-brand-hover" : "bg-line text-muted"
+            count > 0 ? "bg-brand text-brand-night hover:bg-brand-hover" : "bg-line text-muted"
           }`}
         >
           {pending ? "Guardando…" : already ? "Guardar cambios" : "Terminar sesión"}

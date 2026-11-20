@@ -21,7 +21,7 @@ import { profileButtonClass, signOutButtonClass } from "@/app/ui";
 
 // Colores de la barra móvil (diseño de navegación, nov 2026).
 // Fondo #E3F1FB, borde #CDE8F8, texto e íconos #0F1B33; botón del jugador #63BCF2.
-const BAR_TEXT = "text-[#0F1B33]";
+const BAR_TEXT = "text-ink";
 
 // Pestaña: ícono de 22 px sobre la etiqueta de 11 px. La activa, en blanco y redondeada.
 const tabClass = (active: boolean) =>
@@ -34,7 +34,7 @@ function PendingDot({ ring }: { ring: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`absolute -top-0.5 -right-1 size-2.5 rounded-full bg-[#E5484D] ring-2 ${ring}`}
+      className={`absolute -top-0.5 -right-1 size-2.5 rounded-full bg-signout ring-2 ${ring}`}
     />
   );
 }
@@ -95,7 +95,7 @@ export function MobileNavBar({
       />
       <nav
         aria-label="Navegación principal"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-[#CDE8F8] bg-[#E3F1FB] px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-bar-line bg-brand-soft px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] lg:hidden"
       >
         <ul className="flex gap-1">
           {barItems.map((item, i) => {
@@ -106,7 +106,7 @@ export function MobileNavBar({
                   <Link href={item.href} aria-current={active ? "page" : undefined} className={tabClass(active)}>
                     <span className="relative">
                       <item.Icon aria-hidden="true" className="size-[22px] shrink-0" strokeWidth={1.75} />
-                      {item === REGISTROS && pendingCount > 0 && <PendingDot ring="ring-[#E3F1FB]" />}
+                      {item === REGISTROS && pendingCount > 0 && <PendingDot ring="ring-brand-soft" />}
                     </span>
                     <span className="max-w-full truncate">{item.label}</span>
                     {item === REGISTROS && pendingCount > 0 && (
@@ -151,7 +151,7 @@ function RegisterInjuryButton() {
         href={REGISTRAR_LESION_HREF}
         className={`group flex min-h-14 w-full flex-col items-center justify-end gap-1 text-[11px] leading-none font-medium ${BAR_TEXT} focus-visible:outline-none`}
       >
-        <span className="-mt-7 flex size-14 items-center justify-center rounded-full bg-[#63BCF2] shadow-md ring-4 ring-[#E3F1FB] transition group-hover:brightness-95 group-active:brightness-90 group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-brand-strong">
+        <span className="-mt-7 flex size-14 items-center justify-center rounded-full bg-bar shadow-md ring-4 ring-brand-soft transition group-hover:brightness-95 group-active:brightness-90 group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-brand-strong">
           <CirclePlus aria-hidden="true" className={`size-7 ${BAR_TEXT}`} strokeWidth={2} />
         </span>
         <span className="whitespace-nowrap">Registrar lesión</span>
@@ -194,7 +194,7 @@ function MoreSheet({
       >
         <span className="relative">
           <Ellipsis aria-hidden="true" className="size-[22px] shrink-0" strokeWidth={1.75} />
-          {pendingCount > 0 && <PendingDot ring={active ? "ring-white" : "ring-[#E3F1FB]"} />}
+          {pendingCount > 0 && <PendingDot ring={active ? "ring-white" : "ring-brand-soft"} />}
         </span>
         <span className="truncate">Más</span>
         {pendingCount > 0 && <span className="sr-only">: hay registros pendientes</span>}
@@ -205,14 +205,14 @@ function MoreSheet({
         aria-label="Más"
         // Un clic en el fondo (fuera del contenido) llega al propio <dialog>.
         onClick={(e) => e.target === e.currentTarget && close()}
-        className={`fixed inset-x-3 top-auto bottom-[calc(6rem+env(safe-area-inset-bottom))] m-0 max-h-[calc(100dvh-8rem)] w-auto max-w-none overflow-visible rounded-3xl border border-[#CDE8F8] bg-white p-0 ${BAR_TEXT} shadow-xl backdrop:bg-ink/30 lg:hidden`}
+        className={`fixed inset-x-3 top-auto bottom-[calc(6rem+env(safe-area-inset-bottom))] m-0 max-h-[calc(100dvh-8rem)] w-auto max-w-none overflow-visible rounded-3xl border border-bar-line bg-white p-0 ${BAR_TEXT} shadow-xl backdrop:bg-ink/30 lg:hidden`}
       >
         {/* X circular arriba al centro, montada sobre el borde de la hoja. */}
         <button
           type="button"
           onClick={close}
           aria-label="Cerrar"
-          className="absolute -top-5 left-1/2 flex size-10 -translate-x-1/2 items-center justify-center rounded-full border border-[#CDE8F8] bg-white shadow-md transition hover:bg-[#F3F9FD] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
+          className="absolute -top-5 left-1/2 flex size-10 -translate-x-1/2 items-center justify-center rounded-full border border-bar-line bg-white shadow-md transition hover:bg-bar-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-strong"
         >
           <X aria-hidden="true" className="size-5" />
         </button>
@@ -232,15 +232,15 @@ function MoreSheet({
                       className="flex w-full flex-col items-center gap-2 rounded-2xl px-1 py-1 text-center text-[13px] leading-tight focus-visible:outline-2 focus-visible:outline-brand-strong"
                     >
                       <span
-                        className={`relative flex size-14 items-center justify-center rounded-full bg-[#E3F1FB] ${
-                          itemActive ? "ring-2 ring-[#63BCF2]" : ""
+                        className={`relative flex size-14 items-center justify-center rounded-full bg-brand-soft ${
+                          itemActive ? "ring-2 ring-bar" : ""
                         }`}
                       >
                         <item.Icon aria-hidden="true" className="size-6" strokeWidth={1.75} />
                         {item === REGISTROS && pendingCount > 0 && (
                           <span
                             aria-hidden="true"
-                            className="absolute top-0.5 right-0.5 size-3 rounded-full bg-[#E5484D] ring-2 ring-white"
+                            className="absolute top-0.5 right-0.5 size-3 rounded-full bg-signout ring-2 ring-white"
                           />
                         )}
                       </span>

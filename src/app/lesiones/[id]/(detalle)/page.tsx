@@ -36,7 +36,7 @@ import { ReviewForm } from "../review-form";
 const SIGNED_URL_SECONDS = 5 * 60;
 
 // Bloques del detalle: superficie sin borde, separados por tono y aire.
-const blockClass = "rounded-xl bg-mist";
+const blockClass = "rounded-xl border border-line bg-card";
 
 export default async function InjuryPage({
   params,

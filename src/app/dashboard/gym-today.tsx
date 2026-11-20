@@ -12,7 +12,7 @@ export function GymTodayCard({ data }: { data: GymToday | null }) {
       {pending && (
         <Link
           href="/mi-plan"
-          className="block space-y-3 rounded-3xl bg-[#38BDF8] p-5 text-[#082F49] transition hover:bg-[#2BB2EE] lg:max-w-xl"
+          className="block space-y-3 rounded-3xl bg-brand p-5 text-brand-night transition hover:bg-brand-press lg:max-w-xl"
         >
           <span className="flex items-start justify-between gap-4">
             <span>
@@ -27,7 +27,7 @@ export function GymTodayCard({ data }: { data: GymToday | null }) {
             {pending.label} · {pending.exercises.length} {pending.exercises.length === 1 ? "ejercicio" : "ejercicios"} · ~
             {pending.est_minutes} min
           </span>
-          <span className="flex h-12 items-center justify-center rounded-2xl bg-[#082F49] font-semibold text-white">
+          <span className="flex h-12 items-center justify-center rounded-2xl bg-brand-night font-semibold text-white">
             Ver mi plan de hoy
           </span>
         </Link>
@@ -36,8 +36,8 @@ export function GymTodayCard({ data }: { data: GymToday | null }) {
         href="/mi-plan/propia"
         className="flex min-h-11 items-center gap-3 rounded-[14px] border-[0.5px] border-line bg-white p-3 transition hover:bg-mist lg:max-w-xl"
       >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-[#E0F2FE]">
-          <Dumbbell aria-hidden="true" className="size-5 text-[#0369A1]" />
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-brand-soft">
+          <Dumbbell aria-hidden="true" className="size-5 text-brand-text" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium text-ink">¿Entrenaste por tu cuenta?</span>

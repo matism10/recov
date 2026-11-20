@@ -123,7 +123,7 @@ export function AbsenceForm({
           {events.length === 0 ? (
             <p className="mt-2 text-sm text-muted">No hay eventos próximos en el calendario.</p>
           ) : (
-            <ul className="mt-2 max-h-64 divide-y divide-line overflow-y-auto rounded-xl border border-line bg-white">
+            <ul className="mt-2 max-h-64 divide-y divide-line overflow-y-auto rounded-xl border border-line bg-card">
               {events.map((e) => {
                 const selected = eventId === e.id;
                 return (
@@ -191,7 +191,7 @@ export function AbsenceForm({
               type="checkbox"
               checked={unknownEnd}
               onChange={(e) => setUnknownEnd(e.target.checked)}
-              className="size-5 rounded border-line accent-[#0369A1]"
+              className="size-5 rounded border-line accent-brand-text"
             />
             Aún no sé cuándo vuelvo
           </label>

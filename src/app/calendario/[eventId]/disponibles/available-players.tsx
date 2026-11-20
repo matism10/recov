@@ -66,7 +66,7 @@ const chipButton = (active: boolean) =>
   `inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition ${
     active ? "border-brand-strong bg-brand-soft text-brand-text" : "border-line bg-white text-ink hover:bg-mist"
   }`;
-const listClass = "divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist";
+const listClass = "divide-y divide-line overflow-hidden rounded-xl border border-line bg-card";
 
 export type NominaProps = {
   eventId: string;

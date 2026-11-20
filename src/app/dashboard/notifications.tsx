@@ -186,11 +186,11 @@ function NoticeRow({ card, onDismiss }: { card: NoticeCard; onDismiss: () => voi
   );
   return (
     <div
-      className="flex h-full items-stretch overflow-hidden rounded-xl border border-line border-l-4 bg-mist"
+      className="flex h-full items-stretch overflow-hidden rounded-xl border border-line border-l-4 bg-card"
       style={{ borderLeftColor: color }}
     >
       {card.href ? (
-        <Link href={card.href} className="flex min-h-16 min-w-0 flex-1 items-start gap-3 p-4 transition hover:bg-white">
+        <Link href={card.href} className="flex min-h-16 min-w-0 flex-1 items-start gap-3 p-4 transition hover:bg-mist">
           {body}
         </Link>
       ) : (
@@ -200,7 +200,7 @@ function NoticeRow({ card, onDismiss }: { card: NoticeCard; onDismiss: () => voi
         <button
           type="button"
           onClick={onDismiss}
-          className="inline-flex w-11 shrink-0 items-start justify-center pt-3.5 text-muted transition hover:bg-white hover:text-ink"
+          className="inline-flex w-11 shrink-0 items-start justify-center pt-3.5 text-muted transition hover:bg-mist hover:text-ink"
         >
           <X aria-hidden="true" className="size-4" />
           <span className="sr-only">Descartar: {card.title}</span>

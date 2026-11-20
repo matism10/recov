@@ -89,7 +89,7 @@ export function EffortScreen({
           type="button"
           onClick={() => picked !== null && run(() => onSave(picked))}
           disabled={pending || picked === null}
-          className="flex h-13 w-full items-center justify-center rounded-[14px] bg-[#38BDF8] text-base font-semibold text-[#082F49] transition hover:bg-brand-hover active:bg-brand-strong disabled:opacity-50"
+          className="flex h-13 w-full items-center justify-center rounded-[14px] bg-brand text-base font-semibold text-brand-night transition hover:bg-brand-hover active:bg-brand-strong disabled:opacity-50"
         >
           {pending ? "Guardando…" : "Guardar"}
         </button>

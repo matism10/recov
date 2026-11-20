@@ -126,13 +126,13 @@ export default async function RegistrosPage({
 
       {/* Tras confirmar: la decisión quedó guardada, pero el correo no salió. */}
       {correo === "no-enviado" && (
-        <p role="status" className="mb-6 rounded-xl border border-line bg-mist px-4 py-3 text-sm text-ink">
+        <p role="status" className="mb-6 rounded-xl border border-line bg-card px-4 py-3 text-sm text-ink">
           Aprobado, pero no pudimos enviar el correo. Avísale tú que ya puede entrar.
         </p>
       )}
 
       {pending.length === 0 ? (
-        <p className="rounded-xl bg-mist p-8 text-center text-muted border border-line">
+        <p className="rounded-xl bg-card p-8 text-center text-muted border border-line">
           No hay registros pendientes.
         </p>
       ) : (
@@ -144,7 +144,7 @@ export default async function RegistrosPage({
                 <SectionTitle className="mb-3">
                   {s.title} ({s.items.length})
                 </SectionTitle>
-                <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line lg:hidden">
+                <ul className="divide-y divide-line overflow-hidden rounded-xl bg-card border border-line lg:hidden">
                   {s.items.map((p) => (
                     <li
                       key={p.id}
@@ -164,7 +164,7 @@ export default async function RegistrosPage({
                   ))}
                 </ul>
                 {/* En escritorio, la misma lista como tabla. */}
-                <div className="hidden overflow-x-auto rounded-xl border border-line bg-mist lg:block">
+                <div className="hidden overflow-x-auto rounded-xl border border-line bg-card lg:block">
                   <table className="w-full text-left">
                     <thead className="text-sm text-muted">
                       <tr className="border-b border-line">

@@ -151,7 +151,7 @@ export function ClubHero({
               {identity.name}
             </p>
             {subtitle && (
-              <p className="truncate text-sm leading-[18px] text-[#e2e8f0] lg:text-[15px] lg:leading-5">
+              <p className="truncate text-sm leading-[18px] text-line-soft lg:text-[15px] lg:leading-5">
                 {subtitle}
               </p>
             )}
@@ -202,7 +202,7 @@ export function ClubHeader({
             <p className="truncate font-display text-xl leading-[22px] font-bold text-ink">
               {identity.name}
             </p>
-            {subtitle && <p className="truncate text-sm leading-4 text-[#475569]">{subtitle}</p>}
+            {subtitle && <p className="truncate text-sm leading-4 text-body">{subtitle}</p>}
           </div>
         </ClubSwitcher>
         {format && <SevensChip format={format} />}

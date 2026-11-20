@@ -88,7 +88,7 @@ export default async function MyPlanPage({
 
       <Link
         href="/mi-plan/propia"
-        className="mt-6 flex min-h-14 items-center gap-3 rounded-xl border border-line bg-white px-4 py-3 transition hover:bg-mist"
+        className="mt-6 flex min-h-14 items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 transition hover:bg-mist"
       >
         <span className="min-w-0 flex-1">
           <span className="block font-medium text-ink">¿Fuiste al gimnasio por tu cuenta?</span>

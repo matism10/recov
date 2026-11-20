@@ -55,7 +55,7 @@ export function Ranking({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="rounded-xl border border-line bg-mist p-6 text-center text-sm text-muted">
+      <p className="rounded-xl border border-line bg-card p-6 text-center text-sm text-muted">
         Aún no hay resultados de {test.name}.
       </p>
     );
@@ -65,7 +65,7 @@ export function Ranking({
   // Barra: el mejor llena el ancho; el resto, en proporción (en tiempos, mejor = menor).
   const width = (v: number) => Math.max(4, Math.round((test.higher_is_better ? v / best : best / v) * 100));
   return (
-    <ol className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist">
+    <ol className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
       {rows.map((r, i) => {
         const value = Number(r.value);
         const mine = r.player_id === highlightPlayerId;
