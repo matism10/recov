@@ -153,12 +153,12 @@ async function LoadTab({
       .order("measured_on", { ascending: false }),
     supabase.from("positions").select("name, sort").eq("sport", sport).eq("format", "15").order("sort"),
   ]);
-  // Grupos de posición para filtrar: en rugby, Delanteros y Backs (igual que el editor de
+  // Grupos de posición para filtrar: en rugby, Forwards y Backs (igual que el editor de
   // planes); en el resto, una posición por grupo.
   const groups: LoadGroup[] =
     sport === "rugby"
       ? [
-          { label: "Delanteros", names: RUGBY_FORWARDS },
+          { label: "Forwards", names: RUGBY_FORWARDS },
           { label: "Backs", names: RUGBY_BACKS },
         ]
       : (positionRows ?? []).map((p) => ({ label: p.name as string, names: [p.name as string] }));
