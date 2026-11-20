@@ -146,6 +146,9 @@ const EXCEPTIONS: Record<string, string> = {
   "Activas y próximas": "contenido de Mis ausencias (ya ofrecida)",
   "Staff": "lista de la pantalla Staff (ya ofrecida)",
   "Entrenamiento": "bloque dentro del editor de Nuevo plan (ya ofrecido)",
+  "Asignar a": "tarjeta del editor de Nuevo plan (ya ofrecido)",
+  "Vigencia": "tarjeta del editor de Nuevo plan (ya ofrecido)",
+  "Vista previa": "tarjeta del editor de Nuevo plan (ya ofrecido)",
 };
 
 describe("índice: cada sección con título está ofrecida o justificada", () => {

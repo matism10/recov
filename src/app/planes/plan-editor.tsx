@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronRight, Ellipsis, Link2, Minus, Plus, Trash2, TriangleAlert, Unlink2, X } from "lucide-react";
+import { Check, ChevronRight, Ellipsis, Link2, Minus, NotepadText, Plus, Trash2, TriangleAlert, Unlink2, X } from "lucide-react";
 import {
   GYM_LIMITS,
   INTENSITY_OPTIONS,
@@ -31,7 +31,7 @@ import {
 import { WEEKDAYS, isoWeekday } from "@/lib/srpe";
 import { addDays, formatDate } from "@/lib/injuries";
 import { ErrorMessage, SuccessMessage, buttonPrimary, buttonSecondary, fieldClass, labelClass, textButton } from "@/app/ui";
-import { PageHeader } from "@/app/ui-blocks";
+import { Card, CardHeader, PageHeader } from "@/app/ui-blocks";
 import type { EditorData, EditorPlayer } from "./editor-data";
 import { archivePlan, savePlan } from "./actions";
 
@@ -103,6 +103,11 @@ const chip = (on: boolean) =>
   `inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition disabled:opacity-60 ${
     on ? "border-brand bg-brand-soft text-brand-text" : "border-line bg-card text-ink hover:bg-mist"
   }`;
+// Fila de un ejercicio (escritorio): una línea con 11 columnas si el contenedor mide 1060 px o
+// más; si no, dos líneas (la intensidad, el valor y el test van en la segunda).
+const ROW_COLS =
+  "grid grid-cols-[2.5rem_minmax(0,1fr)_4rem_4rem_5rem_2.75rem_2.75rem_2.75rem] @[1060px]:grid-cols-[2.5rem_minmax(0,1fr)_4rem_4rem_8rem_5.5rem_11rem_5rem_2.75rem_2.75rem_2.75rem]";
+const VALUE_LABEL: Record<IntensityType, string> = { pct: "% máx", rpe: "Esfuerzo", kg: "Kilos", tiempo: "Tiempo", bw: "Valor" };
 const smallField = "min-h-11 w-full rounded-xl border border-line bg-white px-2 py-1.5 text-sm text-ink outline-none focus:border-brand-strong focus:ring-2 focus:ring-brand-soft";
 
 // Editor del plan (head coach y preparador físico). En escritorio: datos arriba, sesiones
@@ -122,6 +127,14 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   const [sheet, setSheet] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [playerQuery, setPlayerQuery] = useState("");
+  const [notesOpen, setNotesOpen] = useState<Set<string>>(() => new Set());
+  const toggleNote = (key: string) =>
+    setNotesOpen((s) => {
+      const n = new Set(s);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(saved);
   const [pending, startTransition] = useTransition();
@@ -418,7 +431,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 lg:max-w-7xl lg:px-8">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 lg:max-w-[1200px] lg:px-8">
       <PageHeader
         breadcrumb={
           <>
@@ -471,14 +484,12 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
       </div>
 
       <fieldset disabled={readOnly || pending} className="min-w-0">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-          <div className="min-w-0 space-y-5">
-            {/* Tipo de planificación */}
-            <section className="rounded-xl border border-line bg-card p-4 lg:p-5">
-              <p id="plan-mode" className={labelClass}>
-                ¿Qué vas a planificar?
-              </p>
-              <div role="radiogroup" aria-labelledby="plan-mode" className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-mist p-1 sm:max-w-md">
+        <div className="space-y-4 lg:space-y-5">
+          {/* Franja superior: planificar, asignar y vigencia (mismo alto) */}
+          <div className="grid gap-4 lg:grid-cols-[1fr_1.7fr_1.1fr]">
+            <Card>
+              <CardHeader title={<span id="plan-mode">¿Qué vas a planificar?</span>} />
+              <div role="radiogroup" aria-labelledby="plan-mode" className="grid grid-cols-3 gap-1 rounded-xl bg-mist p-1">
                 {MODES.map((m) => (
                   <button
                     key={m.id}
@@ -495,101 +506,101 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                 ))}
               </div>
               <p className="mt-2 text-sm text-muted">{MODES.find((m) => m.id === mode)!.hint}</p>
-            </section>
+            </Card>
 
-            {/* Asignar a, fechas y días */}
-            <section className="space-y-4 rounded-xl border border-line bg-card p-4 lg:p-5">
-              <div>
-                <p className={labelClass}>Asignar a</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button type="button" aria-pressed={allTarget} onClick={toggleAll} className={chip(allTarget)}>
-                    Todo el plantel
-                  </button>
-                  {data.rugby && forwards.length > 0 && (
-                    <button
-                      type="button"
-                      aria-pressed={groupOn(forwards)}
-                      onClick={() => togglePositions(forwards, !groupOn(forwards))}
-                      className={chip(groupOn(forwards))}
-                    >
-                      Forwards ({countIn(RUGBY_FORWARDS)})
-                    </button>
-                  )}
-                  {data.rugby && backs.length > 0 && (
-                    <button
-                      type="button"
-                      aria-pressed={groupOn(backs)}
-                      onClick={() => togglePositions(backs, !groupOn(backs))}
-                      className={chip(groupOn(backs))}
-                    >
-                      Backs ({countIn(RUGBY_BACKS)})
-                    </button>
-                  )}
-                  {data.positions.length > 0 && (
-                    <button
-                      type="button"
-                      aria-expanded={picker === "positions"}
-                      onClick={() => setPicker(picker === "positions" ? "none" : "positions")}
-                      className={chip(posTargets.size > 0)}
-                    >
-                      Posiciones…{posTargets.size > 0 && ` (${posTargets.size})`}
-                    </button>
-                  )}
+            <Card>
+              <CardHeader title="Asignar a" />
+              <div className="flex flex-wrap gap-2">
+                <button type="button" aria-pressed={allTarget} onClick={toggleAll} className={chip(allTarget)}>
+                  Todo el plantel
+                </button>
+                {data.rugby && forwards.length > 0 && (
                   <button
                     type="button"
-                    aria-expanded={picker === "players"}
-                    onClick={() => setPicker(picker === "players" ? "none" : "players")}
-                    className={chip(playerTargets.size > 0)}
+                    aria-pressed={groupOn(forwards)}
+                    onClick={() => togglePositions(forwards, !groupOn(forwards))}
+                    className={chip(groupOn(forwards))}
                   >
-                    Jugadores…{playerTargets.size > 0 && ` (${playerTargets.size})`}
+                    Forwards ({countIn(RUGBY_FORWARDS)})
                   </button>
-                  {data.hasSevens && (
-                    <button type="button" aria-pressed={sevensTarget} onClick={toggleSevens} className={chip(sevensTarget)}>
-                      Sevens
-                    </button>
-                  )}
+                )}
+                {data.rugby && backs.length > 0 && (
+                  <button
+                    type="button"
+                    aria-pressed={groupOn(backs)}
+                    onClick={() => togglePositions(backs, !groupOn(backs))}
+                    className={chip(groupOn(backs))}
+                  >
+                    Backs ({countIn(RUGBY_BACKS)})
+                  </button>
+                )}
+                {data.positions.length > 0 && (
+                  <button
+                    type="button"
+                    aria-expanded={picker === "positions"}
+                    onClick={() => setPicker(picker === "positions" ? "none" : "positions")}
+                    className={chip(posTargets.size > 0)}
+                  >
+                    Posiciones…{posTargets.size > 0 && ` (${posTargets.size})`}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  aria-expanded={picker === "players"}
+                  onClick={() => setPicker(picker === "players" ? "none" : "players")}
+                  className={chip(playerTargets.size > 0)}
+                >
+                  Jugadores…{playerTargets.size > 0 && ` (${playerTargets.size})`}
+                </button>
+                {data.hasSevens && (
+                  <button type="button" aria-pressed={sevensTarget} onClick={toggleSevens} className={chip(sevensTarget)}>
+                    Sevens
+                  </button>
+                )}
+              </div>
+              {picker === "positions" && (
+                <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl border border-line bg-mist p-2 sm:grid-cols-3">
+                  {data.positions.map((p) => (
+                    <CheckRow
+                      key={p.id}
+                      checked={posTargets.has(p.id)}
+                      onToggle={() => togglePositions([p.id], !posTargets.has(p.id))}
+                      label={p.name}
+                    />
+                  ))}
                 </div>
-                {picker === "positions" && (
-                  <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl border border-line bg-mist p-2 sm:grid-cols-3">
-                    {data.positions.map((p) => (
+              )}
+              {picker === "players" && (
+                <div className="mt-3 space-y-2 rounded-xl border border-line bg-mist p-2">
+                  <input
+                    value={playerQuery}
+                    onChange={(e) => setPlayerQuery(e.target.value)}
+                    placeholder="Buscar jugador"
+                    aria-label="Buscar jugador"
+                    className={smallField}
+                  />
+                  <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
+                    {players.map((p) => (
                       <CheckRow
                         key={p.id}
-                        checked={posTargets.has(p.id)}
-                        onToggle={() => togglePositions([p.id], !posTargets.has(p.id))}
+                        checked={playerTargets.has(p.id)}
+                        onToggle={() => togglePlayer(p.id)}
                         label={p.name}
+                        detail={p.position ?? undefined}
                       />
                     ))}
                   </div>
-                )}
-                {picker === "players" && (
-                  <div className="mt-3 space-y-2 rounded-xl border border-line bg-mist p-2">
-                    <input
-                      value={playerQuery}
-                      onChange={(e) => setPlayerQuery(e.target.value)}
-                      placeholder="Buscar jugador"
-                      aria-label="Buscar jugador"
-                      className={smallField}
-                    />
-                    <div className="grid max-h-64 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
-                      {players.map((p) => (
-                        <CheckRow
-                          key={p.id}
-                          checked={playerTargets.has(p.id)}
-                          onToggle={() => togglePlayer(p.id)}
-                          label={p.name}
-                          detail={p.position ?? undefined}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <p className="mt-2 text-sm text-muted">
-                  {targeted.length === 0
-                    ? "Aún no hay destinatarios."
-                    : `Reciben el plan: ${recipients.length} de ${targeted.length}`}
-                </p>
-              </div>
+                </div>
+              )}
+              <p className="mt-3 text-sm text-muted">
+                {targeted.length === 0
+                  ? "Aún no hay destinatarios."
+                  : `Reciben el plan: ${recipients.length} de ${targeted.length}`}
+              </p>
+            </Card>
 
+            <Card>
+              <CardHeader title="Vigencia" />
               {mode === "diaria" ? (
                 <label className="block">
                   <span className={labelClass}>Fecha</span>
@@ -597,138 +608,127 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                     type="date"
                     value={plan.starts_on}
                     onChange={(e) => setDay(e.target.value)}
-                    className={`${fieldClass} mt-1 w-auto`}
+                    className={`${fieldClass} mt-1`}
                   />
                   {plan.starts_on && (
                     <span className="mt-1 block text-sm text-muted">{WEEKDAYS[isoWeekday(plan.starts_on) - 1].label}</span>
                   )}
                 </label>
               ) : (
-                <div className="flex flex-wrap gap-x-10 gap-y-4">
-                  <div className="min-w-0">
-                    {mode === "semanal" ? (
-                      <label className="block">
-                        <span className={labelClass}>Empieza el</span>
-                        <input
-                          type="date"
-                          value={plan.starts_on}
-                          onChange={(e) => setWeekStart(e.target.value)}
-                          className={`${fieldClass} mt-1 w-auto`}
-                        />
-                      </label>
-                    ) : (
-                      <>
-                        <p className={labelClass}>Desde y hasta</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <input
-                            type="date"
-                            aria-label="Desde"
-                            value={plan.starts_on}
-                            onChange={(e) => setPlan((p) => ({ ...p, starts_on: e.target.value }))}
-                            className={`${fieldClass} w-auto`}
-                          />
-                          <span aria-hidden="true" className="text-muted">
-                            →
-                          </span>
-                          <input
-                            type="date"
-                            aria-label="Hasta"
-                            value={plan.ends_on}
-                            min={plan.starts_on}
-                            onChange={(e) => setPlan((p) => ({ ...p, ends_on: e.target.value }))}
-                            className={`${fieldClass} w-auto`}
-                          />
-                        </div>
-                      </>
-                    )}
-                    {plan.starts_on && plan.ends_on && plan.ends_on >= plan.starts_on && (
-                      <p className="mt-1 text-sm text-muted">
-                        {mode === "semanal"
-                          ? `Hasta el ${formatDate(plan.ends_on)}.`
-                          : `${Math.ceil((daysBetween(plan.starts_on, plan.ends_on) + 1) / 7)} semanas: las sesiones se repiten cada semana.`}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className={labelClass}>Días con sesión</p>
-                    <ul className="mt-1 flex gap-1" aria-label="Días con sesión">
-                      {DAY_LETTERS.map((l, i) => {
-                        const on = daysUsed.has(i + 1);
-                        return (
-                          <li
-                            key={l}
-                            className={`flex size-10 items-center justify-center rounded-xl text-sm font-semibold ${
-                              on ? "bg-brand text-ink" : "border border-line bg-card text-muted"
-                            }`}
-                          >
-                            <span aria-hidden="true">{l}</span>
-                            <span className="sr-only">
-                              {WEEKDAYS[i].label}: {on ? "con sesión" : "sin sesión"}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                    <p className="mt-1 text-xs text-muted">Se marcan al agregar sesiones abajo.</p>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* Sesiones */}
-            <section className="rounded-xl border border-line bg-card">
-              {mode === "diaria" ? (
-                <h2 className="border-b border-line px-4 py-3 font-semibold text-ink lg:px-5">Entrenamiento</h2>
-              ) : (
-              <div role="tablist" aria-label="Sesiones" className="flex gap-1 overflow-x-auto border-b border-line p-2">
-                {plan.sessions.map((s, i) => {
-                  const on = s.key === session?.key;
-                  return (
-                    <button
-                      key={s.key}
-                      type="button"
-                      role="tab"
-                      aria-selected={on}
-                      onClick={() => setActive(i)}
-                      className={`min-h-11 shrink-0 rounded-xl px-3 text-sm font-medium whitespace-nowrap ${
-                        on ? "bg-ink text-white" : "bg-mist text-ink hover:bg-line/60"
-                      }`}
-                    >
-                      {s.label || "Sesión"} · <span className="lg:hidden">{WEEKDAYS[s.weekday - 1].short}</span>
-                      <span className="hidden lg:inline">{WEEKDAYS[s.weekday - 1].label}</span>
-                    </button>
-                  );
-                })}
-                {plan.sessions.length < GYM_LIMITS.sessionsMax && (
-                  <button
-                    type="button"
-                    onClick={addSession}
-                    className="min-h-11 shrink-0 rounded-xl border border-dashed border-muted/60 px-3 text-sm font-medium text-brand-text"
-                  >
-                    + Sesión
-                  </button>
-                )}
-              </div>
-              )}
-
-              {session ? (
-                <div className="space-y-4 p-4 lg:p-5">
-                  {mode === "diaria" ? (
-                    <label className="block w-44">
-                      <span className="text-xs font-medium text-muted">Duración estimada (min)</span>
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block min-w-0">
+                      <span className={labelClass}>Desde</span>
                       <input
-                        type="number"
-                        inputMode="numeric"
-                        min={GYM_LIMITS.minutesMin}
-                        max={GYM_LIMITS.minutesMax}
-                        value={session.est_minutes}
-                        onChange={(e) => updateSession(session.key, { est_minutes: Number(e.target.value) || 0 })}
-                        className={smallField}
+                        type="date"
+                        value={plan.starts_on}
+                        onChange={(e) =>
+                          mode === "semanal" ? setWeekStart(e.target.value) : setPlan((p) => ({ ...p, starts_on: e.target.value }))
+                        }
+                        className={`${fieldClass} mt-1 min-w-0 px-2`}
                       />
                     </label>
-                  ) : (
-                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(0,1fr)_10rem_9rem_auto] xl:items-end">
-                    <label className="col-span-2 block xl:col-span-1">
+                    <label className="block min-w-0">
+                      <span className={labelClass}>Hasta</span>
+                      <input
+                        type="date"
+                        value={plan.ends_on}
+                        min={plan.starts_on}
+                        disabled={mode === "semanal"}
+                        onChange={(e) => setPlan((p) => ({ ...p, ends_on: e.target.value }))}
+                        className={`${fieldClass} mt-1 min-w-0 px-2 disabled:bg-mist disabled:text-muted`}
+                      />
+                    </label>
+                  </div>
+                  {plan.starts_on && plan.ends_on && plan.ends_on >= plan.starts_on && (
+                    <p className="mt-2 text-sm text-muted">
+                      {mode === "semanal"
+                        ? `Hasta el ${formatDate(plan.ends_on)}.`
+                        : `${Math.ceil((daysBetween(plan.starts_on, plan.ends_on) + 1) / 7)} semanas: las sesiones se repiten cada semana.`}
+                    </p>
+                  )}
+                  <p className={`${labelClass} mt-3`}>Días con sesión</p>
+                  <ul className="mt-1 flex gap-1" aria-label="Días con sesión">
+                    {DAY_LETTERS.map((l, i) => {
+                      const on = daysUsed.has(i + 1);
+                      return (
+                        <li
+                          key={l}
+                          className={`flex size-10 items-center justify-center rounded-xl text-sm font-semibold ${
+                            on ? "bg-brand text-ink" : "border border-line bg-card text-muted"
+                          }`}
+                        >
+                          <span aria-hidden="true">{l}</span>
+                          <span className="sr-only">
+                            {WEEKDAYS[i].label}: {on ? "con sesión" : "sin sesión"}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <p className="mt-1 text-xs text-muted">Se marcan al agregar sesiones abajo.</p>
+                </>
+              )}
+            </Card>
+          </div>
+
+          {/* Entrenamiento: a todo el ancho */}
+          <Card flush as="section">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line px-4 py-2 lg:px-5">
+              <h2 className="font-sans text-base font-bold text-ink">Entrenamiento</h2>
+              {mode !== "diaria" && (
+                <>
+                  <div role="tablist" aria-label="Sesiones" className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-1">
+                    {plan.sessions.map((s, i) => {
+                      const on = s.key === session?.key;
+                      return (
+                        <button
+                          key={s.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={on}
+                          onClick={() => setActive(i)}
+                          className={`min-h-11 shrink-0 rounded-xl px-3 text-sm font-medium whitespace-nowrap ${
+                            on ? "bg-ink text-white" : "bg-mist text-ink hover:bg-line/60"
+                          }`}
+                        >
+                          {s.label || "Sesión"} · <span className="lg:hidden">{WEEKDAYS[s.weekday - 1].short}</span>
+                          <span className="hidden lg:inline">{WEEKDAYS[s.weekday - 1].label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {plan.sessions.length < GYM_LIMITS.sessionsMax && (
+                    <button
+                      type="button"
+                      onClick={addSession}
+                      className="min-h-11 shrink-0 rounded-xl border border-dashed border-muted/60 px-3 text-sm font-medium text-brand-text"
+                    >
+                      + Sesión
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {session ? (
+              <div className="@container space-y-4 p-4 lg:p-5">
+                {mode === "diaria" ? (
+                  <label className="block w-44">
+                    <span className="text-xs font-medium text-muted">Duración estimada (min)</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={GYM_LIMITS.minutesMin}
+                      max={GYM_LIMITS.minutesMax}
+                      value={session.est_minutes}
+                      onChange={(e) => updateSession(session.key, { est_minutes: Number(e.target.value) || 0 })}
+                      className={smallField}
+                    />
+                  </label>
+                ) : (
+                  <div className="grid grid-cols-2 items-end gap-3 lg:flex">
+                    <label className="col-span-2 block lg:min-w-0 lg:flex-1">
                       <span className="text-xs font-medium text-muted">Nombre</span>
                       <input
                         value={session.label}
@@ -737,7 +737,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                         className={smallField}
                       />
                     </label>
-                    <label className="block">
+                    <label className="block lg:w-44">
                       <span className="text-xs font-medium text-muted">Día</span>
                       <select
                         value={session.weekday}
@@ -751,7 +751,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                         ))}
                       </select>
                     </label>
-                    <label className="block">
+                    <label className="block lg:w-52">
                       <span className="text-xs font-medium text-muted">Duración estimada (min)</span>
                       <input
                         type="number"
@@ -769,263 +769,304 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                       </button>
                     )}
                   </div>
-                  )}
+                )}
 
-                  <datalist id="exercise-names">
-                    {data.exerciseNames.map((n) => (
-                      <option key={n} value={n} />
-                    ))}
-                  </datalist>
+                <datalist id="exercise-names">
+                  {data.exerciseNames.map((n) => (
+                    <option key={n} value={n} />
+                  ))}
+                </datalist>
 
-                  {/* Escritorio: tabla editable, por bloques */}
-                  <div className="hidden overflow-x-auto lg:block">
-                    <table className="w-full min-w-[56rem] text-left text-sm">
-                      <thead className="text-xs text-muted">
-                        <tr>
-                          <th className="w-10 py-2 font-medium">#</th>
-                          <th className="py-2 font-medium">Ejercicio</th>
-                          <th className="w-20 py-2 font-medium">Series</th>
-                          <th className="w-24 py-2 font-medium">Reps</th>
-                          <th className="w-72 py-2 font-medium">Intensidad</th>
-                          <th className="w-24 py-2 font-medium">Descanso</th>
-                          <th className="py-2 font-medium">Nota</th>
-                          <td className="w-24" />
-                        </tr>
-                      </thead>
-                      {runs.map((run) => (
-                        <tbody key={`${run.start}-${run.items[0].key}`} className="divide-y divide-line border-t border-line">
-                          {run.block !== null && (
-                            <tr>
-                              <td colSpan={8} className="bg-mist/60 px-2 py-2">
-                                <div className="sticky left-2 max-w-[40rem]">
-                                <BlockHeader
-                                  name={run.block}
-                                  onRename={(v) => renameBlock(session.key, run.start, run.items.length, v)}
-                                  onAdd={() => addExercise(session.key, { start: run.start, len: run.items.length })}
-                                  onRemove={() => removeBlock(session.key, run.start, run.items.length)}
-                                  canAdd={session.exercises.length < GYM_LIMITS.exercisesMax}
-                                />
-                                </div>
-                              </td>
-                            </tr>
-                          )}
+                {/* Escritorio: una fila por ejercicio (dos líneas si no cabe), por bloques */}
+                <div className="hidden space-y-3 lg:block">
+                  <div aria-hidden="true" className={`${ROW_COLS} hidden gap-x-2 pl-3 text-xs font-medium text-muted @[1060px]:grid`}>
+                    <span>#</span>
+                    <span>Ejercicio</span>
+                    <span>Series</span>
+                    <span>Reps</span>
+                    <span>Intensidad</span>
+                    <span>Valor</span>
+                    <span>Test de referencia</span>
+                    <span>Descanso</span>
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  {runs.map((run, ri) => {
+                    const blockNo = runs.slice(0, ri + 1).filter((r) => r.block !== null).length;
+                    return (
+                      <div key={`${run.start}-${run.items[0].key}`} className="overflow-hidden rounded-xl border border-line">
+                        {run.block !== null && (
+                          <BlockHeader
+                            label={`Bloque ${blockNo}`}
+                            className="border-b border-line bg-mist/60 px-3"
+                            name={run.block}
+                            onRename={(v) => renameBlock(session.key, run.start, run.items.length, v)}
+                            onAdd={() => addExercise(session.key, { start: run.start, len: run.items.length })}
+                            onRemove={() => removeBlock(session.key, run.start, run.items.length)}
+                            canAdd={session.exercises.length < GYM_LIMITS.exercisesMax}
+                          />
+                        )}
+                        <div className="divide-y divide-line">
                           {run.items.map((e, k) => {
                             const i = run.start + k;
                             const inSet = sameSuperset(session.exercises[i - 1], e) || sameSuperset(e, session.exercises[i + 1]);
                             const canLink = k < run.items.length - 1;
                             const linked = sameSuperset(e, session.exercises[i + 1]);
+                            const noteShown = !!e.note || notesOpen.has(e.key);
                             return (
-                              <tr key={e.key} className="align-top">
-                                <td className={`py-2 pt-4 pl-2 font-semibold tabular-nums ${inSet ? "text-brand-text shadow-[inset_3px_0_0_var(--color-brand)]" : "text-muted"}`}>
-                                  {codes[i]}
-                                </td>
-                                <td className="py-2 pr-2">
-                                  <input
-                                    aria-label={`Ejercicio ${codes[i]}`}
-                                    list="exercise-names"
-                                    value={e.name}
-                                    maxLength={GYM_LIMITS.exerciseMax}
-                                    placeholder="Ej.: Sentadilla trasera"
-                                    onChange={(ev) => updateExercise(session.key, e.key, { name: ev.target.value })}
-                                    className={smallField}
-                                  />
-                                </td>
-                                <td className="py-2 pr-2">
-                                  <input
-                                    aria-label="Series"
-                                    type="number"
-                                    min={GYM_LIMITS.setsMin}
-                                    max={GYM_LIMITS.setsMax}
-                                    value={e.sets}
-                                    onChange={(ev) => updateExercise(session.key, e.key, { sets: Number(ev.target.value) || 1 })}
-                                    className={smallField}
-                                  />
-                                </td>
-                                <td className="py-2 pr-2">
-                                  {e.intensity_type === "tiempo" ? (
-                                    <p className="pt-2.5 text-xs text-muted">Por tiempo</p>
-                                  ) : (
-                                    <input
-                                      aria-label="Repeticiones"
-                                      value={e.reps}
-                                      maxLength={GYM_LIMITS.repsMax}
-                                      placeholder="5, máx"
-                                      onChange={(ev) => updateExercise(session.key, e.key, { reps: ev.target.value })}
-                                      className={smallField}
-                                    />
-                                  )}
-                                </td>
-                                <td className="py-2 pr-2">
-                                  <IntensityFields
-                                    exercise={e}
-                                    tests={data.tests}
-                                    onType={(t) => setIntensity(session.key, e, t)}
-                                    onChange={(patch) => updateExercise(session.key, e.key, patch)}
-                                  />
-                                </td>
-                                <td className="py-2 pr-2">
-                                  <TimeInput
-                                    label="Descanso (m:ss)"
-                                    placeholder="1:30"
-                                    value={e.rest_seconds}
-                                    parse={parseRest}
-                                    onChange={(v) => updateExercise(session.key, e.key, { rest_seconds: v })}
-                                  />
-                                </td>
-                                <td className="py-2 pr-2">
-                                  <input
-                                    aria-label="Nota"
-                                    value={e.note}
-                                    maxLength={GYM_LIMITS.noteMax}
-                                    onChange={(ev) => updateExercise(session.key, e.key, { note: ev.target.value })}
-                                    className={smallField}
-                                  />
-                                </td>
-                                <td className="py-2">
-                                  <div className="flex">
-                                    {canLink && (
-                                      <button
-                                        type="button"
-                                        aria-pressed={linked}
-                                        title={linked ? "Separar de la superserie" : "Hacer superserie con el siguiente"}
-                                        aria-label={linked ? `Separar ${codes[i]} y ${codes[i + 1]}` : `Superserie de ${codes[i]} con el siguiente`}
-                                        onClick={() => toggleSuperset(session.key, i)}
-                                        className={`flex size-11 items-center justify-center rounded-xl hover:bg-mist ${linked ? "text-brand-text" : "text-muted"}`}
-                                      >
-                                        {linked ? <Unlink2 aria-hidden="true" className="size-4" /> : <Link2 aria-hidden="true" className="size-4" />}
-                                      </button>
-                                    )}
-                                    <button
-                                      type="button"
-                                      aria-label={`Quitar ${e.name || `ejercicio ${codes[i]}`}`}
-                                      onClick={() => removeExercise(session.key, e.key)}
-                                      className="ml-auto flex size-11 items-center justify-center rounded-xl text-muted hover:bg-mist hover:text-danger"
-                                    >
-                                      <Trash2 aria-hidden="true" className="size-4" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      ))}
-                    </table>
-                  </div>
-
-                  {/* Celular: tarjetas por ejercicio, por bloques */}
-                  <div className="space-y-4 lg:hidden">
-                    {runs.map((run) => (
-                      <div key={`${run.start}-${run.items[0].key}`} className="space-y-2">
-                        {run.block !== null && (
-                          <BlockHeader
-                            name={run.block}
-                            onRename={(v) => renameBlock(session.key, run.start, run.items.length, v)}
-                            onAdd={() => setSheet(addExercise(session.key, { start: run.start, len: run.items.length }))}
-                            onRemove={() => removeBlock(session.key, run.start, run.items.length)}
-                            canAdd={session.exercises.length < GYM_LIMITS.exercisesMax}
-                          />
-                        )}
-                        <ul className="space-y-2">
-                          {run.items.map((e, k) => {
-                            const i = run.start + k;
-                            const withPrev = sameSuperset(session.exercises[i - 1], e);
-                            const withNext = sameSuperset(e, session.exercises[i + 1]);
-                            return (
-                              <li key={e.key} className={withPrev ? "-mt-2" : undefined}>
-                                <button
-                                  type="button"
-                                  onClick={() => setSheet(e.key)}
-                                  className={`flex w-full items-center gap-3 border px-3.5 py-3 text-left ${
-                                    withPrev || withNext ? "border-brand-line bg-brand-wash" : "border-line"
-                                  } ${withPrev ? "rounded-b-2xl border-t-0" : "rounded-t-2xl"} ${withNext ? "" : "rounded-b-2xl"}`}
-                                >
-                                  <span
-                                    className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-xl px-1 text-xs font-semibold ${
-                                      withPrev || withNext ? "bg-brand text-brand-night" : "bg-mist text-ink"
-                                    }`}
-                                  >
+                              <div key={e.key} className="relative py-2 pr-2 pl-3 @[1060px]:py-1">
+                                {inSet && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-brand" />}
+                                <div className={`${ROW_COLS} items-end gap-x-2 gap-y-1 @[1060px]:items-center`}>
+                                  <span className={`flex min-h-11 items-center font-semibold tabular-nums ${inSet ? "text-brand-text" : "text-muted"}`}>
                                     {codes[i]}
                                   </span>
-                                  <span className="min-w-0 flex-1">
-                                    <span className="block font-semibold text-ink">{e.name.trim() || "Ejercicio sin nombre"}</span>
-                                    <span className="block text-sm text-muted">
-                                      {exerciseDose(e)} · {intensityLabel(e, e.test_id ? testName.get(e.test_id) : null)}
-                                      {e.rest_seconds !== null && ` · ${restLabel(e.rest_seconds)}`}
-                                    </span>
-                                  </span>
-                                  <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
-                                </button>
-                              </li>
+                                  <Cell label="Ejercicio">
+                                    <input
+                                      aria-label={`Ejercicio ${codes[i]}`}
+                                      list="exercise-names"
+                                      value={e.name}
+                                      maxLength={GYM_LIMITS.exerciseMax}
+                                      placeholder="Ej.: Sentadilla trasera"
+                                      onChange={(ev) => updateExercise(session.key, e.key, { name: ev.target.value })}
+                                      className={smallField}
+                                    />
+                                  </Cell>
+                                  <Cell label="Series">
+                                    <input
+                                      aria-label="Series"
+                                      type="number"
+                                      min={GYM_LIMITS.setsMin}
+                                      max={GYM_LIMITS.setsMax}
+                                      value={e.sets}
+                                      onChange={(ev) => updateExercise(session.key, e.key, { sets: Number(ev.target.value) || 1 })}
+                                      className={smallField}
+                                    />
+                                  </Cell>
+                                  <Cell label="Reps">
+                                    {e.intensity_type === "tiempo" ? (
+                                      <p className="flex min-h-11 items-center text-xs text-muted">Por tiempo</p>
+                                    ) : (
+                                      <input
+                                        aria-label="Repeticiones"
+                                        value={e.reps}
+                                        maxLength={GYM_LIMITS.repsMax}
+                                        placeholder="5, máx"
+                                        onChange={(ev) => updateExercise(session.key, e.key, { reps: ev.target.value })}
+                                        className={smallField}
+                                      />
+                                    )}
+                                  </Cell>
+                                  <div className="col-start-2 -col-end-1 order-last flex flex-wrap items-end gap-2 @[1060px]:contents">
+                                    <Cell label="Intensidad" className="w-32 @[1060px]:w-auto">
+                                      <select
+                                        aria-label="Tipo de intensidad"
+                                        value={e.intensity_type}
+                                        onChange={(ev) => setIntensity(session.key, e, ev.target.value as IntensityType)}
+                                        className={smallField}
+                                      >
+                                        {INTENSITY_OPTIONS.map((o) => (
+                                          <option key={o.value} value={o.value} disabled={o.value === "pct" && data.tests.length === 0}>
+                                            {o.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </Cell>
+                                    <Cell label={VALUE_LABEL[e.intensity_type]} className="w-28 @[1060px]:w-auto">
+                                      {e.intensity_type !== "bw" && (
+                                        <IntensityValue exercise={e} onChange={(patch) => updateExercise(session.key, e.key, patch)} />
+                                      )}
+                                    </Cell>
+                                    <Cell label="Test de referencia" className="w-52 @[1060px]:w-auto">
+                                      {e.intensity_type === "pct" && (
+                                        <select
+                                          aria-label="Test de Evaluaciones"
+                                          value={e.test_id ?? ""}
+                                          onChange={(ev) => updateExercise(session.key, e.key, { test_id: ev.target.value || null })}
+                                          className={smallField}
+                                        >
+                                          {data.tests.map((t) => (
+                                            <option key={t.id} value={t.id}>
+                                              {t.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      )}
+                                    </Cell>
+                                  </div>
+                                  <Cell label="Descanso">
+                                    <TimeInput
+                                      label="Descanso (m:ss)"
+                                      placeholder="1:30"
+                                      value={e.rest_seconds}
+                                      parse={parseRest}
+                                      onChange={(v) => updateExercise(session.key, e.key, { rest_seconds: v })}
+                                    />
+                                  </Cell>
+                                  {canLink ? (
+                                    <button
+                                      type="button"
+                                      aria-pressed={linked}
+                                      title={linked ? "Separar de la superserie" : "Hacer superserie con el siguiente"}
+                                      aria-label={linked ? `Separar ${codes[i]} y ${codes[i + 1]}` : `Superserie de ${codes[i]} con el siguiente`}
+                                      onClick={() => toggleSuperset(session.key, i)}
+                                      className={`flex size-11 items-center justify-center rounded-xl hover:bg-mist ${linked ? "text-brand-text" : "text-muted"}`}
+                                    >
+                                      {linked ? <Unlink2 aria-hidden="true" className="size-4" /> : <Link2 aria-hidden="true" className="size-4" />}
+                                    </button>
+                                  ) : (
+                                    <span aria-hidden="true" />
+                                  )}
+                                  <button
+                                    type="button"
+                                    aria-pressed={noteShown}
+                                    title="Nota del ejercicio"
+                                    aria-label={`Nota de ${e.name || `ejercicio ${codes[i]}`}`}
+                                    onClick={() => !e.note && toggleNote(e.key)}
+                                    className={`flex size-11 items-center justify-center rounded-xl hover:bg-mist ${noteShown ? "text-brand-text" : "text-muted"}`}
+                                  >
+                                    <NotepadText aria-hidden="true" className="size-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label={`Quitar ${e.name || `ejercicio ${codes[i]}`}`}
+                                    onClick={() => removeExercise(session.key, e.key)}
+                                    className="flex size-11 items-center justify-center rounded-xl text-muted hover:bg-mist hover:text-danger"
+                                  >
+                                    <Trash2 aria-hidden="true" className="size-4" />
+                                  </button>
+                                  {noteShown && (
+                                    <div className="order-last col-span-full @[1060px]:order-none">
+                                      <input
+                                        aria-label="Nota"
+                                        placeholder="Nota para el jugador"
+                                        value={e.note}
+                                        maxLength={GYM_LIMITS.noteMax}
+                                        onChange={(ev) => updateExercise(session.key, e.key, { note: ev.target.value })}
+                                        className={smallField}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             );
                           })}
-                        </ul>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-
-                  {session.exercises.length < GYM_LIMITS.exercisesMax && (
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const key = addExercise(session.key);
-                          if (window.matchMedia("(max-width: 1023px)").matches) setSheet(key);
-                        }}
-                        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-muted/60 text-sm font-semibold text-brand-text sm:w-auto sm:px-4"
-                      >
-                        + Agregar ejercicio
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const key = addBlock(session.key);
-                          if (window.matchMedia("(max-width: 1023px)").matches) setSheet(key);
-                        }}
-                        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-muted/60 text-sm font-semibold text-brand-text sm:w-auto sm:px-4"
-                      >
-                        + Bloque
-                      </button>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted">
-                    Bloques: agrupan ejercicios (ej.: Calentamiento, Principal). Superserie: con{" "}
-                    <Link2 aria-label="el ícono de cadena" className="inline size-3.5 align-[-2px]" /> unes un ejercicio con el
-                    siguiente para hacerlos seguidos (A1, A2).
-                  </p>
+                    );
+                  })}
                 </div>
-              ) : (
-                <p className="p-5 text-sm text-muted">Agrega una sesión para empezar.</p>
-              )}
-            </section>
-          </div>
 
-          {/* Panel derecho: vista previa, lesionados y avisos */}
-          <aside className="space-y-4">
-            <section className="hidden space-y-3 rounded-xl border border-line bg-card p-4 lg:block">
-              <div>
-                <p className="text-xs font-semibold tracking-wide text-muted uppercase">Vista previa</p>
-                {previewPlayer ? (
-                  <label className="mt-1 flex items-center gap-2 text-sm text-ink">
-                    Así lo ve
-                    <select
-                      value={previewPlayer.id}
-                      onChange={(e) => setPreviewId(e.target.value)}
-                      className="min-h-11 flex-1 rounded-xl border border-line bg-white px-2 text-sm font-semibold"
+                {/* Celular: tarjetas por ejercicio, por bloques */}
+                <div className="space-y-4 lg:hidden">
+                  {runs.map((run) => (
+                    <div key={`${run.start}-${run.items[0].key}`} className="space-y-2">
+                      {run.block !== null && (
+                        <BlockHeader
+                          name={run.block}
+                          onRename={(v) => renameBlock(session.key, run.start, run.items.length, v)}
+                          onAdd={() => setSheet(addExercise(session.key, { start: run.start, len: run.items.length }))}
+                          onRemove={() => removeBlock(session.key, run.start, run.items.length)}
+                          canAdd={session.exercises.length < GYM_LIMITS.exercisesMax}
+                        />
+                      )}
+                      <ul className="space-y-2">
+                        {run.items.map((e, k) => {
+                          const i = run.start + k;
+                          const withPrev = sameSuperset(session.exercises[i - 1], e);
+                          const withNext = sameSuperset(e, session.exercises[i + 1]);
+                          return (
+                            <li key={e.key} className={withPrev ? "-mt-2" : undefined}>
+                              <button
+                                type="button"
+                                onClick={() => setSheet(e.key)}
+                                className={`flex w-full items-center gap-3 border px-3.5 py-3 text-left ${
+                                  withPrev || withNext ? "border-brand-line bg-brand-wash" : "border-line"
+                                } ${withPrev ? "rounded-b-xl border-t-0" : "rounded-t-xl"} ${withNext ? "" : "rounded-b-xl"}`}
+                              >
+                                <span
+                                  className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-xl px-1 text-xs font-semibold ${
+                                    withPrev || withNext ? "bg-brand text-brand-night" : "bg-mist text-ink"
+                                  }`}
+                                >
+                                  {codes[i]}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="block font-semibold text-ink">{e.name.trim() || "Ejercicio sin nombre"}</span>
+                                  <span className="block text-sm text-muted">
+                                    {exerciseDose(e)} · {intensityLabel(e, e.test_id ? testName.get(e.test_id) : null)}
+                                    {e.rest_seconds !== null && ` · ${restLabel(e.rest_seconds)}`}
+                                  </span>
+                                </span>
+                                <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+
+                {session.exercises.length < GYM_LIMITS.exercisesMax && (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const key = addExercise(session.key);
+                        if (window.matchMedia("(max-width: 1023px)").matches) setSheet(key);
+                      }}
+                      className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-muted/60 text-sm font-semibold text-brand-text sm:w-auto sm:px-4"
                     >
-                      {recipients.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : (
-                  <p className="mt-1 text-sm text-muted">Elige a quién va el plan para ver cómo lo ve un jugador.</p>
+                      + Agregar ejercicio
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const key = addBlock(session.key);
+                        if (window.matchMedia("(max-width: 1023px)").matches) setSheet(key);
+                      }}
+                      className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-muted/60 text-sm font-semibold text-brand-text sm:w-auto sm:px-4"
+                    >
+                      + Bloque
+                    </button>
+                  </div>
                 )}
+                <p className="text-xs text-muted">
+                  Bloques: agrupan ejercicios (ej.: Calentamiento, Principal). Superserie: con{" "}
+                  <Link2 aria-label="el ícono de cadena" className="inline size-3.5 align-[-2px]" /> unes un ejercicio con el
+                  siguiente para hacerlos seguidos (A1, A2).
+                </p>
               </div>
+            ) : (
+              <p className="p-5 text-sm text-muted">Agrega una sesión para empezar.</p>
+            )}
+          </Card>
+
+          {/* Fila inferior: vista previa y lesionados */}
+          <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr] lg:items-start">
+            <Card>
+              <CardHeader title="Vista previa" />
+              {previewPlayer ? (
+                <label className="flex items-center gap-2 text-sm text-ink">
+                  Así lo ve
+                  <select
+                    value={previewPlayer.id}
+                    onChange={(e) => setPreviewId(e.target.value)}
+                    className="min-h-11 min-w-0 flex-1 rounded-xl border border-line bg-white px-2 text-sm font-semibold"
+                  >
+                    {recipients.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="text-sm text-muted">Elige a quién va el plan para ver cómo lo ve un jugador.</p>
+              )}
               {previewPlayer && session && (
-                <ul className="divide-y divide-line">
+                <ul className="mt-2 divide-y divide-line">
                   {session.exercises.map((e, i) => {
                     const v = preview(e);
                     return (
@@ -1043,75 +1084,76 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                   })}
                 </ul>
               )}
-              <p className="text-xs text-muted">Kilos calculados con sus máximos de Evaluaciones, redondeados a 2,5 kg.</p>
-            </section>
+              <p className="mt-2 text-xs text-muted">Kilos calculados con sus máximos de Evaluaciones, redondeados a 2,5 kg.</p>
+            </Card>
 
-            <section className="space-y-3 rounded-xl border border-line bg-card p-4">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="font-semibold text-ink">Lesionados ({injured.length})</p>
+            <div className="space-y-4">
+              <Card className="space-y-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="font-sans text-base font-bold text-ink">Lesionados ({injured.length})</h2>
+                  <p className="text-sm text-muted">
+                    Reciben el plan: {recipients.length} de {targeted.length}
+                  </p>
+                </div>
                 <p className="text-sm text-muted">
-                  Reciben el plan: {recipients.length} de {targeted.length}
+                  {injured.length === 0
+                    ? "Ningún destinatario está lesionado."
+                    : injuredOut === 0
+                      ? "Por defecto, los lesionados también reciben el plan."
+                      : injuredOut === injured.length
+                        ? "Ningún lesionado verá este plan."
+                        : `${injuredOut} ${injuredOut === 1 ? "lesionado no verá" : "lesionados no verán"} este plan; el resto sí.`}
                 </p>
-              </div>
-              <p className="text-sm text-muted">
-                {injured.length === 0
-                  ? "Ningún destinatario está lesionado."
-                  : injuredOut === 0
-                    ? "Por defecto, los lesionados también reciben el plan."
-                    : injuredOut === injured.length
-                      ? "Ningún lesionado verá este plan."
-                      : `${injuredOut} ${injuredOut === 1 ? "lesionado no verá" : "lesionados no verán"} este plan; el resto sí.`}
-              </p>
-              {injured.length > 0 && (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      aria-pressed={injuredOut === injured.length}
-                      onClick={discardAll}
-                      className={chip(injuredOut === injured.length)}
-                    >
-                      Descartar a todos
-                    </button>
-                    <button
-                      type="button"
-                      aria-expanded={showDiscard}
-                      onClick={() => setShowDiscard((v) => !v)}
-                      className={chip(showDiscard)}
-                    >
-                      Descartar a…
-                    </button>
-                  </div>
-                  {showDiscard && (
-                    <div className="space-y-1 rounded-xl bg-mist p-2">
-                      {injured.map((p) => (
-                        <CheckRow
-                          key={p.id}
-                          checked={excluded.has(p.id)}
-                          onToggle={() => toggleExcluded(p.id)}
-                          label={p.name}
-                          detail={p.injury ?? "Lesionado"}
-                        />
-                      ))}
+                {injured.length > 0 && (
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        aria-pressed={injuredOut === injured.length}
+                        onClick={discardAll}
+                        className={chip(injuredOut === injured.length)}
+                      >
+                        Descartar a todos
+                      </button>
+                      <button
+                        type="button"
+                        aria-expanded={showDiscard}
+                        onClick={() => setShowDiscard((v) => !v)}
+                        className={chip(showDiscard)}
+                      >
+                        Descartar a…
+                      </button>
                     </div>
-                  )}
-                </>
-              )}
-            </section>
+                    {showDiscard && (
+                      <div className="space-y-1 rounded-xl bg-mist p-2">
+                        {injured.map((p) => (
+                          <CheckRow
+                            key={p.id}
+                            checked={excluded.has(p.id)}
+                            onToggle={() => toggleExcluded(p.id)}
+                            label={p.name}
+                            detail={p.injury ?? "Lesionado"}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </Card>
 
-            {missing.map((m) => (
-              <p
-                key={m.test}
-                className="flex items-start gap-2 rounded-xl border border-alerta/40 bg-alerta-soft px-4 py-3 text-sm text-alerta-fg"
-              >
-                <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  {m.n} sin test de {m.test}: verán &quot;{m.pct} % de tu máximo&quot; sin kilos.
-                </span>
-              </p>
-            ))}
-
-          </aside>
+              {missing.map((m) => (
+                <p
+                  key={m.test}
+                  className="flex items-start gap-2 rounded-xl border border-alerta/40 bg-alerta-soft px-4 py-3 text-sm text-alerta-fg"
+                >
+                  <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  <span>
+                    {m.n} sin test de {m.test}: verán &quot;{m.pct} % de tu máximo&quot; sin kilos.
+                  </span>
+                </p>
+              ))}
+            </div>
+          </div>
         </div>
       </fieldset>
 
@@ -1225,19 +1267,24 @@ function okText(ok: string) {
 // Encabezado de un bloque: nombre editable, agregar ejercicio al bloque y quitarlo.
 function BlockHeader({
   name,
+  label,
+  className = "",
   onRename,
   onAdd,
   onRemove,
   canAdd,
 }: {
   name: string;
+  label?: string;
+  className?: string;
   onRename: (v: string) => void;
   onAdd: () => void;
   onRemove: () => void;
   canAdd: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-2 ${className}`}>
+      {label && <span className="shrink-0 text-13 font-semibold text-muted">{label}</span>}
       <input
         aria-label="Nombre del bloque"
         value={name}
@@ -1334,92 +1381,69 @@ function TimeInput({
   );
 }
 
-function IntensityFields({
-  exercise: e,
-  tests,
-  onType,
-  onChange,
-}: {
-  exercise: DraftExercise;
-  tests: EditorData["tests"];
-  onType: (t: IntensityType) => void;
-  onChange: (patch: Partial<DraftExercise>) => void;
-}) {
+// Celda de la fila de ejercicio: en una línea la etiqueta va en el encabezado; en dos líneas va encima.
+function Cell({ label, className = "", children }: { label: string; className?: string; children?: ReactNode }) {
+  if (!children) return <div aria-hidden="true" className="hidden @[1060px]:block" />;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      <select
-        aria-label="Tipo de intensidad"
-        value={e.intensity_type}
-        onChange={(ev) => onType(ev.target.value as IntensityType)}
-        className={`${smallField} w-28`}
-      >
-        {INTENSITY_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value} disabled={o.value === "pct" && tests.length === 0}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      {e.intensity_type === "pct" && (
-        <>
-          <input
-            aria-label="Porcentaje del máximo"
-            type="number"
-            min={GYM_LIMITS.pctMin}
-            max={GYM_LIMITS.pctMax}
-            step={GYM_LIMITS.pctStep}
-            value={e.pct ?? ""}
-            onChange={(ev) => onChange({ pct: Number(ev.target.value) || null })}
-            className={`${smallField} w-16`}
-          />
-          <select
-            aria-label="Test de Evaluaciones"
-            value={e.test_id ?? ""}
-            onChange={(ev) => onChange({ test_id: ev.target.value || null })}
-            className={`${smallField} w-36 flex-1`}
-          >
-            {tests.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </>
-      )}
-      {e.intensity_type === "rpe" && (
-        <input
-          aria-label="Esfuerzo objetivo de 1 a 10"
-          type="number"
-          min={GYM_LIMITS.rpeMin}
-          max={GYM_LIMITS.rpeMax}
-          value={e.rpe ?? ""}
-          onChange={(ev) => onChange({ rpe: Number(ev.target.value) || null })}
-          className={`${smallField} w-16`}
-        />
-      )}
-      {e.intensity_type === "tiempo" && (
-        <div className="w-24">
-          <TimeInput
-            label="Tiempo por serie (m:ss)"
-            placeholder="1:00"
-            value={e.seconds}
-            parse={parseDuration}
-            onChange={(v) => onChange({ seconds: v })}
-          />
-        </div>
-      )}
-      {e.intensity_type === "kg" && (
-        <input
-          aria-label="Kilos"
-          type="number"
-          min={0.5}
-          step={0.5}
-          value={e.kg ?? ""}
-          onChange={(ev) => onChange({ kg: Number(ev.target.value) || null })}
-          className={`${smallField} w-20`}
-        />
-      )}
+    <div className={`min-w-0 ${className}`}>
+      <span aria-hidden="true" className="mb-0.5 block text-xs text-muted @[1060px]:hidden">
+        {label}
+      </span>
+      {children}
     </div>
   );
+}
+
+// Valor de la intensidad según su tipo: % del máximo, esfuerzo, kilos o tiempo (vacío si es corporal).
+function IntensityValue({ exercise: e, onChange }: { exercise: DraftExercise; onChange: (patch: Partial<DraftExercise>) => void }) {
+  if (e.intensity_type === "pct")
+    return (
+      <input
+        aria-label="Porcentaje del máximo"
+        type="number"
+        min={GYM_LIMITS.pctMin}
+        max={GYM_LIMITS.pctMax}
+        step={GYM_LIMITS.pctStep}
+        value={e.pct ?? ""}
+        onChange={(ev) => onChange({ pct: Number(ev.target.value) || null })}
+        className={smallField}
+      />
+    );
+  if (e.intensity_type === "rpe")
+    return (
+      <input
+        aria-label="Esfuerzo objetivo de 1 a 10"
+        type="number"
+        min={GYM_LIMITS.rpeMin}
+        max={GYM_LIMITS.rpeMax}
+        value={e.rpe ?? ""}
+        onChange={(ev) => onChange({ rpe: Number(ev.target.value) || null })}
+        className={smallField}
+      />
+    );
+  if (e.intensity_type === "kg")
+    return (
+      <input
+        aria-label="Kilos"
+        type="number"
+        min={0.5}
+        step={0.5}
+        value={e.kg ?? ""}
+        onChange={(ev) => onChange({ kg: Number(ev.target.value) || null })}
+        className={smallField}
+      />
+    );
+  if (e.intensity_type === "tiempo")
+    return (
+      <TimeInput
+        label="Tiempo por serie (m:ss)"
+        placeholder="1:00"
+        value={e.seconds}
+        parse={parseDuration}
+        onChange={(v) => onChange({ seconds: v })}
+      />
+    );
+  return null;
 }
 
 // Hoja del celular para editar un ejercicio: series y reps (o tiempo) con +/−, intensidad
