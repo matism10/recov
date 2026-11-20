@@ -111,7 +111,10 @@ describe("índice: cada entrada apunta a algo que existe", () => {
 
   it("lo que solo se dibuja con datos tiene estado vacío", () => {
     // Secciones del índice que dependían de tener datos: ahora siempre se ven.
-    const dashboard = read(join(APP, "dashboard/page.tsx"));
+    // Los bloques del Resumen del staff viven en estos archivos.
+    const dashboard = ["dashboard/page.tsx", "dashboard/staff-blocks.tsx", "dashboard/zones-card.tsx"]
+      .map((f) => read(join(APP, f)))
+      .join("\n");
     assert.ok(dashboard.includes("No hay lesiones abiertas con zona registrada"), "Zonas lesionadas sin estado vacío");
     assert.ok(dashboard.includes("No hay lesiones por revisar."), "Por revisar sin estado vacío");
     assert.ok(dashboard.includes("No hay jugadores lesionados ni en reintegro."), "Lesiones activas sin estado vacío");

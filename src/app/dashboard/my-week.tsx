@@ -13,14 +13,14 @@ const LETTERS = ["L", "M", "X", "J", "V", "S", "D"];
 // "Mi semana": fila de 7 días (L a D) con G (gimnasio), E (entrenamiento) o P (partido);
 // "·" si no hay nada y las letras juntas si hay más de una. Hoy va en #082F49. Al tocar
 // un día se ve qué hay; un entrenamiento o partido abre la hoja de detalle del calendario.
-export function MyWeek({ data }: { data: WeekData }) {
+export function MyWeek({ data, className = "mb-8" }: { data: WeekData; className?: string }) {
   const [selected, setSelected] = useState(data.today);
   const [openEvent, setOpenEvent] = useState<EventSheetData | null>(null);
   const closeEvent = useCallback(() => setOpenEvent(null), []);
   const day = data.days.find((d) => d.date === selected) ?? data.days[0];
 
   return (
-    <section id="mi-semana" className="mb-8 scroll-mt-4" aria-labelledby="mi-semana-title">
+    <section id="mi-semana" className={`${className} scroll-mt-4`} aria-labelledby="mi-semana-title">
       <SectionTitle className="mb-3">
         <span id="mi-semana-title">Mi semana</span>
       </SectionTitle>

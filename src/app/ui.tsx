@@ -113,7 +113,7 @@ export function AvailabilityIcon({
 // Badge de estado: una sola forma (píldora rellena, text-xs, peso 500, sin
 // quiebre de línea) para disponibilidad y lesiones; cambia solo el color.
 // ---------------------------------------------------------------------------
-function StatusBadge({ className, children }: { className: string; children: ReactNode }) {
+export function StatusBadge({ className, children }: { className: string; children: ReactNode }) {
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${className}`}

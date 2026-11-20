@@ -1,27 +1,12 @@
 // Esqueleto del Resumen: título, tarjetas de métricas, próximo partido, Mi semana y listas.
 import { Block, Line, PageSkeleton, PersonRow, TitleSkeleton } from "@/app/skeleton";
 
-function StatCard() {
-  return (
-    <Block className="space-y-4 p-5">
-      <Line className="h-4 w-36" />
-      <Line className="h-10 w-14" />
-      <Line className="h-2 w-full rounded-full" />
-      <Line className="h-3 w-40" />
-    </Block>
-  );
-}
-
 export default function Loading() {
   return (
     <PageSkeleton label="el Resumen">
       <TitleSkeleton />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard />
-        <StatCard />
-        <Block className="hidden h-full min-h-48 lg:block" />
-      </div>
-      <Block className="mb-8 h-16" />
+      <Block className="mb-5 h-[188px] lg:mb-6 lg:h-[104px]" />
+      <Block className="mb-5 h-16 lg:mb-6" />
       {/* Mi semana: fila de 7 días */}
       <Line className="mb-3 h-6 w-28" />
       <Block className="mb-8 p-3">
