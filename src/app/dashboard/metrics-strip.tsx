@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import type { createClient } from "@/lib/supabase/server";
 import {
@@ -15,7 +14,8 @@ import { getAvatarUrls } from "@/lib/avatars";
 import { getAttendanceRanking } from "@/lib/attendance";
 import { AttendanceCard } from "@/app/attendance-ranking";
 import { DASHBOARD_METRICS, type DashboardMetric } from "@/lib/dashboard-metrics";
-import { AvailabilityChart, MetricsError, StatCard, metricCardClass, percentOf } from "@/app/metrics";
+import { AvailabilityChart, MetricsError, metricCardClass, percentOf } from "@/app/metrics";
+import { StatStrip } from "@/app/ui-blocks";
 import {
   InjuriesByPlaceBlock,
   InjuriesByPositionBlock,
@@ -23,26 +23,8 @@ import {
   RecurringPlayersBlock,
   UpcomingReturnsBlock,
 } from "@/app/metricas/blocks";
-import { buttonSecondary } from "@/app/ui";
-import { Block, Line } from "@/app/skeleton";
+import { Block } from "@/app/skeleton";
 import type { Format } from "@/lib/sevens";
-
-// Ancho de cada métrica en la grilla. Celular: una columna (tarjetas lado a lado
-// desde sm). Escritorio (4 columnas): tarjetas de 1, bloques de 2 y próximas altas
-// a lo ancho.
-const SPAN: Record<DashboardMetric, string> = {
-  total: "",
-  disponibles: "",
-  lesionados: "",
-  reintegro: "",
-  disponibilidad: "sm:col-span-2",
-  lesiones_semana: "sm:col-span-2",
-  lugar: "sm:col-span-2",
-  posicion: "sm:col-span-2",
-  recurrentes: "sm:col-span-2",
-  proximas_altas: "sm:col-span-2 lg:col-span-4",
-  asistencia: "sm:col-span-2",
-};
 
 type Client = Awaited<ReturnType<typeof createClient>>;
 
@@ -51,39 +33,26 @@ export function visibilityOf(m: DashboardMetric, desktop: DashboardMetric[], mob
   return desktop.includes(m) && mobile.includes(m) ? "" : desktop.includes(m) ? "hidden lg:block" : "lg:hidden";
 }
 
-const STAT_CARDS: DashboardMetric[] = ["total", "disponibles", "lesionados", "reintegro"];
+// Métricas con un número (van en la StatStrip) y métricas gráficas (cada una, su tarjeta).
+const STAT_METRICS: DashboardMetric[] = ["total", "disponibles", "lesionados", "reintegro"];
+export const isChartMetric = (m: DashboardMetric) => !STAT_METRICS.includes(m);
 
-// Esqueleto de la franja mientras llegan sus datos: la misma grilla, con un bloque por
-// métrica elegida (tarjeta o gráfico), para que la página no salte al llegar.
-export function MetricsStripSkeleton({
-  desktop,
-  mobile,
-}: {
-  desktop: DashboardMetric[];
-  mobile: DashboardMetric[];
-}) {
-  const metrics = DASHBOARD_METRICS.filter((m) => desktop.includes(m) || mobile.includes(m));
+// Esqueleto de la StatStrip mientras llegan sus datos.
+export function StatStripSkeleton() {
+  return <Block className="h-[188px] lg:h-[104px]" />;
+}
+
+// Esqueleto de las tarjetas gráficas: una por métrica elegida.
+export function ChartsSkeleton({ desktop, mobile }: { desktop: DashboardMetric[]; mobile: DashboardMetric[] }) {
+  const metrics = DASHBOARD_METRICS.filter((m) => isChartMetric(m) && (desktop.includes(m) || mobile.includes(m)));
   return (
-    <div aria-hidden="true" className={mobile.length > 0 ? "mb-8" : "lg:mb-8"}>
-      {metrics.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {metrics.map((m) => (
-            <div key={m} className={`min-w-0 *:h-full ${visibilityOf(m, desktop, mobile)} ${SPAN[m]}`}>
-              {STAT_CARDS.includes(m) ? (
-                <Block className="space-y-4 p-5">
-                  <Line className="h-4 w-36" />
-                  <Line className="h-10 w-14" />
-                  <Line className="h-2 w-full rounded-full" />
-                  <Line className="h-3 w-40" />
-                </Block>
-              ) : (
-                <Block className="min-h-56" />
-              )}
-            </div>
-          ))}
+    <>
+      {metrics.map((m) => (
+        <div key={m} className={visibilityOf(m, desktop, mobile)}>
+          <Block className="min-h-56" />
         </div>
-      )}
-    </div>
+      ))}
+    </>
   );
 }
 
@@ -156,97 +125,82 @@ export async function PlayerMetrics({
   if (!attendance) return null;
   return (
     <div className={`mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 ${visibilityOf("asistencia", desktop, mobile)}`}>
-      <div className={`min-w-0 *:h-full ${SPAN.asistencia}`}>
+      <div className={`min-w-0 *:h-full sm:col-span-2`}>
         <AttendanceCard result={attendance} />
       </div>
     </div>
   );
 }
 
-// Franja de métricas del Resumen, solo para el staff: las que eligió el head coach
-// para computador (desde lg) y para celular (hasta lg), o las de siempre. Quien la
-// monta decide si el usuario es staff y le pasa los datos ya pedidos
-// (loadMetricsStrip); las funciones lo validan de nuevo.
-export async function MetricsStrip({
+type Loaded = Awaited<ReturnType<typeof loadMetricsStrip>>;
+
+// Números del Resumen del staff (StatStrip): Disponibles, Lesionados, En reintegro y, si
+// puede revisar lesiones, Por revisar. Respeta las métricas elegidas por la dirección para
+// computador (desde lg) y celular. "Total de jugadores" va como contexto de Disponibles.
+export async function StaffStatStrip({
+  data,
+  desktop,
+  mobile,
+  toReview,
+}: {
+  data: Promise<Loaded | null>;
+  desktop: DashboardMetric[];
+  mobile: DashboardMetric[];
+  // null: quien mira no revisa lesiones, no hay tarjeta "Por revisar".
+  toReview: number | null;
+}) {
+  const loaded = await data;
+  if (!loaded) return null;
+  const { summary } = loaded;
+  const build = (chosen: DashboardMetric[]) => {
+    if (!summary?.ok) return null;
+    const d = summary.data;
+    const items: { label: string; value: number | string; context?: string; tone: "disponible" | "lesionado" | "reintegro" | "alerta" }[] = [];
+    if (chosen.includes("disponibles"))
+      items.push({
+        label: "Disponibles",
+        value: `${percentOf(d.disponibles, d.total)}%`,
+        context: `${d.disponibles} de ${d.total}`,
+        tone: "disponible",
+      });
+    if (chosen.includes("lesionados")) items.push({ label: "Lesionados", value: d.lesionados, tone: "lesionado" });
+    if (chosen.includes("reintegro")) items.push({ label: "En reintegro", value: d.reintegro, tone: "reintegro" });
+    if (toReview !== null) items.push({ label: "Por revisar", value: toReview, tone: "alerta" });
+    return items;
+  };
+  const wanted = STAT_METRICS.some((m) => desktop.includes(m) || mobile.includes(m)) || toReview !== null;
+  if (!wanted) return null;
+  if (!summary?.ok && STAT_METRICS.some((m) => desktop.includes(m) || mobile.includes(m))) return <MetricsError />;
+  const dItems = build(desktop) ?? [];
+  const mItems = build(mobile) ?? [];
+  const same = JSON.stringify(dItems) === JSON.stringify(mItems);
+  if (same) return dItems.length > 0 ? <StatStrip items={dItems} /> : null;
+  return (
+    <>
+      {mItems.length > 0 && <div className="lg:hidden"><StatStrip items={mItems} /></div>}
+      {dItems.length > 0 && <div className="hidden lg:block"><StatStrip items={dItems} /></div>}
+    </>
+  );
+}
+
+// Tarjetas gráficas del Resumen del staff (una columna), cada una donde se eligió.
+export async function StaffMetricCharts({
   data,
   desktop,
   mobile,
 }: {
-  // null: no le toca la franja (quien la monta ya lo decidió con el perfil).
-  data: Promise<Awaited<ReturnType<typeof loadMetricsStrip>> | null>;
+  data: Promise<Loaded | null>;
   desktop: DashboardMetric[];
   mobile: DashboardMetric[];
 }) {
   const loaded = await data;
   if (!loaded) return null;
-  const {
-    metrics,
-    summary,
-    series,
-    byWeek,
-    byPlace,
-    byPosition,
-    recurring,
-    upcoming,
-    attendance,
-    status,
-    avatarUrls,
-  } = loaded;
-  const visibility = (m: DashboardMetric) => visibilityOf(m, desktop, mobile);
-
-  const card = (node: ReactNode) => (summary?.ok ? node : <MetricsError />);
-  const render: Record<DashboardMetric, () => ReactNode> = {
-    total: () =>
-      card(
-        summary?.ok && (
-          <StatCard label="Total de jugadores" value={summary.data.total} description="En el plantel" />
-        ),
-      ),
-    disponibles: () =>
-      card(
-        summary?.ok && (
-          <StatCard
-            label="Jugadores disponibles"
-            value={summary.data.disponibles}
-            tone="disponible"
-            description="Aptos para convocatoria"
-            percent={percentOf(summary.data.disponibles, summary.data.total)}
-          />
-        ),
-      ),
-    lesionados: () =>
-      card(
-        summary?.ok && (
-          <StatCard
-            label="Jugadores lesionados"
-            value={summary.data.lesionados}
-            tone="lesionado"
-            description="Sin alta médica"
-            percent={percentOf(summary.data.lesionados, summary.data.total)}
-          />
-        ),
-      ),
-    reintegro: () =>
-      card(
-        summary?.ok && (
-          <StatCard
-            label="En reintegro"
-            value={summary.data.reintegro}
-            tone="reintegro"
-            description="Readaptación en curso"
-            percent={percentOf(summary.data.reintegro, summary.data.total)}
-          />
-        ),
-      ),
+  const { metrics, series, byWeek, byPlace, byPosition, recurring, upcoming, attendance, status, avatarUrls } = loaded;
+  const render: Partial<Record<DashboardMetric, () => ReactNode>> = {
     disponibilidad: () => (
       <section className={metricCardClass}>
         {series?.ok ? (
-          <AvailabilityChart
-            heading="Disponibilidad en el tiempo"
-            weeks={series.data}
-            keys={["disponible", "lesionado"]}
-            height={140}
-          />
+          <AvailabilityChart heading="Disponibilidad en el tiempo" weeks={series.data} keys={["disponible", "lesionado"]} height={140} />
         ) : (
           <MetricsError />
         )}
@@ -255,31 +209,17 @@ export async function MetricsStrip({
     lesiones_semana: () => byWeek && <InjuriesByWeekBlock result={byWeek} />,
     lugar: () => byPlace && <InjuriesByPlaceBlock result={byPlace} />,
     posicion: () => byPosition && <InjuriesByPositionBlock result={byPosition} />,
-    recurrentes: () =>
-      recurring && (
-        <RecurringPlayersBlock result={recurring} status={status} avatarUrls={avatarUrls} />
-      ),
-    proximas_altas: () =>
-      upcoming && <UpcomingReturnsBlock result={upcoming} status={status} avatarUrls={avatarUrls} />,
+    recurrentes: () => recurring && <RecurringPlayersBlock result={recurring} status={status} avatarUrls={avatarUrls} />,
+    proximas_altas: () => upcoming && <UpcomingReturnsBlock result={upcoming} status={status} avatarUrls={avatarUrls} />,
     asistencia: () => attendance && <AttendanceCard result={attendance} />,
   };
-
   return (
-    <div className={mobile.length > 0 ? "mb-8" : "lg:mb-8"}>
-      {metrics.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {metrics.map((m) => (
-            <div key={m} className={`min-w-0 *:h-full ${visibility(m)} ${SPAN[m]}`}>
-              {render[m]()}
-            </div>
-          ))}
+    <>
+      {metrics.filter(isChartMetric).map((m) => (
+        <div key={m} className={`min-w-0 *:h-full ${visibilityOf(m, desktop, mobile)}`}>
+          {render[m]?.()}
         </div>
-      )}
-      <div className={`hidden lg:block ${desktop.length > 0 ? "mt-4" : ""}`}>
-        <Link href="/metricas" className={`text-sm ${buttonSecondary}`}>
-          Ver dashboard completo
-        </Link>
-      </div>
-    </div>
+      ))}
+    </>
   );
 }

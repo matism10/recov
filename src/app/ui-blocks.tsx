@@ -201,8 +201,10 @@ export function StatStrip({
   items: { label: string; value: ReactNode; context?: ReactNode; tone?: StatTone }[];
   className?: string;
 }) {
+  // Desde lg, una columna por número (hasta 4) para que no quede una celda vacía.
+  const lgCols = ["lg:grid-cols-1", "lg:grid-cols-1", "lg:grid-cols-2", "lg:grid-cols-3", "lg:grid-cols-4"][Math.min(items.length, 4)];
   return (
-    <dl className={`${cardClass} grid grid-cols-2 gap-px overflow-hidden bg-line lg:grid-cols-4 ${className}`}>
+    <dl className={`${cardClass} grid grid-cols-2 gap-px overflow-hidden bg-line ${lgCols} ${className}`}>
       {items.map((it) => (
         <div
           key={it.label}
