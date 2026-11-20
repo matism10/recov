@@ -111,7 +111,7 @@ export function ParticipationForm({
         </p>
       )}
 
-      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist">
+      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
         {entries.map((e) => {
           const d = drafts[e.playerId];
           const inputId = `min-${e.playerId}`;

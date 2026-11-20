@@ -19,9 +19,55 @@
   /* Neutros */
   --color-ink: #0e1b2c; /* texto y navegación */
   --color-muted: #5b6675; /* texto secundario */
-  --color-mist: #f7f8fa; /* tarjetas y filas */
+  --color-card: #fdfdfe; /* tarjeta única: se apoya en el fondo blanco con borde line */
+  --color-mist: #f7f8fa; /* hover de filas, celdas y fondos secundarios (ya no es tarjeta) */
   --color-surface-2: #e6ebf0; /* bloque destacado (encabezado del detalle de lesión) */
   --color-line: #e3e7ee; /* bordes */
+
+  /* Grises de texto y relleno que estaban escritos a mano (valor idéntico al de antes) */
+  --color-body: #475569; /* texto de apoyo sobre blanco (slate 600) */
+  --color-body-strong: #334155; /* texto de apoyo con más peso (slate 700) */
+  --color-body-soft: #3f5266; /* texto de apoyo de la página de inicio */
+  --color-placeholder: #64748b; /* placeholder del buscador (slate 500) */
+  --color-faint: #94a3b8; /* número vacío del selector de esfuerzo (slate 400) */
+  --color-line-strong: #cbd5e1; /* borde de casillas y tiradores (slate 300) */
+  --color-line-soft: #e2e8f0; /* separadores y botones circulares (slate 200) */
+  --color-fill-soft: #f1f5f9; /* chips, teclas y días vacíos (slate 100) */
+  --color-fill-faint: #f8fafc; /* campo del buscador (slate 50) */
+
+  /* Celestes de apoyo (el valor es el que ya se usaba) */
+  --color-brand-night: #082f49; /* texto e íconos sobre brand y botones oscuros (Sky 950) */
+  --color-brand-deep: #075985; /* texto de la etiqueta del buscador (Sky 800) */
+  --color-brand-wash: #f0f9ff; /* fondo de avisos y filas seleccionadas (Sky 50) */
+  --color-brand-line: #bae6fd; /* borde de selección y resaltado (Sky 200) */
+  --color-brand-mid: #7dd3fc; /* barras de cancha (Sky 300) */
+  --color-brand-press: #2bb2ee; /* hover de la tarjeta "Hoy toca gimnasio" */
+  --color-bar: #63bcf2; /* botón del jugador en la barra móvil */
+  --color-bar-line: #cde8f8; /* borde de la barra móvil y de Perfil */
+  --color-bar-hover: #f3f9fd; /* hover sobre blanco en la barra móvil */
+
+  /* "Cerrar sesión" y acciones destructivas suaves */
+  --color-signout: #e5484d; /* borde y foco */
+  --color-signout-bg: #fdecec; /* fondo */
+  --color-signout-fg: #c0302f; /* texto */
+  --color-signout-hover: #fbdcdc; /* hover */
+
+  /* Pausa o parón: azul índigo, distinto de la disponibilidad */
+  --color-paron-bg: #e0e7ff;
+  --color-paron-fg: #3730a3;
+  --color-paron-ink: #312e81;
+
+  /* Terceros y página de inicio */
+  --color-whatsapp: #25d366;
+  --color-whatsapp-hover: #1fba59;
+  --color-landing-line: #cbd9e6;
+  --color-landing-wash: #f5f9fc;
+  --color-landing-fill: #e3e8ed;
+  --color-landing-ink-hover: #12304a;
+  --color-landing-night: #04263d;
+  --color-landing-accent: #05445e;
+  --color-landing-error: #b42318;
+  --color-landing-sport-hover: #1a4468; /* hover de los botones de deporte */
 
   /* Estados de disponibilidad: fijos, nunca como color de marca */
   --color-disponible: #16a34a;
@@ -47,6 +93,14 @@
   /* Errores y acciones destructivas: token propio, separado de "lesionado" */
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
+
+  /* Escala tipográfica: 12 (text-xs), 13, 14 (text-sm), 15, 16 (text-base), 18 (text-lg),
+     24 (text-2xl), 30 (text-3xl) y 48 (text-5xl, solo para un número protagonista).
+     Mínimo 12 px. Se agregan solo los dos tamaños que Tailwind no trae. */
+  --text-13: 13px;
+  --text-13--line-height: 18px;
+  --text-15: 15px;
+  --text-15--line-height: 22px;
 
   /* Tipografía: Archivo semicondensada para títulos, cuerpo y wordmark */
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;

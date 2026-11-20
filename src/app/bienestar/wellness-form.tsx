@@ -66,7 +66,7 @@ export function WellnessForm({ initial }: { initial: WellnessReport | null }) {
                     setError(null);
                   }}
                   className={`h-11 rounded-xl border font-display text-base font-bold tabular-nums transition disabled:opacity-60 ${
-                    selected ? "border-brand bg-brand text-ink" : "border-line bg-mist text-ink hover:bg-white"
+                    selected ? "border-brand bg-brand text-ink" : "border-line bg-card text-ink hover:bg-mist"
                   }`}
                 >
                   {n}

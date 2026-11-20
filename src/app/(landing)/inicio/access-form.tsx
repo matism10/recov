@@ -6,7 +6,7 @@ import { requestAccess, type RequestState } from "./actions";
 import { FORM_ROLES, FORM_SPORTS, validateRequest, type Field } from "@/lib/landing/config";
 
 const input =
-  "mt-1 block min-h-11 w-full rounded-xl border border-[#CBD9E6] bg-white px-3 py-2 text-base text-[#0B1B2B] outline-none focus:border-[#0B1B2B] focus:ring-2 focus:ring-[#E8F6FE]";
+  "mt-1 block min-h-11 w-full rounded-xl border border-landing-line bg-white px-3 py-2 text-base text-ink outline-none focus:border-ink focus:ring-2 focus:ring-brand-soft";
 
 export function AccessForm() {
   const [state, action, pending] = useActionState<RequestState, FormData>(requestAccess, { status: "idle" });
@@ -15,21 +15,21 @@ export function AccessForm() {
 
   if (state.status === "ok") {
     return (
-      <div role="status" className="rounded-2xl bg-white p-6 text-[#0B1B2B]">
+      <div role="status" className="rounded-2xl bg-white p-6 text-ink">
         <p className="font-[family-name:var(--l-title)] text-xl font-extrabold tracking-tight">Recibimos tu solicitud.</p>
-        <p className="mt-2 text-[#3F5266]">Te respondemos por correo para contarte los próximos pasos.</p>
+        <p className="mt-2 text-body-soft">Te respondemos por correo para contarte los próximos pasos.</p>
       </div>
     );
   }
 
   const field = (id: Field, label: string, children: React.ReactNode) => (
     <div>
-      <label htmlFor={`f-${id}`} className="text-sm font-semibold text-[#0B1B2B]">
+      <label htmlFor={`f-${id}`} className="text-sm font-semibold text-ink">
         {label}
       </label>
       {children}
       {errors[id] && (
-        <p id={`e-${id}`} className="mt-1 text-sm text-[#B42318]">
+        <p id={`e-${id}`} className="mt-1 text-sm text-landing-error">
           {errors[id]}
         </p>
       )}
@@ -77,15 +77,15 @@ export function AccessForm() {
       </div>
       {field("name", "Tu nombre", <input id="f-name" name="name" required maxLength={120} autoComplete="name" className={input} {...aria("name")} />)}
       {field("email", "Correo", <input id="f-email" name="email" type="email" required maxLength={254} autoComplete="email" inputMode="email" className={input} {...aria("email")} />)}
-      {state.message && <p role="alert" className="text-sm text-[#B42318]">{state.message}</p>}
+      {state.message && <p role="alert" className="text-sm text-landing-error">{state.message}</p>}
       <button
         type="submit"
         disabled={pending}
-        className="min-h-12 w-full rounded-full bg-[#0B1B2B] px-6 font-bold text-white transition hover:bg-[#12304A] disabled:opacity-60"
+        className="min-h-12 w-full rounded-full bg-ink px-6 font-bold text-white transition hover:bg-landing-ink-hover disabled:opacity-60"
       >
         {pending ? "Enviando…" : "Pedir acceso anticipado"}
       </button>
-      <p className="text-xs text-[#3F5266]">
+      <p className="text-xs text-body-soft">
         5 datos y te respondemos por correo. Al enviar aceptas la{" "}
         <Link href="/privacidad" className="underline">Política de Privacidad</Link>.
       </p>

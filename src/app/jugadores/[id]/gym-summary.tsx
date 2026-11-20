@@ -56,7 +56,7 @@ export function GymSummary({ data }: { data: PlayerGymSummary | null }) {
                       w.assigned === 0
                         ? "bg-white text-muted"
                         : full
-                          ? "bg-[#0369A1] text-white"
+                          ? "bg-brand-text text-white"
                           : w.done > 0
                             ? "bg-brand-soft text-brand-text"
                             : "bg-line text-ink"

@@ -34,18 +34,18 @@ export const buttonDanger =
 // sesión" en rojo (borde #E5484D, fondo #FDECEC, texto #C0302F).
 const footerButton =
   "flex h-14 w-full items-center justify-center gap-2 rounded-2xl border text-base font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2";
-export const signOutButtonClass = `${footerButton} border-[#E5484D] bg-[#FDECEC] text-[#C0302F] hover:bg-[#FBDCDC] focus-visible:outline-[#E5484D]`;
+export const signOutButtonClass = `${footerButton} border-signout bg-signout-bg text-signout-fg hover:bg-signout-hover focus-visible:outline-signout`;
 // Acción destructiva con los colores de "Cerrar sesión", del tamaño de los demás botones
 // (p. ej. "Quita del staff": la persona pierde el acceso al plantel).
 export const buttonDangerSoft =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#E5484D] bg-[#FDECEC] px-4 py-2 font-medium text-[#C0302F] transition hover:bg-[#FBDCDC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5484D] disabled:opacity-60";
-export const profileButtonClass = `${footerButton} border-[#CDE8F8] bg-white text-[#0F1B33] hover:bg-[#F3F9FD] focus-visible:outline-brand-strong`;
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-signout bg-signout-bg px-4 py-2 font-medium text-signout-fg transition hover:bg-signout-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signout disabled:opacity-60";
+export const profileButtonClass = `${footerButton} border-bar-line bg-white text-ink hover:bg-bar-hover focus-visible:outline-brand-strong`;
 // Acciones secundarias con forma de texto (Cerrar sesión, Cancelar, Cambiar…).
 export const textButton =
   "inline-flex min-h-11 items-center text-sm text-muted underline disabled:opacity-60";
 export const linkClass = "font-medium text-brand-text underline";
 
-export const cardClass = "rounded-xl border border-line bg-mist";
+export const cardClass = "rounded-xl border border-line bg-card";
 // Chips de conteo y etiquetas de marca (no son estados).
 export const chipClass =
   "inline-flex items-center rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-text";

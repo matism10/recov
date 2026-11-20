@@ -31,12 +31,12 @@ export function WellnessDaysForm({ initial }: { initial: number[] }) {
     <div className="space-y-5">
       <fieldset>
         <legend className="mb-2 text-sm font-medium text-ink">Días del check</legend>
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist">
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
           {WEEKDAYS.map((d) => {
             const checked = days.has(d.iso);
             return (
               <li key={d.iso}>
-                <label className="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2 hover:bg-white">
+                <label className="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2 hover:bg-mist">
                   <input
                     type="checkbox"
                     checked={checked}

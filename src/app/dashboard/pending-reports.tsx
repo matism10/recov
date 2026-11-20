@@ -8,7 +8,7 @@ export function MyWellness({ last }: { last: { report_date: string; total: numbe
   return (
     <section>
       <SectionTitle className="mb-3">Mi bienestar</SectionTitle>
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-line bg-mist p-5">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-line bg-card p-5">
         {last ? (
           <>
             <span className="text-sm text-muted">Último: {dayLabel(last.report_date)}</span>

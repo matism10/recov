@@ -48,7 +48,7 @@ export function Sports() {
               key={s.id}
               aria-pressed={on}
               onClick={() => setSport(s.id)}
-              className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-5 font-bold transition ${on ? "bg-[#38BDF8] text-[#04263D]" : "bg-[#12304A] text-white hover:bg-[#1a4468]"}`}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-5 font-bold transition ${on ? "bg-brand text-landing-night" : "bg-landing-ink-hover text-white hover:bg-landing-sport-hover"}`}
             >
               <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{s.icon}</svg>
               {s.label}
@@ -74,14 +74,14 @@ function Replica({ kind }: { kind: PitchKind }) {
     ariaLabel: `${l.position}`, onClick: () => setSelected(l.position), x: l.x, y: l.y,
   }));
   return (
-    <BrowserFrame className="mt-6 text-[#0E1B2C]">
+    <BrowserFrame className="mt-6 text-ink">
       <div className="space-y-5 p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-[family-name:var(--l-title)] text-2xl font-extrabold tracking-tight">Plantel</p>
-            <p className="text-sm text-[#5B6675]">{positions.length * 7} jugadores</p>
+            <p className="text-sm text-muted">{positions.length * 7} jugadores</p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-[#5B6675]">
+          <div className="flex items-center gap-2 text-sm text-muted">
             Vista:
             <ViewToggle view="cancha" onChange={() => {}} />
           </div>
@@ -92,27 +92,27 @@ function Replica({ kind }: { kind: PitchKind }) {
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="font-[family-name:var(--l-title)] text-lg font-bold">{selected}</p>
-                <p className="text-sm text-[#5B6675]">{all.length} jugadores</p>
+                <p className="text-sm text-muted">{all.length} jugadores</p>
               </div>
               <label className="hidden min-h-11 cursor-pointer md:inline-flex items-center gap-2 text-sm font-medium">
-                <input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} className="size-5 accent-[#0284c7]" />
+                <input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} className="size-5 accent-brand-strong" />
                 Solo disponibles
               </label>
             </div>
             <ul className="space-y-2">
               {list.map((p) => (
-                <li key={p.name} className={`relative overflow-hidden rounded-xl bg-[#F7F8FA] ${p.mobile ? "" : "hidden md:block"}`}>
+                <li key={p.name} className={`relative overflow-hidden rounded-xl bg-mist ${p.mobile ? "" : "hidden md:block"}`}>
                   <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${STRIPE[p.status]}`} />
                   <div className="flex min-h-14 items-center gap-x-3 py-2 pr-3 pl-5 md:min-h-16 md:flex-wrap md:gap-x-4 md:gap-y-2 md:py-3 md:pr-4">
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       <Avatar name={p.name} size="md" />
                       <div className="min-w-0">
                         <p className="truncate text-[17px] leading-6 font-semibold">{p.name}</p>
-                        <p className="truncate text-sm text-[#5B6675]">{[p.position, p.phase].filter(Boolean).join(" · ")}</p>
+                        <p className="truncate text-sm text-muted">{[p.position, p.phase].filter(Boolean).join(" · ")}</p>
                       </div>
                     </div>
                     <AvailabilityBadge status={p.status} />
-                    <span className="hidden min-h-11 items-center text-sm font-medium whitespace-nowrap md:inline-flex text-[#0369a1] underline">Marcar lesión</span>
+                    <span className="hidden min-h-11 items-center text-sm font-medium whitespace-nowrap md:inline-flex text-brand-text underline">Marcar lesión</span>
                   </div>
                 </li>
               ))}

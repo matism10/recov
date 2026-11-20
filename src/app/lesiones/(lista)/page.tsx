@@ -135,10 +135,10 @@ export default async function InjuriesPage({
                   // Staff: jugador arriba y lesión debajo. Jugador: la lesión es el título.
                   const showPlayer = staff && player;
                   return (
-                    <li key={i.id} className="overflow-hidden rounded-xl bg-mist">
+                    <li key={i.id} className="overflow-hidden rounded-xl border border-line bg-card">
                       <Link
                         href={`/lesiones/${i.id}`}
-                        className="block min-h-11 space-y-2 px-5 py-4 transition hover:bg-white"
+                        className="block min-h-11 space-y-2 px-5 py-4 transition hover:bg-mist"
                       >
                         <div className="flex items-center gap-3">
                           {showPlayer && (

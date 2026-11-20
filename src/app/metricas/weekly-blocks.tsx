@@ -45,9 +45,9 @@ export function WeeklyLoadBlock({ weeks }: { weeks: TeamLoadWeek[] | null }) {
         formatValue={formatLoad}
         reference={current.prior_avg !== null ? { value: current.prior_avg, label: "Promedio 4 semanas anteriores" } : null}
         series={[
-          { key: "cancha", label: "Cancha", fill: "fill-[#7DD3FC]", swatch: "bg-[#7DD3FC]" },
-          { key: "gimnasio", label: "Gimnasio", fill: "fill-[#0369A1]", swatch: "bg-[#0369A1]" },
-          { key: "partido", label: "Partido", fill: "fill-[#F97316]", swatch: "bg-[#F97316]" },
+          { key: "cancha", label: "Cancha", fill: "fill-brand-mid", swatch: "bg-brand-mid" },
+          { key: "gimnasio", label: "Gimnasio", fill: "fill-brand-text", swatch: "bg-brand-text" },
+          { key: "partido", label: "Partido", fill: "fill-alerta", swatch: "bg-alerta" },
         ]}
         columns={weeks.map((w) => {
           const label = formatShortDate(w.week_start);

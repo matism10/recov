@@ -94,7 +94,7 @@ export function OwnDocuments({
           {documents.map((d) => {
             const docLocked = !canEdit || d.status !== "borrador";
             return (
-              <li key={d.id} className="space-y-1 rounded-xl bg-mist px-5 py-3">
+              <li key={d.id} className="space-y-1 rounded-xl border border-line bg-card px-5 py-3">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-ink">{d.file_name}</p>
@@ -135,7 +135,7 @@ export function OwnDocuments({
           })}
         </ul>
       ) : (
-        <p className="rounded-xl bg-mist p-5 text-sm text-muted">No hay documentos adjuntos.</p>
+        <p className="rounded-xl border border-line bg-card p-5 text-sm text-muted">No hay documentos adjuntos.</p>
       )}
 
       {!locked && documents.length < MAX_FILES && (

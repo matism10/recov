@@ -40,7 +40,7 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
   return (
     <div className={`space-y-4 p-5 ${cardClass}`}>
       {returnFlag && (
-        <div className="space-y-1 rounded-xl bg-[#F0F9FF] px-4 py-3">
+        <div className="space-y-1 rounded-xl bg-brand-wash px-4 py-3">
           <p className="text-sm font-semibold text-brand-text">
             <span className="rounded-full bg-brand-soft px-2.5 py-0.5">
               Vuelve tras {weeksText(returnFlag.weeks)} · {causeText(returnFlag.cause)}
@@ -118,7 +118,7 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
                     aria-hidden="true"
                     className={`flex w-full flex-col-reverse gap-px overflow-hidden rounded-md ${
                       current && data.high_load ? "ring-2 ring-alerta ring-offset-1" : ""
-                    } ${w.load === 0 ? "bg-[#cbd5e1]" : ""}`}
+                    } ${w.load === 0 ? "bg-line-strong" : ""}`}
                     style={{ height: h }}
                     title={`${formatLoad(w.load)}${w.estimated ? " (estimada)" : ""}`}
                   >
@@ -152,7 +152,7 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
         </ul>
       )}
       {gymShare !== null && (
-        <div className="rounded-xl bg-[#F0F9FF] px-4 py-3">
+        <div className="rounded-xl bg-brand-wash px-4 py-3">
           <p className="text-sm font-semibold text-brand-text">El gimnasio es el {gymShare} % de su carga</p>
           <p className="text-[13px] text-ink/80">En las últimas {weeks.length} semanas, contando cancha, gimnasio y partidos.</p>
         </div>

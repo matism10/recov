@@ -116,7 +116,7 @@ export default async function PlanesPage() {
               <h2 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
                 {PLAN_STATUS_LABEL[g.status]}s ({g.items.length})
               </h2>
-              <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist">
+              <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
                 {g.items.map((p) => {
                   const days = [...(daysByPlan.get(p.id) ?? [])].sort().map((d) => WEEKDAY_LABELS[d - 1]);
                   const prog = progressByPlan.get(p.id);
@@ -125,7 +125,7 @@ export default async function PlanesPage() {
                     <li key={p.id}>
                       <Link
                         href={`/planes/${p.id}`}
-                        className="flex items-center gap-4 px-5 py-4 transition hover:bg-white"
+                        className="flex items-center gap-4 px-5 py-4 transition hover:bg-mist"
                       >
                         <div className="min-w-0 flex-1 space-y-1">
                           <p className="flex flex-wrap items-center gap-2">

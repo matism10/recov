@@ -206,7 +206,7 @@ export function PermissionSwitches({
           <legend className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">
             {group.title}
           </legend>
-          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-white">
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
             {group.items.map(({ key, label }) => {
               const on = perms.includes(key);
               const changed = on !== defaults.includes(key);
@@ -302,7 +302,7 @@ export function HeadCoachButton({
   return (
     <div className="space-y-2">
       {confirming ? (
-        <div role="alertdialog" aria-label={question} className="space-y-3 rounded-xl border border-line bg-white p-4">
+        <div role="alertdialog" aria-label={question} className="space-y-3 rounded-xl border border-line bg-card p-4">
           <p className="text-sm text-ink">{question}</p>
           <div className="flex flex-wrap gap-3">
             <button
@@ -338,7 +338,7 @@ export function SevensSwitch({ profileId, enabled }: { profileId: string; enable
   const [error, setError] = useState<string | null>(null);
   return (
     <div className="space-y-2">
-      <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-line bg-white px-4 py-2">
+      <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-line bg-card px-4 py-2">
         <span className="text-sm text-ink">Participa en Sevens</span>
         <button
           type="button"

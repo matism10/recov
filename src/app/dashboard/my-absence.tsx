@@ -33,7 +33,7 @@ export function MyAbsenceBlock({ absences }: { absences: MyAbsence[] }) {
       )}
       <Link
         href="/ausencias/nueva"
-        className="flex min-h-14 items-center gap-3 rounded-xl border border-line bg-mist px-4 py-3 transition hover:bg-white"
+        className="flex min-h-14 items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 transition hover:bg-mist"
       >
         <CalendarOff aria-hidden="true" className="size-5 shrink-0 text-brand-strong" />
         <span className="min-w-0 flex-1">

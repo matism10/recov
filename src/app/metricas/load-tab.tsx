@@ -156,7 +156,7 @@ function PlayerLoadBlock({
     <MetricsBlock heading={heading} subtitle="Esta semana (lunes a domingo), por tipo de sesión" info="carga_jugador">
       <div className="space-y-3">
         {t && (
-          <div className="rounded-lg bg-[#E0E7FF] px-3 py-2.5 text-sm text-[#312E81]">
+          <div className="rounded-lg bg-paron-bg px-3 py-2.5 text-sm text-paron-ink">
             <p>
               <span className="font-semibold">El plantel vuelve tras {weeksText(t.weeks)} sin entrenar.</span> {t.count} de{" "}
               {t.roster} jugadores{t.squad_break ? " (parón del plantel)" : " vuelven juntos"}. Conviene retomar la carga de a poco.

@@ -23,11 +23,11 @@ export default async function GymDonePage({ params }: { params: Promise<{ logId:
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-[#38BDF8] px-6 pt-[env(safe-area-inset-top)] pb-[calc(1.75rem+env(safe-area-inset-bottom))] text-[#082F49]">
+    <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-brand px-6 pt-[env(safe-area-inset-top)] pb-[calc(1.75rem+env(safe-area-inset-bottom))] text-brand-night">
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col">
         <div className="flex flex-1 flex-col items-center justify-center gap-4 py-10 text-center">
           <div className="flex size-28 items-center justify-center rounded-full bg-white">
-            <Check role="img" aria-label="Sesión completada" className="size-14 text-[#0284C7]" strokeWidth={2.6} />
+            <Check role="img" aria-label="Sesión completada" className="size-14 text-brand-strong" strokeWidth={2.6} />
           </div>
           <h1 className="font-display text-[38px] leading-tight font-extrabold tracking-tight">
             ¡Felicidades, {s.first_name}!
@@ -37,7 +37,7 @@ export default async function GymDonePage({ params }: { params: Promise<{ logId:
           </p>
           <dl className="mt-3 grid w-full grid-cols-3 gap-2">
             {stats.map((x) => (
-              <div key={x.label} className="flex flex-col-reverse gap-0.5 rounded-2xl bg-[#E0F2FE] px-1.5 py-3.5">
+              <div key={x.label} className="flex flex-col-reverse gap-0.5 rounded-2xl bg-brand-soft px-1.5 py-3.5">
                 <dt className="text-xs">{x.label}</dt>
                 <dd className="font-display text-[22px] font-extrabold tabular-nums">{x.value}</dd>
               </div>
@@ -51,7 +51,7 @@ export default async function GymDonePage({ params }: { params: Promise<{ logId:
               <p className="text-center text-sm">Último paso: cuéntanos cómo te fue para sumar tu carga</p>
               <Link
                 href={`/mi-plan/esfuerzo/${s.log_id}`}
-                className="flex h-14 items-center justify-center rounded-2xl bg-[#082F49] text-base font-semibold text-white"
+                className="flex h-14 items-center justify-center rounded-2xl bg-brand-night text-base font-semibold text-white"
               >
                 ¿Qué tan dura fue la sesión?
               </Link>
@@ -69,7 +69,7 @@ export default async function GymDonePage({ params }: { params: Promise<{ logId:
               )}
             </p>
           ) : null}
-          <Link href="/dashboard" className="flex h-12 items-center justify-center text-[15px] font-semibold text-[#082F49]">
+          <Link href="/dashboard" className="flex h-12 items-center justify-center text-[15px] font-semibold text-brand-night">
             Volver al inicio
           </Link>
         </div>

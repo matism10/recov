@@ -52,7 +52,7 @@ export default async function ClubLinkPage({
   if (!card) {
     return (
       <main className="flex flex-1 items-center justify-center bg-white px-4">
-        <p className="rounded-xl border border-line bg-mist p-8 text-center text-ink">
+        <p className="rounded-xl border border-line bg-card p-8 text-center text-ink">
           Este link no es válido. Pide a la dirección del plantel que te lo envíe de nuevo.
         </p>
       </main>
@@ -180,7 +180,7 @@ export default async function ClubLinkPage({
         registro={
         <div className="mt-5 space-y-4">
           {newAccount && (
-            <p role="status" className="rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink">
+            <p role="status" className="rounded-xl border border-line bg-card px-4 py-3 text-sm text-ink">
               Crearás una cuenta aparte.
               {previous && ` No quedará unida a tu cuenta de ${previous}.`}
             </p>
@@ -245,7 +245,7 @@ function Shell({
   return (
     <main className="flex flex-1 items-center justify-center bg-white px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="w-full space-y-5 rounded-xl border border-line bg-mist p-6 sm:p-8">
+        <div className="w-full space-y-5 rounded-xl border border-line bg-card p-6 sm:p-8">
           <div className="flex items-center gap-4">
             <ClubLogo name={card.name} url={logoUrl} size="lg" />
             <div className="min-w-0">

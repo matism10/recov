@@ -34,6 +34,7 @@ import {
   chipClass,
   textButton,
 } from "@/app/ui";
+import { EmptyState } from "@/app/ui-blocks";
 import { SummarySquad } from "./squad-browser";
 import { MyStatusCard } from "./my-status";
 import { NextMatch } from "./next-match";
@@ -500,14 +501,14 @@ export default async function DashboardPage() {
                     <h3 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
                       {group.title} ({group.items.length})
                     </h3>
-                    <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
+                    <ul className="divide-y divide-line overflow-hidden rounded-xl bg-card border border-line">
                       {group.items.map((i) => {
                         const player = Array.isArray(i.players) ? i.players[0] : i.players;
                         return (
                           <li key={i.id}>
                             <Link
                               href={`/lesiones/${i.id}`}
-                              className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-white"
+                              className="flex items-center justify-between gap-4 px-5 py-3 transition hover:bg-mist"
                             >
                               <div>
                                 <p className="font-medium text-ink">
@@ -534,9 +535,7 @@ export default async function DashboardPage() {
                 ))}
             </div>
           ) : (
-            <p className={`p-5 text-sm text-muted ${cardClass}`}>
-              No hay lesiones por revisar.
-            </p>
+            <EmptyState title="No hay lesiones por revisar." />
           )}
         </section>
       )}
@@ -551,10 +550,10 @@ export default async function DashboardPage() {
                   const injury = openByPlayer.get(p.id);
                   const phase = phaseByPlayer.get(p.id);
                   return (
-                    <li key={p.id} className="overflow-hidden rounded-xl bg-mist">
+                    <li key={p.id} className="overflow-hidden rounded-xl border border-line bg-card">
                       <Link
                         href={injuryHref(p.id, injury)}
-                        className="block space-y-3 px-5 py-4 transition hover:bg-white"
+                        className="block space-y-3 px-5 py-4 transition hover:bg-mist"
                       >
                         <div className="flex items-center gap-3">
                           <Avatar name={p.full_name} url={p.user_id ? avatarUrls.get(p.user_id) : null} />
@@ -582,9 +581,7 @@ export default async function DashboardPage() {
                 })}
               </ul>
           ) : (
-            <p className={`p-5 text-sm text-muted ${cardClass}`}>
-              No hay jugadores lesionados ni en reintegro.
-            </p>
+            <EmptyState title="No hay jugadores lesionados ni en reintegro." />
           )}
         </section>
       )}
@@ -593,7 +590,7 @@ export default async function DashboardPage() {
         <section id="zonas" className="mb-8 scroll-mt-4">
           <SectionTitle className="mb-3">Zonas lesionadas</SectionTitle>
           {zoneMarks.length === 0 ? (
-            <p className={`p-5 text-sm text-muted ${cardClass}`}>No hay lesiones abiertas con zona registrada.</p>
+            <EmptyState title="No hay lesiones abiertas con zona registrada" />
           ) : (
           <div className={`grid grid-cols-1 items-center gap-6 p-5 sm:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] ${cardClass}`}>
             <BodyMapPair heat={zoneMarks} legend className="mx-auto w-full max-w-80" />
@@ -620,7 +617,7 @@ export default async function DashboardPage() {
       {isPlayer && (
         <Link
           href="/evaluaciones/mias"
-          className="mb-8 flex min-h-14 items-center gap-3 rounded-xl border border-line bg-mist px-4 py-3 transition hover:bg-white"
+          className="mb-8 flex min-h-14 items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 transition hover:bg-mist"
         >
           <Dumbbell aria-hidden="true" className="size-5 shrink-0 text-brand-strong" />
           <span className="min-w-0 flex-1">
@@ -643,13 +640,13 @@ export default async function DashboardPage() {
             </Link>
           </div>
           {injuries && injuries.length > 0 ? (
-            <ul className="divide-y divide-line overflow-hidden rounded-xl bg-mist border border-line">
+            <ul className="divide-y divide-line overflow-hidden rounded-xl bg-card border border-line">
               {injuries.map((i) => {
                 return (
                   <li key={i.id}>
                     <Link
                       href={`/lesiones/${i.id}`}
-                      className="block space-y-2 px-5 py-4 transition hover:bg-white"
+                      className="block space-y-2 px-5 py-4 transition hover:bg-mist"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>

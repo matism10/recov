@@ -432,7 +432,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
       </header>
 
       {readOnly && (
-        <p className="mb-4 rounded-xl border border-line bg-mist px-4 py-3 text-sm text-muted">
+        <p className="mb-4 rounded-xl border border-line bg-card px-4 py-3 text-sm text-muted">
           Este plan está archivado: ya no aparece a los jugadores y no se puede editar.
         </p>
       )}
@@ -445,7 +445,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div className="min-w-0 space-y-5">
             {/* Tipo de planificación */}
-            <section className="rounded-xl border border-line bg-white p-4 lg:p-5">
+            <section className="rounded-xl border border-line bg-card p-4 lg:p-5">
               <p id="plan-mode" className={labelClass}>
                 ¿Qué vas a planificar?
               </p>
@@ -469,7 +469,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
             </section>
 
             {/* Asignar a, fechas y días */}
-            <section className="space-y-4 rounded-xl border border-line bg-white p-4 lg:p-5">
+            <section className="space-y-4 rounded-xl border border-line bg-card p-4 lg:p-5">
               <div>
                 <p className={labelClass}>Asignar a</p>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -647,7 +647,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
             </section>
 
             {/* Sesiones */}
-            <section className="rounded-xl border border-line bg-white">
+            <section className="rounded-xl border border-line bg-card">
               {mode === "diaria" ? (
                 <h2 className="border-b border-line px-4 py-3 font-semibold text-ink lg:px-5">Entrenamiento</h2>
               ) : (
@@ -787,7 +787,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                             const linked = sameSuperset(e, session.exercises[i + 1]);
                             return (
                               <tr key={e.key} className="align-top">
-                                <td className={`py-2 pt-4 pl-2 font-semibold tabular-nums ${inSet ? "text-brand-text shadow-[inset_3px_0_0_#38BDF8]" : "text-muted"}`}>
+                                <td className={`py-2 pt-4 pl-2 font-semibold tabular-nums ${inSet ? "text-brand-text shadow-[inset_3px_0_0_var(--color-brand)]" : "text-muted"}`}>
                                   {codes[i]}
                                 </td>
                                 <td className="py-2 pr-2">
@@ -908,12 +908,12 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                                   type="button"
                                   onClick={() => setSheet(e.key)}
                                   className={`flex w-full items-center gap-3 border px-3.5 py-3 text-left ${
-                                    withPrev || withNext ? "border-[#BAE6FD] bg-[#F0F9FF]" : "border-line"
+                                    withPrev || withNext ? "border-brand-line bg-brand-wash" : "border-line"
                                   } ${withPrev ? "rounded-b-2xl border-t-0" : "rounded-t-2xl"} ${withNext ? "" : "rounded-b-2xl"}`}
                                 >
                                   <span
                                     className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-lg px-1 text-xs font-semibold ${
-                                      withPrev || withNext ? "bg-brand text-[#082F49]" : "bg-mist text-ink"
+                                      withPrev || withNext ? "bg-brand text-brand-night" : "bg-mist text-ink"
                                     }`}
                                   >
                                     {codes[i]}
@@ -973,7 +973,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
 
           {/* Panel derecho: vista previa, lesionados y avisos */}
           <aside className="space-y-4">
-            <section className="hidden space-y-3 rounded-xl border border-line bg-white p-4 lg:block">
+            <section className="hidden space-y-3 rounded-xl border border-line bg-card p-4 lg:block">
               <div>
                 <p className="text-xs font-semibold tracking-wide text-muted uppercase">Vista previa</p>
                 {previewPlayer ? (
@@ -1017,7 +1017,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
               <p className="text-xs text-muted">Kilos calculados con sus máximos de Evaluaciones, redondeados a 2,5 kg.</p>
             </section>
 
-            <section className="space-y-3 rounded-xl border border-line bg-white p-4">
+            <section className="space-y-3 rounded-xl border border-line bg-card p-4">
               <div className="flex items-baseline justify-between gap-3">
                 <p className="font-semibold text-ink">Lesionados ({injured.length})</p>
                 <p className="text-sm text-muted">
@@ -1442,7 +1442,7 @@ function ExerciseSheet({
                   disabled={o.value === "pct" && tests.length === 0}
                   onClick={() => onType(o.value)}
                   className={`min-h-11 rounded-lg border text-[13px] font-semibold disabled:opacity-50 ${
-                    on ? "border-brand bg-brand text-[#082F49]" : "border-line bg-white text-ink"
+                    on ? "border-brand bg-brand text-brand-night" : "border-line bg-white text-ink"
                   }`}
                 >
                   {o.label}
@@ -1456,7 +1456,7 @@ function ExerciseSheet({
         </div>
 
         {e.intensity_type === "pct" && (
-          <div className="space-y-3 rounded-2xl bg-[#F0F9FF] p-3.5">
+          <div className="space-y-3 rounded-2xl bg-brand-wash p-3.5">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-semibold text-ink">Porcentaje</span>
               <div className="flex items-center gap-2">
@@ -1480,7 +1480,7 @@ function ExerciseSheet({
               <select
                 value={e.test_id ?? ""}
                 onChange={(ev) => onChange({ test_id: ev.target.value || null })}
-                className="min-h-11 max-w-[60%] rounded-lg border border-[#BAE6FD] bg-white px-2 text-sm text-brand-text"
+                className="min-h-11 max-w-[60%] rounded-lg border border-brand-line bg-white px-2 text-sm text-brand-text"
               >
                 {tests.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -1518,9 +1518,9 @@ function ExerciseSheet({
             />
           </label>
         )}
-        {e.intensity_type === "bw" && <p className="rounded-2xl bg-[#F0F9FF] p-3.5 text-sm text-ink">Peso corporal, sin kilos.</p>}
+        {e.intensity_type === "bw" && <p className="rounded-2xl bg-brand-wash p-3.5 text-sm text-ink">Peso corporal, sin kilos.</p>}
         {time && (
-          <p className="rounded-2xl bg-[#F0F9FF] p-3.5 text-sm text-ink">
+          <p className="rounded-2xl bg-brand-wash p-3.5 text-sm text-ink">
             {e.sets} {e.sets === 1 ? "serie" : "series"} de {durationLabel(secs)} (ej.: plancha). Sin repeticiones.
           </p>
         )}

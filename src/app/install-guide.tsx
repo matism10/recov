@@ -69,7 +69,7 @@ export function InstallGuide() {
     // (ni al aparecer ni al abrirse), aunque la columna esté centrada en la pantalla.
     <div className="relative w-full">
       <div className="absolute inset-x-0 top-0 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-        <section className="rounded-xl border border-line bg-mist text-ink">
+        <section className="rounded-xl border border-line bg-card text-ink">
           <h2>
             <button
               type="button"
@@ -96,7 +96,7 @@ export function InstallGuide() {
               className="space-y-4 border-t border-line px-4 pt-3 pb-4 text-sm"
             >
               {env.inApp && (
-                <p className="flex gap-2.5 rounded-lg bg-[#FEF3C7] p-3 text-[#92400E]">
+                <p className="flex gap-2.5 rounded-lg bg-revision-bg p-3 text-revision-fg">
                   <TriangleAlert
                     aria-hidden="true"
                     className="mt-0.5 size-5 shrink-0"

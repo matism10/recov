@@ -34,7 +34,7 @@ const PREVIEW = 8;
 const TAG = {
   alta: "bg-alerta-bg text-alerta-fg",
   bienestar: "bg-lesionado-bg text-lesionado-fg",
-  paron: "bg-[#E0E7FF] text-[#3730A3]",
+  paron: "bg-paron-bg text-paron-fg",
 } as const;
 
 const hasAlert = (p: PlayerLoadItem) => p.high || p.wellness !== null || p.back !== null;
@@ -104,7 +104,7 @@ function Gym({ g }: { g: PlayerLoadItem["gym"] }) {
       className={
         g.done >= g.assigned
           ? "text-sm text-ink"
-          : "rounded-full bg-[#F1F5F9] px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-[#334155]"
+          : "rounded-full bg-fill-soft px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-body-strong"
       }
     >
       {g.done} de {g.assigned}

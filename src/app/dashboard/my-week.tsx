@@ -24,7 +24,7 @@ export function MyWeek({ data }: { data: WeekData }) {
       <SectionTitle className="mb-3">
         <span id="mi-semana-title">Mi semana</span>
       </SectionTitle>
-      <div className="rounded-xl border border-line bg-white p-3 sm:p-4">
+      <div className="rounded-xl border border-line bg-card p-3 sm:p-4">
         <div role="tablist" aria-label="Días de la semana" className="grid grid-cols-7 gap-1.5">
           {data.days.map((d, i) => {
             const today = d.date === data.today;
@@ -42,10 +42,10 @@ export function MyWeek({ data }: { data: WeekData }) {
                 onClick={() => setSelected(d.date)}
                 className={`flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-sm transition ${
                   today
-                    ? "bg-[#082F49] text-white"
+                    ? "bg-brand-night text-white"
                     : d.items.length > 0
-                      ? "bg-[#F1F5F9] text-ink"
-                      : "border border-[#F1F5F9] bg-white text-muted"
+                      ? "bg-fill-soft text-ink"
+                      : "border border-fill-soft bg-white text-muted"
                 } ${on && !today ? "ring-2 ring-brand" : ""} ${on && today ? "ring-2 ring-brand ring-offset-2" : ""}`}
               >
                 <span aria-hidden="true" className="text-[11px] font-medium opacity-80">
@@ -75,7 +75,7 @@ export function MyWeek({ data }: { data: WeekData }) {
                     <span
                       aria-hidden="true"
                       className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                        x.kind === "G" ? "bg-[#0369A1] text-white" : x.kind === "P" ? "bg-alerta-bg text-alerta-fg" : "bg-brand-soft text-brand-text"
+                        x.kind === "G" ? "bg-brand-text text-white" : x.kind === "P" ? "bg-alerta-bg text-alerta-fg" : "bg-brand-soft text-brand-text"
                       }`}
                     >
                       {x.kind}

@@ -34,7 +34,7 @@ export default async function ReportInjuryPage() {
           El kinesiólogo del plantel revisará tu reporte.
         </p>
       </header>
-      <div className="rounded-xl border border-line bg-mist p-5 lg:p-8">
+      <div className="rounded-xl border border-line bg-card p-5 lg:p-8">
         <InjuryForm clubId={player.club_id} playerId={player.id} />
       </div>
     </main>

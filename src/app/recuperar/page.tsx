@@ -25,7 +25,7 @@ export default async function RecoverPasswordPage({
         </div>
 
         {enviado ? (
-          <p role="status" className="rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink">
+          <p role="status" className="rounded-xl border border-line bg-card px-4 py-3 text-sm text-ink">
             Si hay una cuenta con ese correo, te enviamos el link. Revisa también spam. Si no
             llega en unos minutos, vuelve a intentarlo.
           </p>

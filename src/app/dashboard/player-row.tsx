@@ -34,7 +34,7 @@ export function PlayerRow({
   // "En revisión" no se cambia a mano: lo resuelve la revisión de la lesión.
   const editable = canManage && status !== "en_revision";
   return (
-    <li className="relative overflow-hidden rounded-xl bg-mist">
+    <li className="relative overflow-hidden rounded-xl border border-line bg-card">
       <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${STRIPE[status]}`} />
       <div className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 py-3 pr-4 pl-5">
         <div className="min-w-0 flex-1">

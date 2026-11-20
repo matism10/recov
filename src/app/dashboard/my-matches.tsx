@@ -21,7 +21,7 @@ export function MyMatches({
       {callups.length === 0 ? (
         <p className={`p-5 text-sm text-muted ${cardClass}`}>Todavía no te han convocado.</p>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-mist">
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
           {callups.map((c) => {
             const upcoming = Date.parse(c.starts_at) > Date.parse(now);
             const label = participationLabel(c, scale);
