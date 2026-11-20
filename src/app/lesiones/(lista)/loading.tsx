@@ -17,15 +17,11 @@ export default function Loading() {
   return (
     <PageSkeleton label="las lesiones">
       <TitleSkeleton subtitle />
-      <Line className="mb-4 h-6 w-32" />
-      <div className="mb-10 space-y-2">
-        <InjuryRow />
-        <InjuryRow />
-        <InjuryRow />
-      </div>
-      <Line className="mb-4 h-6 w-28" />
+      <Line className="mb-4 h-11 w-full rounded-xl sm:w-72" />
       <div className="space-y-2">
-        <PersonRow />
+        <InjuryRow />
+        <InjuryRow />
+        <InjuryRow />
         <PersonRow />
       </div>
     </PageSkeleton>

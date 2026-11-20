@@ -83,6 +83,7 @@ export function PlayerCard({
   progress,
   progressLabel,
   badge,
+  showAvatar = true,
 }: {
   href: string;
   name: string;
@@ -92,6 +93,8 @@ export function PlayerCard({
   progress?: number;
   progressLabel?: string;
   badge?: ReactNode;
+  // false: sin avatar (listas del propio jugador, donde la foto sería la suya siempre).
+  showAvatar?: boolean;
 }) {
   const pct = progress === undefined ? undefined : Math.max(0, Math.min(100, progress));
   return (
@@ -100,7 +103,7 @@ export function PlayerCard({
         href={href}
         className={`flex min-h-18 items-center gap-3 px-3 py-3 transition hover:bg-mist focus-visible:outline-2 focus-visible:outline-brand-strong ${cardClass}`}
       >
-        <Avatar name={name} url={photoUrl} size="sm" />
+        {showAvatar && <Avatar name={name} url={photoUrl} size="sm" />}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-15 font-semibold text-ink">{name}</span>
           {secondary && <span className="block truncate text-13 text-muted">{secondary}</span>}
