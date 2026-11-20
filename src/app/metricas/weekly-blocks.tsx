@@ -3,7 +3,7 @@
 // anteriores y la semana en curso punteada) y "Bienestar del plantel" (promedio /25,
 // 6 barras semanales y los 3 checks más bajos de los últimos 7 días). Datos de
 // team_load_weekly y team_wellness_summary (exigen carga_ver en la base).
-import Link from "next/link";
+import { ListRow } from "@/app/ui-blocks";
 import { formatShortDate } from "@/lib/metrics";
 import { formatAvg, formatLoad, wellnessItemText, wellnessSeverity } from "@/lib/srpe";
 import { pctVs, type TeamLoadWeek, type TeamWellness } from "@/lib/team-weekly";
@@ -128,21 +128,19 @@ export function TeamWellnessBlock({ data }: { data: TeamWellness | null }) {
       {data.lowest.length === 0 ? (
         <p className="text-sm text-muted">Nadie respondió el check en los últimos 7 días.</p>
       ) : (
-        <ul className="divide-y divide-line">
+        <ul className="-mx-4 -mb-4 divide-y divide-line border-t border-line lg:-mx-5 lg:-mb-5">
           {data.lowest.map((l) => {
             const bad = l.items.filter((i) => wellnessSeverity(i.stored) === "mal");
             return (
-              <li key={l.player_id} className="flex items-start justify-between gap-3 py-2.5">
+              <ListRow key={l.player_id} href={`/jugadores/${l.player_id}`} className="min-h-15 items-start justify-between">
                 <div className="min-w-0">
-                  <Link href={`/jugadores/${l.player_id}`} className="font-medium text-ink hover:underline">
-                    {l.full_name}
-                  </Link>
-                  <p className={`text-xs ${bad.length ? "text-lesionado-fg" : "text-muted"}`}>
+                  <p className="text-15 font-semibold text-ink">{l.full_name}</p>
+                  <p className={`text-13 ${bad.length ? "text-lesionado-fg" : "text-muted"}`}>
                     {bad.length ? bad.map((i) => wellnessItemText(i.key, i.stored)).join(", ") : "Sin ítems bajos"}
                   </p>
                 </div>
                 <span className="shrink-0 font-display font-bold text-ink tabular-nums">{l.total} / 25</span>
-              </li>
+              </ListRow>
             );
           })}
         </ul>

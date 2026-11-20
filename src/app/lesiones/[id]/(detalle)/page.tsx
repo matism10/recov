@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { BackLink } from "@/app/back-link";
 import { Hourglass } from "lucide-react";
@@ -24,19 +25,26 @@ import {
   InjuryStatusBadge,
   NoDocumentBadge,
   PageTitle,
-  SectionTitle,
   buttonPrimary,
-  } from "@/app/ui";
+} from "@/app/ui";
+import { Card, CardHeader } from "@/app/ui-blocks";
 import { BodyMapPair } from "@/app/body-map";
 import { LATERALITY_LABEL, isBodyZone, isLaterality, zoneLabel } from "@/lib/body-zones";
 import { OwnDocuments } from "../own-documents";
 import { PhasesPanel } from "../phases-panel";
 import { ReviewForm } from "../review-form";
 
-const SIGNED_URL_SECONDS = 5 * 60;
+function Fact({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {
+  return (
+    <div className={`min-w-0 ${wide ? "sm:col-span-2 lg:col-span-4" : ""}`}>
+      <dt className="text-13 text-muted">{label}</dt>
+      <dd className="mt-0.5 font-semibold break-words text-ink">{children}</dd>
+    </div>
+  
+  );
+}
 
-// Bloques del detalle: superficie sin borde, separados por tono y aire.
-const blockClass = "rounded-xl border border-line bg-card";
+const SIGNED_URL_SECONDS = 5 * 60;
 
 export default async function InjuryPage({
   params,
@@ -154,7 +162,7 @@ export default async function InjuryPage({
       : null;
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 lg:max-w-6xl lg:px-12 lg:py-12">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1080px] lg:px-8 lg:py-10">
       <BackLink fallback="/lesiones">← Volver</BackLink>
 
       {awaitingReview && (
@@ -173,39 +181,85 @@ export default async function InjuryPage({
         </div>
       )}
 
-      {/* Móvil: un bloque bajo otro. Escritorio: resumen, datos y revisión a la
-          izquierda; fases y documentos a la derecha. */}
-      <div className="mt-2 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-10">
-        <div className="min-w-0 space-y-6">
-          {/* Encabezado en superficie 2: jugador (enlace a su ficha solo para el
-              staff, la misma guarda de /jugadores/[id]), lesión y estado. */}
-          <header className="space-y-3 rounded-xl bg-surface-2 p-5">
-            {player &&
-              (staff ? (
-                <Link
-                  href={`/jugadores/${injury.player_id}`}
-                  className="flex w-fit max-w-full min-h-11 items-center gap-3 font-semibold text-ink hover:underline"
-                >
-                  <Avatar name={player.full_name} url={playerAvatarUrl} size="md" />
-                  <span className="min-w-0 break-words">{player.full_name}</span>
-                </Link>
-              ) : (
-                <div className="flex min-h-11 items-center gap-3 font-semibold text-ink">
-                  <Avatar name={player.full_name} url={playerAvatarUrl} size="md" />
-                  <span className="min-w-0 break-words">{player.full_name}</span>
-                </div>
-              ))}
-            <PageTitle className="min-w-0 break-words">{injury.type}</PageTitle>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <InjuryStatusBadge status={status} />
-              <p className="text-sm text-muted">{statusLine}</p>
-              {missingDocument && <NoDocumentBadge />}
+      {/* Encabezado en Card: jugador (enlace a su ficha solo para el staff, la misma
+          guarda de /jugadores/[id]), lesión, estado, avance y franja de datos. */}
+      <Card as="header" className="mt-2 space-y-4">
+        {player &&
+          (staff ? (
+            <Link
+              href={`/jugadores/${injury.player_id}`}
+              className="flex w-fit max-w-full min-h-11 items-center gap-3 font-semibold text-brand-text hover:underline"
+            >
+              <Avatar name={player.full_name} url={playerAvatarUrl} size="md" />
+              <span className="min-w-0 break-words">{player.full_name}</span>
+            </Link>
+          ) : (
+            <div className="flex min-h-11 items-center gap-3 font-semibold text-ink">
+              <Avatar name={player.full_name} url={playerAvatarUrl} size="md" />
+              <span className="min-w-0 break-words">{player.full_name}</span>
             </div>
-            {phone && player && (
-              <WhatsAppButton phone={phone as string} name={player.full_name} />
-            )}
-          </header>
+          ))}
+        <PageTitle className="min-w-0 break-words">{injury.type}</PageTitle>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <InjuryStatusBadge status={status} />
+          <p className="text-sm text-muted">{statusLine}</p>
+          {missingDocument && <NoDocumentBadge />}
+        </div>
+        {phone && player && <WhatsAppButton phone={phone as string} name={player.full_name} />}
 
+        {!inEvaluation &&
+          (progress ? (
+            <section aria-label="Avance hacia el alta" className="space-y-2">
+              <p className="text-2xl leading-8 font-bold tabular-nums text-ink">
+                Día {progress.day} de {progress.total}
+              </p>
+              <div
+                role="progressbar"
+                aria-valuenow={progress.percent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Avance hacia el alta"
+                className="h-2 overflow-hidden rounded-sm bg-line"
+              >
+                <div className="h-full bg-brand" style={{ width: `${progress.percent}%` }} />
+              </div>
+              <p className="flex flex-wrap justify-between gap-x-4 text-sm text-muted">
+                <span>
+                  Alta estimada{" "}
+                  <span className="font-semibold text-ink">
+                    {formatDate(injury.expected_return_on as string)}
+                  </span>
+                </span>
+                <span className="tabular-nums">{progress.percent}%</span>
+              </p>
+            </section>
+          ) : (
+            <p className="text-muted">Sin fecha estimada de alta</p>
+          ))}
+
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Fact label="Desde">{formatDate(injury.started_on)}</Fact>
+          {occurredDuring && <Fact label="Dónde ocurrió">{OCCURRED_DURING_LABEL[occurredDuring]}</Fact>}
+          {zone && <Fact label="Zona">{zoneLabel(zone.zone, "no_aplica")}</Fact>}
+          {zone && <Fact label="Lado">{LATERALITY_LABEL[zone.laterality]}</Fact>}
+          <Fact label="Gravedad">{severity ? SEVERITY_LABEL[severity] : "Por definir"}</Fact>
+          {!inEvaluation && (
+            <Fact label="Duración indicada">
+              {doctorEstimate ? `${doctorEstimate} según el médico` : "Sin definir"}
+            </Fact>
+          )}
+          {injury.description && (
+            <Fact label="Detalle" wide>
+              <span className="font-normal whitespace-pre-line">{injury.description}</span>
+            </Fact>
+          )}
+        </dl>
+      </Card>
+
+      {/* Móvil: un bloque bajo otro. Escritorio: revisión (o estado confirmado) a la
+          izquierda; fases y documentos a la derecha. */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="min-w-0 space-y-6">
           {showBanner && (
             <div className="space-y-3 rounded-xl bg-brand-soft p-5">
               <p className="text-ink">
@@ -218,114 +272,9 @@ export default async function InjuryPage({
             </div>
           )}
 
-          {/* Cifra protagonista: el día de recuperación. */}
-          {!inEvaluation &&
-            (progress ? (
-              <section aria-label="Avance hacia el alta" className="space-y-3">
-                <p className="text-[44px] leading-[48px] font-bold tabular-nums text-ink">
-                  Día {progress.day} de {progress.total}
-                </p>
-                <div
-                  role="progressbar"
-                  aria-valuenow={progress.percent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label="Avance hacia el alta"
-                  className="h-2 overflow-hidden rounded-sm bg-surface-2"
-                >
-                  <div className="h-full bg-brand" style={{ width: `${progress.percent}%` }} />
-                </div>
-                <p className="flex flex-wrap justify-between gap-x-4 text-sm text-muted">
-                  <span>
-                    Alta estimada{" "}
-                    <span className="font-semibold text-ink">
-                      {formatDate(injury.expected_return_on as string)}
-                    </span>
-                  </span>
-                  <span className="tabular-nums">{progress.percent}%</span>
-                </p>
-              </section>
-            ) : (
-              <p className="text-muted">Sin fecha estimada de alta</p>
-            ))}
-
-          {/* Grilla de datos: etiqueta 13, valor 16/600. */}
-          <section className={`min-w-0 space-y-4 p-5 ${blockClass}`}>
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-              {zone && (
-                <>
-                  <div className="min-w-0">
-                    <dt className="text-[13px] text-muted">Zona</dt>
-                    <dd className="mt-0.5 font-semibold break-words text-ink">
-                      {zoneLabel(zone.zone, "no_aplica")}
-                    </dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-[13px] text-muted">Lado</dt>
-                    <dd className="mt-0.5 font-semibold break-words text-ink">
-                      {LATERALITY_LABEL[zone.laterality]}
-                    </dd>
-                  </div>
-                </>
-              )}
-              <div className="min-w-0">
-                <dt className="text-[13px] text-muted">Ocurrió</dt>
-                <dd className="mt-0.5 font-semibold break-words text-ink">{formatDate(injury.started_on)}</dd>
-              </div>
-              {occurredDuring && (
-                <div className="min-w-0">
-                  <dt className="text-[13px] text-muted">Ocurrió en</dt>
-                  <dd className="mt-0.5 font-semibold break-words text-ink">
-                    {OCCURRED_DURING_LABEL[occurredDuring]}
-                  </dd>
-                </div>
-              )}
-              {!inEvaluation && (
-                <div className="min-w-0">
-                  <dt className="text-[13px] text-muted">Alta estimada</dt>
-                  <dd className="mt-0.5 font-semibold break-words text-ink">
-                    {injury.expected_return_on
-                      ? formatDate(injury.expected_return_on)
-                      : "Sin definir"}
-                    {doctorEstimate && (
-                      <span className="font-normal text-muted"> ({doctorEstimate} según el médico)</span>
-                    )}
-                  </dd>
-                </div>
-              )}
-              <div className="min-w-0">
-                <dt className="text-[13px] text-muted">Gravedad</dt>
-                <dd className="mt-0.5 font-semibold break-words text-ink">
-                  {severity ? SEVERITY_LABEL[severity] : "Por definir"}
-                </dd>
-              </div>
-              <div className="min-w-0 sm:col-span-2">
-                <dt className="text-[13px] text-muted">Revisión</dt>
-                <dd className="mt-0.5 font-semibold break-words text-ink">
-                  {inEvaluation
-                    ? "Esperando el diagnóstico del jugador"
-                    : injury.reviewed_at
-                      ? `Revisada el ${formatDate(injury.reviewed_at)}${
-                          reviewer?.full_name ? ` por ${reviewer.full_name}` : ""
-                        }`
-                      : "Pendiente de revisión del kinesiólogo"}
-                </dd>
-              </div>
-            </dl>
-            {injury.description && (
-              <p className="break-words whitespace-pre-line text-ink">{injury.description}</p>
-            )}
-          </section>
-
-          {zone && (
-            <section aria-label="Zona de la lesión">
-              <BodyMapPair heat={[zone]} className="mx-auto max-w-sm" />
-            </section>
-          )}
-
-          {showReview && (
-            <section className={`min-w-0 p-5 ${blockClass}`}>
-              <SectionTitle className="mb-4">Revisión</SectionTitle>
+          {showReview ? (
+            <Card as="section" className="min-w-0">
+              <CardHeader title="Revisión" />
               <ReviewForm
                 injuryId={injury.id}
                 status={status}
@@ -335,14 +284,34 @@ export default async function InjuryPage({
                 availability={(player?.availability ?? "disponible") as Availability}
                 reviewed={!!injury.reviewed_at}
               />
-            </section>
+            </Card>
+          ) : (
+            <Card as="section" className="min-w-0">
+              <CardHeader title="Revisión" />
+              <p className="text-ink">
+                {inEvaluation
+                  ? "Esperando el diagnóstico del jugador"
+                  : injury.reviewed_at
+                    ? `Revisada el ${formatDate(injury.reviewed_at)}${
+                        reviewer?.full_name ? ` por ${reviewer.full_name}` : ""
+                      }`
+                    : "Pendiente de revisión del kinesiólogo"}
+              </p>
+            </Card>
+          )}
+
+          {zone && (
+            <Card as="section">
+              <CardHeader title="Zona de la lesión" />
+              <BodyMapPair heat={[zone]} className="mx-auto max-w-sm" />
+            </Card>
           )}
         </div>
 
         <div className="min-w-0 space-y-6">
           {showPhases && (
-            <section className="min-w-0">
-              <SectionTitle className="mb-3">Fases de recuperación</SectionTitle>
+            <Card as="section" className="min-w-0">
+              <CardHeader title="Fases de recuperación" />
               <PhasesPanel
                 injuryId={injury.id}
                 phases={(phases ?? []).map((ph) => ({
@@ -356,11 +325,11 @@ export default async function InjuryPage({
                 startedOn={injury.started_on}
                 expectedReturnOn={injury.expected_return_on}
               />
-            </section>
+            </Card>
           )}
 
-          <section className="min-w-0">
-            <SectionTitle className="mb-3">Documentos</SectionTitle>
+          <Card as="section" className="min-w-0">
+            <CardHeader title="Documentos" />
             {isOwnInjury ? (
               <OwnDocuments
                 injuryId={injury.id}
@@ -376,18 +345,15 @@ export default async function InjuryPage({
                 }))}
               />
             ) : !canSeeDocuments ? (
-              <p className={`p-5 text-sm text-muted ${blockClass}`}>
+              <p className="text-sm text-muted">
                 Los documentos médicos solo los ven el kinesiólogo y el head coach.
               </p>
             ) : documents && documents.length > 0 ? (
-              <ul className="space-y-2">
+              <ul className="divide-y divide-line">
                 {documents.map((d) => {
                   const url = signedUrls.get(d.storage_path as string);
                   return (
-                    <li
-                      key={d.id}
-                      className={`flex items-center justify-between gap-4 px-5 py-3 ${blockClass}`}
-                    >
+                    <li key={d.id} className="flex min-h-14 items-center justify-between gap-4 py-2">
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-ink">{d.file_name}</p>
                         <p className="text-sm text-muted">Subido el {formatDate(d.created_at)}</p>
@@ -409,9 +375,9 @@ export default async function InjuryPage({
                 })}
               </ul>
             ) : (
-              <p className={`p-5 text-sm text-muted ${blockClass}`}>No hay documentos adjuntos.</p>
+              <p className="text-sm text-muted">No hay documentos adjuntos.</p>
             )}
-          </section>
+          </Card>
         </div>
       </div>
     </main>

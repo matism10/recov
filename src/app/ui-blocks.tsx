@@ -20,13 +20,17 @@ export function Card({
   className = "",
   flush = false,
   as: Tag = "div",
+  id,
+  "aria-label": ariaLabel,
 }: {
   children: ReactNode;
   className?: string;
   flush?: boolean;
-  as?: "div" | "section" | "article";
+  as?: "div" | "section" | "article" | "header";
+  id?: string;
+  "aria-label"?: string;
 }) {
-  return <Tag className={`${cardClass} ${flush ? "overflow-hidden" : "p-4 lg:p-5"} ${className}`}>{children}</Tag>;
+  return <Tag id={id} aria-label={ariaLabel} className={`${cardClass} ${flush ? "overflow-hidden" : "p-4 lg:p-5"} ${className}`}>{children}</Tag>;
 }
 
 // Título 16/700, contador opcional (chip), acción opcional a la derecha (link de 44 px
@@ -136,16 +140,22 @@ export function PlayerCard({
 export function TableCard({
   children,
   head,
+  header,
+  footer,
   columns = "",
   className = "",
 }: {
   children: ReactNode;
   head?: ReactNode;
+  // Encabezado de la tarjeta (CardHeader y avisos) y pie (botones, desplegables), con padding.
+  header?: ReactNode;
+  footer?: ReactNode;
   columns?: string;
   className?: string;
 }) {
   return (
     <div className={`${cardClass} overflow-hidden ${className}`}>
+      {header && <div className="border-b border-line p-4 pb-3 lg:p-5 lg:pb-3">{header}</div>}
       {head && (
         <div
           className={`hidden gap-3 border-b border-line bg-mist px-5 py-2 text-13 font-medium text-muted lg:grid ${columns}`}
@@ -154,6 +164,7 @@ export function TableCard({
         </div>
       )}
       <ul className="divide-y divide-line">{children}</ul>
+      {footer && <div className="border-t border-line p-4 lg:px-5">{footer}</div>}
     </div>
   );
 }
@@ -169,7 +180,7 @@ export function ListRow({
   columns?: string;
   className?: string;
 }) {
-  const row = `flex min-h-14 items-center gap-3 px-4 py-3 lg:px-5 lg:grid ${columns} ${className}`;
+  const row = `relative flex min-h-14 items-center gap-3 px-4 py-3 lg:px-5 ${columns ? `lg:grid ${columns}` : ""} ${className}`;
   return (
     <li>
       {href ? (

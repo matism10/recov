@@ -1,4 +1,5 @@
 import { AVAILABILITY_LABEL, type Availability } from "@/lib/roles";
+import { Card } from "@/app/ui-blocks";
 import { AVAILABILITY_STYLE, AvailabilityIcon } from "@/app/ui";
 
 // Frase corta bajo el estado. Solo datos propios del jugador.
@@ -12,24 +13,23 @@ const HINT: Record<Availability, string> = {
 // Resumen del jugador: su estado en grande y, si tiene una lesión abierta, la fase en curso.
 export function MyStatusCard({ status, phase }: { status: Availability; phase?: string }) {
   return (
-    <section
-      aria-label="Tu estado"
-      className={`flex items-center gap-4 rounded-2xl p-5 sm:p-6 ${AVAILABILITY_STYLE[status]}`}
-    >
-      <AvailabilityIcon status={status} className="size-10 sm:size-12" />
+    <Card as="section" aria-label="Tu estado" className="flex items-center gap-4">
+      <span className={`flex size-14 shrink-0 items-center justify-center rounded-xl ${AVAILABILITY_STYLE[status]}`}>
+        <AvailabilityIcon status={status} className="size-8" />
+      </span>
       <div className="min-w-0">
-        <p className="text-sm font-medium opacity-80">Tu estado</p>
-        <p className="font-display text-[30px] leading-[34px] font-bold">{AVAILABILITY_LABEL[status]}</p>
-        <p className="mt-1 text-sm">
+        <p className="text-13 text-muted">Tu estado</p>
+        <p className="font-display text-[30px] leading-[34px] font-bold text-ink">{AVAILABILITY_LABEL[status]}</p>
+        <p className="mt-0.5 text-sm text-muted">
           {phase ? (
             <>
-              Fase en curso: <span className="font-semibold">{phase}</span>
+              Fase en curso: <span className="font-semibold text-ink">{phase}</span>
             </>
           ) : (
             HINT[status]
           )}
         </p>
       </div>
-    </section>
+    </Card>
   );
 }

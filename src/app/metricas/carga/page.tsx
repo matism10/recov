@@ -35,9 +35,7 @@ export default async function LoadRankingPage() {
       ) : (
         <div className="space-y-4">
           <LoadIntro load={result.data} />
-          <section className={metricCardClass}>
-            <LoadList load={result.data} players={result.data.players} ranked />
-          </section>
+          <LoadList load={result.data} players={result.data.players} ranked />
         </div>
       )}
     </main>

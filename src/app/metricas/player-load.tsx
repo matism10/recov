@@ -4,7 +4,8 @@
 // de la semana por tipo (Cancha, Gimnasio, Partido), el total, la comparación con su
 // promedio y el plan de gimnasio (la columna se oculta si nadie tiene plan). Chips para
 // filtrar por alerta; primero los jugadores con alguna alerta y luego por carga. 8 filas
-// y "Ver los N jugadores". En el celular (<640 px) cada jugador es una tarjeta.
+// y "Ver los N jugadores". Todo en una TableCard: columnas desde lg y, en el celular,
+// filas de al menos 60 px (sin tarjetas por jugador).
 // Los datos y umbrales vienen de la base (team_srpe_load, team_load_breakdown,
 // wellness_flags, team_return_summary, gym_adherence): aquí solo se presentan.
 import { useState, type ReactNode } from "react";
@@ -12,6 +13,7 @@ import Link from "next/link";
 import { LOAD_KINDS, LOAD_KIND_COLOR, LOAD_KIND_LABEL } from "@/lib/gym";
 import { formatLoad } from "@/lib/srpe";
 import { TooltipTarget } from "@/app/chart-tooltip";
+import { ListRow, TableCard } from "@/app/ui-blocks";
 
 export type PlayerLoadItem = {
   id: string;
@@ -54,7 +56,7 @@ function Tags({ p }: { p: PlayerLoadItem }) {
         </span>
       )}
       {p.wellness && (
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${TAG.bienestar}`}>
+        <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${TAG.bienestar}`}>
           Bienestar {p.wellness.total}/25 · {p.wellness.reason}
         </span>
       )}
@@ -112,7 +114,7 @@ function Gym({ g }: { g: PlayerLoadItem["gym"] }) {
   );
 }
 
-export function PlayerLoadTable({ players }: { players: PlayerLoadItem[] }) {
+export function PlayerLoadTable({ players, header, id }: { players: PlayerLoadItem[]; header: ReactNode; id: string }) {
   const [filter, setFilter] = useState<Filter>("todos");
   const [expanded, setExpanded] = useState(false);
 
@@ -131,6 +133,10 @@ export function PlayerLoadTable({ players }: { players: PlayerLoadItem[] }) {
   const visible = expanded ? filtered : filtered.slice(0, PREVIEW);
   const max = Math.max(1, ...players.map((p) => p.load));
   const showGym = players.some((p) => p.gym && p.gym.assigned > 0);
+  // Columnas desde lg (clases literales).
+  const cols = showGym
+    ? "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_5rem_7rem_8rem]"
+    : "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_5rem_7rem]";
 
   const chips: { key: Filter; label: ReactNode }[] = [
     { key: "todos", label: "Todos" },
@@ -147,105 +153,54 @@ export function PlayerLoadTable({ players }: { players: PlayerLoadItem[] }) {
     },
   ];
 
-  if (players.length === 0) return <p className="text-sm text-muted">Sin jugadores en el plantel.</p>;
+  if (players.length === 0)
+    return (
+      <section id={id} className="scroll-mt-20">
+        <TableCard header={header}>
+          <ListRow>
+            <p className="text-sm text-muted">Sin jugadores en el plantel.</p>
+          </ListRow>
+        </TableCard>
+      </section>
+    );
+
+  const chipsRow = (
+    <div role="group" aria-label="Filtrar jugadores" className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 [scrollbar-width:none]">
+      {chips.map((c) => {
+        const on = filter === c.key;
+        return (
+          <button
+            key={c.key}
+            type="button"
+            aria-pressed={on}
+            onClick={() => {
+              setFilter(c.key);
+              setExpanded(false);
+            }}
+            className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium whitespace-nowrap transition ${
+              on ? "border-ink bg-ink text-white" : "border-line bg-white text-ink hover:bg-mist"
+            }`}
+          >
+            {c.label}
+            <span className={`tabular-nums ${on ? "text-white/80" : "text-muted"}`}>{counts[c.key]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
-    <div className="space-y-3">
-      <div role="group" aria-label="Filtrar jugadores" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-        {chips.map((c) => {
-          const on = filter === c.key;
-          return (
-            <button
-              key={c.key}
-              type="button"
-              aria-pressed={on}
-              onClick={() => {
-                setFilter(c.key);
-                setExpanded(false);
-              }}
-              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium whitespace-nowrap transition ${
-                on ? "border-ink bg-ink text-white" : "border-line bg-white text-ink hover:bg-mist"
-              }`}
-            >
-              {c.label}
-              <span className={`tabular-nums ${on ? "text-white/80" : "text-muted"}`}>{counts[c.key]}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {filtered.length === 0 ? (
-        <p className="py-3 text-sm text-muted">Nadie en este grupo esta semana.</p>
-      ) : (
-        <>
-          {/* Celular: una tarjeta por jugador. */}
-          <ul className="space-y-2 sm:hidden">
-            {visible.map((p) => (
-              <li key={p.id} className="rounded-xl border border-line px-3 py-2.5">
-                <Link href={`/jugadores/${p.id}`} className="font-medium text-ink hover:underline">
-                  {p.name}
-                </Link>
-                <Tags p={p} />
-                <div className="mt-2 flex items-center gap-3">
-                  <div className="min-w-0 flex-1">
-                    <Bar p={p} max={max} />
-                  </div>
-                  <span className="font-display font-bold text-ink tabular-nums">{formatLoad(p.load)}</span>
-                </div>
-                <div className="mt-1 flex items-center justify-between gap-3 text-xs text-muted">
-                  <span>
-                    vs su promedio <VsAverage p={p} />
-                  </span>
-                  {showGym && (
-                    <span>
-                      Gimnasio <Gym g={p.gym} />
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          {/* Desde sm: tabla. */}
-          <div className="hidden sm:block">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs text-muted">
-                <tr>
-                  <th scope="col" className="py-2 pr-3 font-medium">Jugador</th>
-                  <th scope="col" className="w-[32%] py-2 pr-3 font-medium">Carga de la semana</th>
-                  <th scope="col" className="py-2 pr-3 font-medium">Total</th>
-                  <th scope="col" className="py-2 pr-3 font-medium">vs su promedio</th>
-                  {showGym && <th scope="col" className="py-2 font-medium">Plan de gimnasio</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((p) => (
-                  <tr key={p.id} className="border-t border-line align-middle">
-                    <td className="py-2.5 pr-3">
-                      <Link href={`/jugadores/${p.id}`} className="font-medium text-ink hover:underline">
-                        {p.name}
-                      </Link>
-                      <Tags p={p} />
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      <Bar p={p} max={max} />
-                    </td>
-                    <td className="py-2.5 pr-3 font-display font-bold text-ink tabular-nums">{formatLoad(p.load)}</td>
-                    <td className="py-2.5 pr-3">
-                      <VsAverage p={p} />
-                    </td>
-                    {showGym && (
-                      <td className="py-2.5">
-                        <Gym g={p.gym} />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filtered.length > PREVIEW && (
+    <section id={id} className="scroll-mt-20">
+      <TableCard
+        columns={cols}
+        header={
+          <>
+            {header}
+            {chipsRow}
+          </>
+        }
+        footer={
+          filtered.length > PREVIEW ? (
             <button
               type="button"
               aria-expanded={expanded}
@@ -254,9 +209,63 @@ export function PlayerLoadTable({ players }: { players: PlayerLoadItem[] }) {
             >
               {expanded ? "Ver menos" : `Ver los ${filtered.length} jugadores`}
             </button>
-          )}
-        </>
-      )}
-    </div>
+          ) : undefined
+        }
+        head={
+          <>
+            <span>Jugador</span>
+            <span>Carga de la semana</span>
+            <span>Total</span>
+            <span>vs su promedio</span>
+            {showGym && <span>Plan de gimnasio</span>}
+          </>
+        }
+      >
+        {filtered.length === 0 && (
+          <ListRow>
+            <p className="text-sm text-muted">Nadie en este grupo esta semana.</p>
+          </ListRow>
+        )}
+        {visible.map((p) => (
+          <ListRow key={p.id} columns={cols} className="min-h-15 py-2.5">
+            <div className="min-w-0 flex-1">
+              <Link
+                href={`/jugadores/${p.id}`}
+                className="block truncate text-15 font-semibold text-ink after:absolute after:inset-0 after:content-[''] hover:underline"
+              >
+                {p.name}
+              </Link>
+              <Tags p={p} />
+              {/* Celular: barra y comparación bajo el nombre. */}
+              <div className="mt-1.5 lg:hidden">
+                <Bar p={p} max={max} />
+                <p className="mt-1 flex items-center justify-between gap-3 text-13 text-muted">
+                  <span>
+                    vs su promedio <VsAverage p={p} />
+                  </span>
+                  {showGym && (
+                    <span>
+                      Gimnasio <Gym g={p.gym} />
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="hidden lg:block">
+              <Bar p={p} max={max} />
+            </div>
+            <span className="shrink-0 font-display text-base font-bold text-ink tabular-nums">{formatLoad(p.load)}</span>
+            <span className="hidden lg:block">
+              <VsAverage p={p} />
+            </span>
+            {showGym && (
+              <span className="hidden lg:block">
+                <Gym g={p.gym} />
+              </span>
+            )}
+          </ListRow>
+        ))}
+      </TableCard>
+    </section>
   );
 }

@@ -13,7 +13,7 @@ export function MyAbsenceBlock({ absences }: { absences: MyAbsence[] }) {
   const current = active.find((a) => !a.is_squad) ?? active[0];
 
   return (
-    <div className="mb-8 space-y-3">
+    <div className="space-y-3">
       {current && (
         <section aria-label="Tu ausencia" className="rounded-xl border border-line bg-brand-soft p-4">
           <div className="flex items-start gap-3">
@@ -38,7 +38,7 @@ export function MyAbsenceBlock({ absences }: { absences: MyAbsence[] }) {
         <CalendarOff aria-hidden="true" className="size-5 shrink-0 text-brand-strong" />
         <span className="min-w-0 flex-1">
           <span className="block font-medium text-ink">Avisar una ausencia</span>
-          <span className="block text-sm text-muted">Si no vas a un evento o estarás varios días fuera.</span>
+          <span className="block text-13 text-muted">Si no vas a un evento o estarás varios días fuera.</span>
         </span>
         <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
       </Link>

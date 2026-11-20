@@ -18,11 +18,12 @@ import {
 } from "@/lib/metrics";
 import { Avatar } from "@/app/avatar";
 import { BarChart } from "@/app/bar-chart";
-import { BarList, MetricsBlock, MetricsError, metricCardClass, percentOf } from "@/app/metrics";
+import { BarList, MetricsBlock, MetricsError, percentOf } from "@/app/metrics";
 import { StackedBarChart } from "@/app/stacked-bar-chart";
 import { TooltipTarget } from "@/app/chart-tooltip";
 import { InfoBox } from "@/app/info-box";
-import { AVAILABILITY_ICON, AvailabilityBadge, SectionTitle } from "@/app/ui";
+import { AvailabilityBadge, SectionTitle } from "@/app/ui";
+import { Card, ListRow, StatStrip } from "@/app/ui-blocks";
 
 const MAX_POSITIONS = 10; // en dos columnas: 5 y 5
 const UPCOMING_VISIBLE = 4;
@@ -162,16 +163,16 @@ export function RecurringPlayersBlock({
   return (
     <MetricsBlock heading={heading} subtitle={subtitle} info="recurrentes">
       {result.data.length > 0 ? (
-        <ul className="divide-y divide-line">
+        <ul className="-mx-4 -mb-4 divide-y divide-line border-t border-line lg:-mx-5 lg:-mb-5">
           {result.data.map((p) => {
             const userId = status?.get(p.player_id)?.user_id;
             return (
-              <li key={p.player_id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+              <ListRow key={p.player_id} href={`/jugadores/${p.player_id}`} className="min-h-15 justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                   <Avatar name={p.full_name} url={userId ? avatarUrls.get(userId) : null} />
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-ink">{p.full_name}</p>
-                    <p className="text-sm text-muted">
+                    <p className="truncate text-15 font-semibold text-ink">{p.full_name}</p>
+                    <p className="text-13 text-muted">
                       {p.position_name} · última {formatShortDate(p.last_injury_on)}
                     </p>
                   </div>
@@ -185,7 +186,7 @@ export function RecurringPlayersBlock({
                 >
                   {p.injuries_count} lesiones
                 </span>
-              </li>
+              </ListRow>
             );
           })}
         </ul>
@@ -234,50 +235,48 @@ export function UpcomingReturnsBlock({
     const late = r.days_left < 0;
     const s = status?.get(r.player_id);
     return (
-      <li
-        key={r.injury_id}
-        className={`flex items-center gap-3 rounded-lg px-2 py-2.5 ${late ? "bg-revision-bg/60" : ""}`}
-      >
+      <ListRow key={r.injury_id} href={`/jugadores/${r.player_id}`} className={`min-h-15 ${late ? "bg-revision-bg/60" : ""}`}>
         <Avatar name={r.full_name} url={s?.user_id ? avatarUrls.get(s.user_id) : null} />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-ink">{r.full_name}</p>
-          <p className="text-sm text-muted">
+          <p className="truncate text-15 font-semibold text-ink">{r.full_name}</p>
+          <p className="text-13 text-muted">
             {formatShortDate(r.return_on)} ·{" "}
             <span className={late ? "font-medium text-revision-fg" : ""}>{deadlineLabel(r.days_left)}</span>
           </p>
         </div>
         {s && <AvailabilityBadge status={s.availability} />}
-      </li>
+      </ListRow>
     );
   };
+  const rowsUl = "-mx-4 divide-y divide-line border-t border-line lg:-mx-5";
   return (
     <MetricsBlock
       heading={heading}
       subtitle={overdue > 0 ? `${subtitle} · ${overdue === 1 ? "1 vencida" : `${overdue} vencidas`}` : subtitle}
       info="altas"
     >
-      <ul className="-mx-2 space-y-1">{rows.slice(0, UPCOMING_VISIBLE).map(row)}</ul>
+      <ul className={rowsUl}>{rows.slice(0, UPCOMING_VISIBLE).map(row)}</ul>
       {rows.length > UPCOMING_VISIBLE && (
-        <details className="group mt-2">
-          <summary className="cursor-pointer list-none text-sm font-medium text-brand-text hover:underline [&::-webkit-details-marker]:hidden">
+        <details className="group">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center border-t border-line text-sm font-medium text-brand-text hover:underline [&::-webkit-details-marker]:hidden">
             <span className="group-open:hidden">Ver las {rows.length} altas</span>
             <span className="hidden group-open:inline">Ver menos</span>
           </summary>
-          <ul className="-mx-2 mt-2 space-y-1">{rows.slice(UPCOMING_VISIBLE).map(row)}</ul>
+          <ul className={rowsUl}>{rows.slice(UPCOMING_VISIBLE).map(row)}</ul>
         </details>
       )}
     </MetricsBlock>
   );
 }
 
-// Franja de estado: una sola tarjeta con Disponibles (n y %), Lesionados (+N en revisión),
-// En reintegro y el total, sobre una barra proporcional con los colores de siempre.
+// Franja de estado: StatStrip con Disponibles (n y %), Lesionados (+N en revisión), En
+// reintegro y el total, sobre una barra proporcional con los colores de siempre.
 export function StatusStrip({ result }: { result: MetricsResult<DashSummary> }) {
   if (!result.ok) {
     return (
-      <section className={metricCardClass}>
+      <Card as="section">
         <MetricsError />
-      </section>
+      </Card>
     );
   }
   const d = result.data;
@@ -287,54 +286,25 @@ export function StatusStrip({ result }: { result: MetricsResult<DashSummary> }) 
     { key: "en_revision", label: "En revisión", value: d.en_revision, bar: "bg-revision" },
     { key: "reintegro", label: "En reintegro", value: d.reintegro, bar: "bg-reintegro" },
   ];
-  const DispIcon = AVAILABILITY_ICON.disponible;
-  const LesIcon = AVAILABILITY_ICON.lesionado;
-  const ReiIcon = AVAILABILITY_ICON.reintegro;
   const pct = (n: number) => percentOf(n, d.total);
   return (
-    <section className={metricCardClass} aria-labelledby="estado-plantel">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <SectionTitle>
-          <span id="estado-plantel">Estado del plantel hoy</span>
-        </SectionTitle>
-        <p className="text-sm text-muted">
-          <span className="font-semibold text-ink tabular-nums">{d.total}</span> {d.total === 1 ? "jugador" : "jugadores"}
-        </p>
-      </div>
-      <div className="mt-1.5">
+    <section aria-labelledby="estado-plantel">
+      <div className="mb-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <SectionTitle>
+            <span id="estado-plantel">Estado del plantel hoy</span>
+          </SectionTitle>
+        </div>
         <InfoBox topic="estado" />
       </div>
-      <dl className="mt-4 grid grid-cols-3 gap-3">
-        <div>
-          <dt className="flex items-center gap-1.5 text-sm text-muted">
-            <DispIcon aria-hidden="true" className="size-4 text-disponible" />
-            Disponibles
-          </dt>
-          <dd className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
-            <span className="font-display text-3xl font-extrabold text-disponible tabular-nums sm:text-4xl">{d.disponibles}</span>
-            {pct(d.disponibles) !== null && <span className="text-sm font-medium text-ink">{pct(d.disponibles)} %</span>}
-          </dd>
-        </div>
-        <div>
-          <dt className="flex items-center gap-1.5 text-sm text-muted">
-            <LesIcon aria-hidden="true" className="size-4 text-lesionado" />
-            Lesionados
-          </dt>
-          <dd className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
-            <span className="font-display text-3xl font-extrabold text-lesionado tabular-nums sm:text-4xl">{d.lesionados}</span>
-            {d.en_revision > 0 && (
-              <span className="text-sm font-medium text-revision-fg">+{d.en_revision} en revisión</span>
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt className="flex items-center gap-1.5 text-sm text-muted">
-            <ReiIcon aria-hidden="true" className="size-4 text-reintegro" />
-            En reintegro
-          </dt>
-          <dd className="mt-1 font-display text-3xl font-extrabold text-reintegro tabular-nums sm:text-4xl">{d.reintegro}</dd>
-        </div>
-      </dl>
+      <StatStrip
+        items={[
+          { label: "Disponibles", value: d.disponibles, context: pct(d.disponibles) !== null ? `${pct(d.disponibles)} % del plantel` : undefined, tone: "disponible" },
+          { label: "Lesionados", value: d.lesionados, context: d.en_revision > 0 ? `+${d.en_revision} en revisión` : undefined, tone: "lesionado" },
+          { label: "En reintegro", value: d.reintegro, tone: "reintegro" },
+          { label: "Plantel", value: d.total, context: d.total === 1 ? "jugador" : "jugadores" },
+        ]}
+      />
       {d.total > 0 && (
         <div aria-hidden="true" className="mt-4 flex h-3 gap-0.5 overflow-visible rounded-full">
           {segments

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { WEEKDAYS } from "@/lib/srpe";
-import { SectionTitle } from "@/app/ui";
+import { Card, CardHeader } from "@/app/ui-blocks";
 import { EventDetails, EventSheet, type EventSheetData } from "@/app/calendario/event-sheet";
 import type { WeekData } from "./week-data";
 
@@ -13,7 +13,7 @@ const LETTERS = ["L", "M", "X", "J", "V", "S", "D"];
 // "Mi semana": fila de 7 días (L a D) con G (gimnasio), E (entrenamiento) o P (partido);
 // "·" si no hay nada y las letras juntas si hay más de una. Hoy va en #082F49. Al tocar
 // un día se ve qué hay; un entrenamiento o partido abre la hoja de detalle del calendario.
-export function MyWeek({ data, className = "mb-8" }: { data: WeekData; className?: string }) {
+export function MyWeek({ data, className = "" }: { data: WeekData; className?: string }) {
   const [selected, setSelected] = useState(data.today);
   const [openEvent, setOpenEvent] = useState<EventSheetData | null>(null);
   const closeEvent = useCallback(() => setOpenEvent(null), []);
@@ -21,10 +21,8 @@ export function MyWeek({ data, className = "mb-8" }: { data: WeekData; className
 
   return (
     <section id="mi-semana" className={`${className} scroll-mt-4`} aria-labelledby="mi-semana-title">
-      <SectionTitle className="mb-3">
-        <span id="mi-semana-title">Mi semana</span>
-      </SectionTitle>
-      <div className="rounded-xl border border-line bg-card p-3 sm:p-4">
+      <Card className="p-3 sm:p-4 lg:p-5">
+        <CardHeader title={<span id="mi-semana-title">Mi semana</span>} />
         <div role="tablist" aria-label="Días de la semana" className="grid grid-cols-7 gap-1.5">
           {data.days.map((d, i) => {
             const today = d.date === data.today;
@@ -45,10 +43,10 @@ export function MyWeek({ data, className = "mb-8" }: { data: WeekData; className
                     ? "bg-brand-night text-white"
                     : d.items.length > 0
                       ? "bg-fill-soft text-ink"
-                      : "border border-fill-soft bg-white text-muted"
+                      : "border border-fill-soft bg-card text-muted"
                 } ${on && !today ? "ring-2 ring-brand" : ""} ${on && today ? "ring-2 ring-brand ring-offset-2" : ""}`}
               >
-                <span aria-hidden="true" className="text-[11px] font-medium opacity-80">
+                <span aria-hidden="true" className="text-xs font-medium opacity-80">
                   {LETTERS[i]}
                 </span>
                 <span aria-hidden="true" className="font-display font-bold tracking-wide">
@@ -82,7 +80,7 @@ export function MyWeek({ data, className = "mb-8" }: { data: WeekData; className
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-ink">{x.title}</span>
-                      {x.detail && <span className="block text-xs text-muted">{x.detail}</span>}
+                      {x.detail && <span className="block text-13 text-muted">{x.detail}</span>}
                     </span>
                     {(x.href || x.event) && <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted" />}
                   </>
@@ -110,7 +108,7 @@ export function MyWeek({ data, className = "mb-8" }: { data: WeekData; className
             </ul>
           )}
         </div>
-      </div>
+      </Card>
       {openEvent && (
         <EventSheet key={openEvent.id} event={openEvent} onClose={closeEvent}>
           <div className="lg:mt-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Check } from "lucide-react";
 import {
   CARD_METRICS,
   DASHBOARD_METRICS,
@@ -45,14 +46,23 @@ export function MetricsForm({
               <p className="text-sm text-muted">{group.legend}</p>
               <div className="mt-1 grid gap-x-6 sm:grid-cols-2">
                 {group.items.map((m) => (
-                  <label key={m} className="flex min-h-11 items-center gap-3 text-sm text-ink">
+                  <label
+                    key={m}
+                    className="relative flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-1 text-sm text-ink hover:bg-mist focus-within:outline-2 focus-within:outline-brand-strong"
+                  >
                     <input
                       type="checkbox"
                       name={device.name}
                       value={m}
                       defaultChecked={selected[device.name].includes(m)}
-                      className="size-4 accent-brand-strong"
+                      className="absolute inset-0 size-full cursor-pointer opacity-0 peer"
                     />
+                    <span
+                      aria-hidden="true"
+                      className="flex size-5 shrink-0 items-center justify-center rounded-md border border-muted bg-card peer-checked:border-brand-strong peer-checked:bg-brand-strong peer-checked:[&>svg]:opacity-100"
+                    >
+                      <Check className="size-3.5 text-white opacity-0" strokeWidth={3} />
+                    </span>
                     <span>
                       {DASHBOARD_METRIC_LABEL[m]}
                       {m === "asistencia" && (

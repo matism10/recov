@@ -7,6 +7,7 @@ import { LineChart, type ChartColor } from "@/app/line-chart";
 import { TooltipTarget, type TooltipContent } from "@/app/chart-tooltip";
 import { InfoBox } from "@/app/info-box";
 import type { MetricsHelpKey } from "@/lib/metrics-help";
+import { Card, CardHeader, TableCard } from "@/app/ui-blocks";
 
 // Tarjeta de métricas: la misma en la franja de /dashboard y en /metricas.
 import { anchorId } from "@/lib/anchors";
@@ -102,7 +103,8 @@ export function MetricsError() {
   return <p className="text-sm text-muted">No se pudieron cargar las métricas.</p>;
 }
 
-// Bloque de /metricas: título, subtítulo opcional, "¿Cómo se lee?" opcional, contenido y pie.
+// Bloque de /metricas: Card con CardHeader (título, subtítulo), "¿Cómo se lee?" opcional,
+// contenido y pie. El id del ancla sale del título.
 export function MetricsBlock({
   heading,
   subtitle,
@@ -119,16 +121,56 @@ export function MetricsBlock({
   children: ReactNode;
 }) {
   return (
-    <section id={anchorId(heading)} className={`${metricCardClass} scroll-mt-20 ${className}`}>
-      <SectionTitle>{heading}</SectionTitle>
-      {subtitle && <p className="mt-0.5 text-xs text-muted">{subtitle}</p>}
+    <Card as="section" id={anchorId(heading)} className={`scroll-mt-20 ${className}`}>
+      <CardHeader title={heading} subtitle={subtitle} className={info ? "mb-0" : ""} />
       {info && (
-        <div className="mt-1.5">
+        <div className="mb-2">
           <InfoBox topic={info} />
         </div>
       )}
-      <div className="mt-4">{children}</div>
-      {footer && <p className="mt-4 text-xs text-muted">{footer}</p>}
+      <div className="mt-3">{children}</div>
+      {footer && <p className="mt-4 text-13 text-muted">{footer}</p>}
+    </Card>
+  );
+}
+
+// Bloque con filas (ranking, asistencia): TableCard con el título arriba, las filas
+// (ListRow) y un pie opcional con botones. Mismo id de ancla que MetricsBlock.
+export function MetricsTable({
+  heading,
+  subtitle,
+  info,
+  intro,
+  footer,
+  columns,
+  head,
+  children,
+}: {
+  heading: string;
+  subtitle?: ReactNode;
+  info?: MetricsHelpKey;
+  intro?: ReactNode;
+  footer?: ReactNode;
+  columns?: string;
+  head?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section id={anchorId(heading)} className="scroll-mt-20">
+      <TableCard
+        columns={columns}
+        head={head}
+        footer={footer}
+        header={
+          <>
+            <CardHeader title={heading} subtitle={subtitle} className="mb-0" />
+            {info && <InfoBox topic={info} />}
+            {intro && <div className="mt-1">{intro}</div>}
+          </>
+        }
+      >
+        {children}
+      </TableCard>
     </section>
   );
 }

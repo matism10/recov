@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canSetWellnessDays, isDirection, type UserRole } from "@/lib/roles";
 import { clubLogoUrl } from "@/lib/club-logo";
-import { buttonSecondary, cardClass, textButton } from "@/app/ui";
+import { buttonSecondary } from "@/app/ui";
+import { Card, CardHeader, PageHeader } from "@/app/ui-blocks";
 import { LogoForm } from "./logo-form";
 import { CoverForm } from "./cover-form";
 import { clubCoverUrl } from "@/lib/club-identity";
@@ -47,113 +48,130 @@ export default async function SettingsPage() {
   const isHeadCoach = roles.includes("head_coach");
 
   const wellnessSection = (
-    <section id="bienestar" className={`scroll-mt-4 p-5 ${cardClass}`}>
-      <h2 className="font-medium text-ink">Check de bienestar</h2>
-      <p className="mt-1 mb-4 text-sm text-muted">
-        Elige qué días los jugadores responden las 5 preguntas de bienestar. Quien no alcanza a
-        responder, puede hacerlo al día siguiente.
-      </p>
+    <Card as="section" id="bienestar" className="scroll-mt-4">
+      <CardHeader
+        title="Check de bienestar"
+        subtitle="Elige qué días los jugadores responden las 5 preguntas de bienestar. Quien no alcanza a responder, puede hacerlo al día siguiente."
+      />
       <WellnessDaysForm initial={wellnessDays} />
-    </section>
+    </Card>
   );
+
+  const header = (
+    <PageHeader title="Configuración" description={`Ajustes de ${club?.name ?? "tu plantel"}.`} />
+  );
+  const mainClass = "mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1080px] lg:px-8 lg:py-10";
 
   // Preparador físico (sin rol de dirección): solo el check de bienestar.
   if (!direction) {
     return (
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-        <header className="mb-8">
-          <Link href="/dashboard" className={textButton}>
-            ← Volver al resumen
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold text-ink">Configuración</h1>
-          <p className="mt-1 text-sm text-muted">Ajustes de {club?.name}.</p>
-        </header>
+      <main className={mainClass}>
+        {header}
         {wellnessSection}
       </main>
     );
   }
 
+  // Índice lateral (solo escritorio): anclas de las secciones que ve esta persona.
+  const sections = [
+    { id: "logo", label: "Logo del plantel" },
+    { id: "portada", label: "Portada" },
+    { id: "partidos", label: "Registro de partidos" },
+    ...(club?.sport === "rugby" ? [{ id: "sevens", label: "Rugby Sevens" }] : []),
+    { id: "bienestar", label: "Check de bienestar" },
+    ...(isHeadCoach ? [{ id: "metricas-resumen", label: "Métricas del Resumen" }] : []),
+  ];
+
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <header className="mb-8">
-        <Link href="/dashboard" className={textButton}>
-          ← Volver al resumen
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-ink">Configuración</h1>
-        <p className="mt-1 text-sm text-muted">Ajustes de {club?.name}.</p>
-      </header>
+    <main className={mainClass}>
+      {header}
+      <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10">
+        <nav aria-label="Secciones" className="sticky top-6 hidden self-start lg:block">
+          <ul className="flex flex-col gap-1">
+            {sections.map((sec) => (
+              <li key={sec.id}>
+                <a
+                  href={`#${sec.id}`}
+                  className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted transition hover:bg-mist hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-strong"
+                >
+                  {sec.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-      <section id="logo" className={`scroll-mt-4 p-5 ${cardClass}`}>
-        <h2 className="font-medium text-ink">Logo del plantel</h2>
-        <p className="mt-1 mb-4 text-sm text-muted">
-          Se muestra en el encabezado y en el link de registro del plantel.
-        </p>
-        <LogoForm
-          clubName={club?.name ?? ""}
-          url={clubLogoUrl(supabase, club?.logo_path)}
-          folder={me.club_id}
-        />
-      </section>
+        <div className="space-y-6">
+          <Card as="section" id="logo" className="scroll-mt-4">
+            <CardHeader
+              title="Logo del plantel"
+              subtitle="Se muestra en el encabezado y en el link de registro del plantel."
+            />
+            <LogoForm
+              clubName={club?.name ?? ""}
+              url={clubLogoUrl(supabase, club?.logo_path)}
+              folder={me.club_id}
+            />
+          </Card>
 
-      <section id="portada" className={`mt-6 scroll-mt-4 p-5 ${cardClass}`}>
-        <h2 className="font-medium text-ink">Portada</h2>
-        <p className="mt-1 mb-4 text-sm text-muted">
-          Se muestra arriba del Resumen. Arrastra la foto para encuadrarla.
-        </p>
-        <CoverForm
-          clubName={club?.name ?? ""}
-          url={clubCoverUrl(club?.cover_path)}
-          position={{ x: club?.cover_position_x ?? 50, y: club?.cover_position_y ?? 50 }}
-          folder={me.club_id}
-        />
-      </section>
+          <Card as="section" id="portada" className="scroll-mt-4">
+            <CardHeader
+              title="Portada"
+              subtitle="Se muestra arriba del Resumen. Arrastra la foto para encuadrarla."
+            />
+            <CoverForm
+              clubName={club?.name ?? ""}
+              url={clubCoverUrl(club?.cover_path)}
+              position={{ x: club?.cover_position_x ?? 50, y: club?.cover_position_y ?? 50 }}
+              folder={me.club_id}
+            />
+          </Card>
 
-      <section id="partidos" className={`mt-6 scroll-mt-4 p-5 ${cardClass}`}>
-        <h2 className="font-medium text-ink">Registro de partidos</h2>
-        <p className="mt-1 mb-4 text-sm text-muted">
-          Cómo se carga la participación de los convocados en cada partido. Define la carga
-          del plantel en Métricas y en la ficha de cada jugador.
-        </p>
-        <NominaModeForm
-          mode={(club?.nomina_mode as NominaMode | undefined) ?? "rango"}
-          loadedCount={loadedCount ?? 0}
-        />
-      </section>
+          <Card as="section" id="partidos" className="scroll-mt-4">
+            <CardHeader
+              title="Registro de partidos"
+              subtitle="Cómo se carga la participación de los convocados en cada partido. Define la carga del plantel en Métricas y en la ficha de cada jugador."
+            />
+            <NominaModeForm
+              mode={(club?.nomina_mode as NominaMode | undefined) ?? "rango"}
+              loadedCount={loadedCount ?? 0}
+            />
+          </Card>
 
-      {club?.sport === "rugby" && (
-        <section id="sevens" className={`mt-6 scroll-mt-4 p-5 ${cardClass}`}>
-          <h2 className="font-medium text-ink">Rugby Sevens</h2>
-          <p className="mt-1 mb-4 text-sm text-muted">
-            Sevens usa el mismo plantel: fichas, lesiones y evaluaciones son las mismas. Con
-            Sevens activo, el Resumen muestra el selector Rugby 15 | Sevens a la dirección y al
-            grupo Sevens.
-          </p>
-          <SevensToggle enabled={club.has_sevens} />
-          {club.has_sevens && (
-            <Link href="/configuracion/sevens" className={`mt-4 text-sm ${buttonSecondary}`}>
-              Grupo Sevens
-            </Link>
+          {club?.sport === "rugby" && (
+            <Card as="section" id="sevens" className="scroll-mt-4">
+              <CardHeader
+                title="Rugby Sevens"
+                subtitle="Sevens usa el mismo plantel: fichas, lesiones y evaluaciones son las mismas. Con Sevens activo, el Resumen muestra el selector Rugby 15 | Sevens a la dirección y al grupo Sevens."
+              />
+              <SevensToggle enabled={club.has_sevens} />
+              {club.has_sevens && (
+                <Link href="/configuracion/sevens" className={`mt-4 text-sm ${buttonSecondary}`}>
+                  Grupo Sevens
+                </Link>
+              )}
+            </Card>
           )}
-        </section>
-      )}
 
-      <div className="mt-6">{wellnessSection}</div>
+          {wellnessSection}
 
-      {isHeadCoach && (
-        <section id="metricas-resumen" className={`mt-6 scroll-mt-4 p-5 ${cardClass}`}>
-          <h2 className="font-medium text-ink">Métricas del Resumen</h2>
-          <p className="mt-1 mb-4 text-sm text-muted">
-            Elige qué métricas ve el staff del plantel en el Resumen, en computador y en celular.
-          </p>
-          <MetricsForm
-            desktop={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
-            mobile={dashboardMetricsOf(
-              club?.dashboard_metrics_mobile as string[] | null,
-              DEFAULT_DASHBOARD_METRICS_MOBILE,
-            )}
-          />
-        </section>
-      )}
+          {isHeadCoach && (
+            <Card as="section" id="metricas-resumen" className="scroll-mt-4">
+              <CardHeader
+                title="Métricas del Resumen"
+                subtitle="Elige qué métricas ve el staff del plantel en el Resumen, en computador y en celular."
+              />
+              <MetricsForm
+                desktop={dashboardMetricsOf(club?.dashboard_metrics as string[] | null)}
+                mobile={dashboardMetricsOf(
+                  club?.dashboard_metrics_mobile as string[] | null,
+                  DEFAULT_DASHBOARD_METRICS_MOBILE,
+                )}
+              />
+            </Card>
+          )}
+        </div>
+      </div>
     </main>
   );
 }

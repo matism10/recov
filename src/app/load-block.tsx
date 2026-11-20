@@ -11,7 +11,7 @@ import {
   type PlayerLoad,
 } from "@/lib/match-load";
 import { LoadChart } from "@/app/load-chart";
-import { SectionTitle, cardClass } from "@/app/ui";
+import { Card, CardHeader } from "@/app/ui-blocks";
 
 type LoadData = {
   mode: NominaMode;
@@ -36,9 +36,9 @@ export function LoadBlock({
   error?: boolean;
 }) {
   return (
-    <section>
-      <SectionTitle className="mb-3">{title}</SectionTitle>
-      <div className={`space-y-4 p-5 ${cardClass}`}>
+    <Card as="section" className="h-full">
+      <CardHeader title={title} />
+      <div className="space-y-4">
         {error || !load ? (
           <p className="text-sm text-muted">No se pudo cargar la carga de partidos.</p>
         ) : load.matches_count === 0 || !player ? (
@@ -59,7 +59,7 @@ export function LoadBlock({
           </p>
         )}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -84,7 +84,7 @@ function LoadContent({ load, player }: { load: LoadData; player: PlayerLoad }) {
       />
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <dt className="text-[13px] text-muted">
+          <dt className="text-13 text-muted">
             {load.mode === "jugo" ? "Partidos jugados" : "Carga"} de los últimos {n}{" "}
             {n === 1 ? "partido" : "partidos"}
           </dt>
@@ -94,7 +94,7 @@ function LoadContent({ load, player }: { load: LoadData; player: PlayerLoad }) {
         </div>
         {load.mode !== "jugo" && reference !== null && (
           <div>
-            <dt className="text-[13px] text-muted">Promedio del plantel</dt>
+            <dt className="text-13 text-muted">Promedio del plantel</dt>
             <dd className="mt-0.5 text-ink">
               <span className="text-2xl font-bold tabular-nums">
                 {totalLabel(load.mode, reference, n)}

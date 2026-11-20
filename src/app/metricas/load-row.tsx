@@ -5,6 +5,7 @@ import Link from "next/link";
 import { totalLabel, type LoadMatch, type LoadScaleRow, type NominaMode, type PlayerLoad } from "@/lib/match-load";
 import { LoadMiniBars, matchDateLabel, valueText } from "@/app/load-chart";
 import { TooltipTarget } from "@/app/chart-tooltip";
+import { ListRow } from "@/app/ui-blocks";
 
 export function LoadRow({
   player: p,
@@ -25,11 +26,11 @@ export function LoadRow({
 }) {
   const byId = new Map(matches.map((m) => [m.event_id, m]));
   return (
-    <li className="flex items-center gap-3 py-2.5">
-      {rank !== undefined && <span className="w-5 shrink-0 text-right text-xs text-muted tabular-nums">{rank}</span>}
+    <ListRow className="min-h-15 gap-3">
+      {rank !== undefined && <span className="w-5 shrink-0 text-right text-13 text-muted tabular-nums">{rank}</span>}
       <Link
         href={`/jugadores/${p.player_id}`}
-        className="min-w-0 flex-1 truncate font-medium text-ink hover:underline"
+        className="min-w-0 flex-1 truncate text-15 font-semibold text-ink after:absolute after:inset-0 after:content-[''] hover:underline"
       >
         {p.full_name}
       </Link>
@@ -48,6 +49,6 @@ export function LoadRow({
       <span className="w-16 shrink-0 text-right text-sm font-semibold text-ink tabular-nums sm:w-20">
         {totalLabel(mode, p.total, matchesCount)}
       </span>
-    </li>
+    </ListRow>
   );
 }

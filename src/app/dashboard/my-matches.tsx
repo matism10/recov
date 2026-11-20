@@ -2,7 +2,7 @@
 // propios (my_match_load).
 import { participationLabel, type LoadScaleRow, type MyCallup } from "@/lib/match-load";
 import { matchDateLabel } from "@/app/load-chart";
-import { SectionTitle, cardClass } from "@/app/ui";
+import { Card, CardHeader, ListRow, TableCard } from "@/app/ui-blocks";
 
 export function MyMatches({
   callups,
@@ -16,17 +16,19 @@ export function MyMatches({
   now: string; // ISO del momento del request, para separar convocatorias futuras
 }) {
   return (
-    <section className="mb-8">
-      <SectionTitle className="mb-3">Mis partidos</SectionTitle>
+    <section>
       {callups.length === 0 ? (
-        <p className={`p-5 text-sm text-muted ${cardClass}`}>Todavía no te han convocado.</p>
+        <Card>
+          <CardHeader title="Mis partidos" />
+          <p className="text-sm text-muted">Todavía no te han convocado.</p>
+        </Card>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
+        <TableCard header={<CardHeader title="Mis partidos" className="mb-0" />}>
           {callups.map((c) => {
             const upcoming = Date.parse(c.starts_at) > Date.parse(now);
             const label = participationLabel(c, scale);
             return (
-              <li key={c.event_id} className="flex items-center justify-between gap-4 px-5 py-3">
+              <ListRow key={c.event_id} className="justify-between">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-ink">
                     {c.opponent ? `vs. ${c.opponent}` : "Partido"}
@@ -37,11 +39,11 @@ export function MyMatches({
                   </p>
                 </div>
                 <span
-                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${
+                  className={`shrink-0 rounded-full px-3 py-1 text-13 font-medium whitespace-nowrap ${
                     upcoming
                       ? "bg-brand-soft text-brand-text"
                       : label
-                        ? "bg-white text-ink"
+                        ? "bg-mist text-ink"
                         : "bg-surface-2 text-muted"
                   }`}
                 >
@@ -53,10 +55,10 @@ export function MyMatches({
                         : `Titular · N° ${c.slot}`
                     : (label ?? "Sin cargar")}
                 </span>
-              </li>
+              </ListRow>
             );
           })}
-        </ul>
+        </TableCard>
       )}
     </section>
   );

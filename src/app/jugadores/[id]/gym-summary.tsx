@@ -64,7 +64,7 @@ export function GymSummary({ data }: { data: PlayerGymSummary | null }) {
                   >
                     {w.assigned === 0 ? "—" : `${w.done}/${w.assigned}`}
                   </span>
-                  <span className="text-[11px] text-muted">{last ? "Actual" : `S-${weeks.length - 1 - i}`}</span>
+                  <span className="text-xs text-muted">{last ? "Actual" : `S-${weeks.length - 1 - i}`}</span>
                 </li>
               );
             })}
@@ -80,7 +80,7 @@ export function GymSummary({ data }: { data: PlayerGymSummary | null }) {
           <ul className="divide-y divide-line">
             {data.recent.map((r) => (
               <li key={r.id} className="flex items-center gap-3 py-2.5">
-                <span className="w-20 shrink-0 text-[13px] text-muted">{dayLabel(r.performed_on)}</span>
+                <span className="w-20 shrink-0 text-13 text-muted">{dayLabel(r.performed_on)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium text-ink">{r.own ? "Por su cuenta" : r.label}</span>
                   <span className="block text-xs text-muted">

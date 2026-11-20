@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check } from "lucide-react";
 import { ErrorMessage, SuccessMessage, buttonPrimary } from "@/app/ui";
 import { WEEKDAYS } from "@/lib/srpe";
 import { saveWellnessDays, type WellnessDaysState } from "./wellness-actions";
@@ -31,28 +30,27 @@ export function WellnessDaysForm({ initial }: { initial: number[] }) {
     <div className="space-y-5">
       <fieldset>
         <legend className="mb-2 text-sm font-medium text-ink">Días del check</legend>
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
+        <ul className="flex flex-wrap gap-2">
           {WEEKDAYS.map((d) => {
             const checked = days.has(d.iso);
             return (
               <li key={d.iso}>
-                <label className="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2 hover:bg-mist">
+                <label
+                  className={`relative inline-flex min-h-11 min-w-14 cursor-pointer items-center justify-center rounded-full border px-4 text-sm font-medium transition focus-within:outline-2 focus-within:outline-brand-strong ${
+                    checked
+                      ? "border-brand-strong bg-brand-strong text-white"
+                      : "border-line bg-card text-ink hover:bg-mist"
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggle(d.iso)}
                     disabled={pending}
-                    className="peer sr-only"
+                    aria-label={d.label}
+                    className="absolute inset-0 size-full cursor-pointer opacity-0"
                   />
-                  <span
-                    aria-hidden="true"
-                    className={`flex size-5 shrink-0 items-center justify-center rounded-md border peer-focus-visible:ring-2 peer-focus-visible:ring-brand-strong ${
-                      checked ? "border-brand-strong bg-brand-strong text-white" : "border-muted bg-white"
-                    }`}
-                  >
-                    {checked && <Check className="size-3.5" strokeWidth={3} />}
-                  </span>
-                  <span className="text-ink">{d.label}</span>
+                  <span aria-hidden="true">{d.short}</span>
                 </label>
               </li>
             );

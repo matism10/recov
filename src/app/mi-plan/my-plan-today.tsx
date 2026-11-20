@@ -107,11 +107,11 @@ export function MyPlanToday({ session }: { session: GymTodaySession }) {
                           <span className="mr-1.5 text-xs font-bold text-muted">{codes[i]}</span>
                           {e.name}
                         </span>
-                        <span className="block text-[13px] text-muted">{details}</span>
+                        <span className="block text-13 text-muted">{details}</span>
                       </span>
                       <span className="shrink-0 text-right">
                         <span className="block font-display text-lg font-extrabold text-ink">{v.main}</span>
-                        {v.sub && <span className="block text-[11px] text-muted">{v.sub}</span>}
+                        {v.sub && <span className="block text-xs text-muted">{v.sub}</span>}
                       </span>
                     </button>
                   </li>
@@ -138,7 +138,7 @@ export function MyPlanToday({ session }: { session: GymTodaySession }) {
           type="button"
           onClick={() => finish(true)}
           disabled={pending}
-          className="flex h-12 w-full items-center justify-center rounded-2xl border border-brand text-[15px] font-semibold text-brand-text transition hover:bg-brand-soft"
+          className="flex h-12 w-full items-center justify-center rounded-2xl border border-brand text-15 font-semibold text-brand-text transition hover:bg-brand-soft"
         >
           Hice la sesión completa
         </button>

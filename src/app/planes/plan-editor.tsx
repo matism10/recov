@@ -1007,7 +1007,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                         </span>
                         <span className="shrink-0 text-right">
                           <span className="block font-display font-bold text-ink">{v.main}</span>
-                          {v.sub && <span className="block text-[11px] text-muted">{v.sub}</span>}
+                          {v.sub && <span className="block text-xs text-muted">{v.sub}</span>}
                         </span>
                       </li>
                     );
@@ -1162,7 +1162,7 @@ function BlockHeader({
         className="min-h-10 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1.5 text-sm font-bold tracking-wide text-ink uppercase outline-none hover:border-line focus:border-brand-strong focus:bg-white"
       />
       {canAdd && (
-        <button type="button" onClick={onAdd} className="min-h-10 shrink-0 rounded-lg px-2 text-sm font-semibold text-brand-text hover:bg-white">
+        <button type="button" onClick={onAdd} className="min-h-10 shrink-0 rounded-lg px-2 text-sm font-semibold text-brand-text hover:bg-mist">
           + Ejercicio
         </button>
       )}
@@ -1170,7 +1170,7 @@ function BlockHeader({
         type="button"
         onClick={onRemove}
         aria-label={`Quitar bloque ${name}`}
-        className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-white hover:text-danger"
+        className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-mist hover:text-danger"
       >
         <Trash2 aria-hidden="true" className="size-4" />
       </button>
@@ -1195,7 +1195,7 @@ function CheckRow({
       role="checkbox"
       aria-checked={checked}
       onClick={onToggle}
-      className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left hover:bg-white"
+      className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left hover:bg-mist"
     >
       <span
         className={`flex size-5 shrink-0 items-center justify-center rounded-md border-2 ${
@@ -1441,7 +1441,7 @@ function ExerciseSheet({
                   aria-pressed={on}
                   disabled={o.value === "pct" && tests.length === 0}
                   onClick={() => onType(o.value)}
-                  className={`min-h-11 rounded-lg border text-[13px] font-semibold disabled:opacity-50 ${
+                  className={`min-h-11 rounded-lg border text-13 font-semibold disabled:opacity-50 ${
                     on ? "border-brand bg-brand text-brand-night" : "border-line bg-white text-ink"
                   }`}
                 >
@@ -1489,7 +1489,7 @@ function ExerciseSheet({
                 ))}
               </select>
             </label>
-            <p className="text-[13px] text-brand-text">
+            <p className="text-13 text-brand-text">
               {example && e.pct !== null
                 ? `${example.name} (${example.max} kg): ${roundKg(example.max, e.pct).toLocaleString("es-CL")} kg · cada uno con su máximo`
                 : "Cada jugador ve los kilos según su máximo de Evaluaciones."}

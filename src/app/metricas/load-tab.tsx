@@ -11,7 +11,9 @@ import { causeText, getTeamReturnSummary, weeksText, type TeamReturnSummary } fr
 import { adherencePct, currentWeek, getGymAdherence, type GymAdherenceRow, type LoadBreakdownRow } from "@/lib/gym";
 import { wellnessReason, type TeamSrpeRow, type WellnessFlag } from "@/lib/srpe";
 import { attendanceBarClass, attendancePercent, getAttendanceRanking, type AttendanceRow } from "@/lib/attendance";
-import { MetricsBlock, MetricsError, metricCardClass } from "@/app/metrics";
+import { MetricsBlock, MetricsError, MetricsTable } from "@/app/metrics";
+import { ListRow, StatStrip, Card, CardHeader, type StatTone } from "@/app/ui-blocks";
+import { anchorId } from "@/lib/anchors";
 import { InfoBox } from "@/app/info-box";
 import { buttonSecondary } from "@/app/ui";
 import { MinutesSection } from "./load-section";
@@ -74,9 +76,9 @@ function LoadKpis({
 }) {
   if (!team) {
     return (
-      <section className={metricCardClass}>
+      <Card as="section">
         <MetricsError />
-      </section>
+      </Card>
     );
   }
   const responded = team.filter((p) => p.current_sessions > 0).length;
@@ -84,25 +86,16 @@ function LoadKpis({
   const low = flags ? flags.filter((f) => f.low).length : null;
   const assigned = (gym ?? []).reduce((n, a) => n + a.assigned, 0);
   const pct = gym && assigned > 0 ? adherencePct(gym) : undefined;
-  const items: { label: string; value: string; sub?: string; alert?: boolean }[] = [
-    { label: "Respondieron", value: `${responded} / ${team.length}`, sub: "esta semana" },
-    { label: "Con carga alta", value: String(high), sub: "esta semana", alert: high > 0 },
-    { label: "Bienestar bajo lo habitual", value: low === null ? "—" : String(low), sub: "últimos 7 días", alert: (low ?? 0) > 0 },
+  const alert: StatTone = "alerta";
+  const items: { label: string; value: string; context?: string; tone?: StatTone }[] = [
+    { label: "Respondieron", value: `${responded} / ${team.length}`, context: "esta semana" },
+    { label: "Con carga alta", value: String(high), context: "esta semana", tone: high > 0 ? alert : undefined },
+    { label: "Bienestar bajo lo habitual", value: low === null ? "—" : String(low), context: "últimos 7 días", tone: (low ?? 0) > 0 ? alert : undefined },
   ];
   if (pct !== undefined) {
-    items.push({ label: "Plan de gimnasio cumplido", value: pct === null ? "—" : `${pct} %`, sub: pct === null ? "aún no toca ninguna sesión" : "esta semana" });
+    items.push({ label: "Plan de gimnasio cumplido", value: pct === null ? "—" : `${pct} %`, context: pct === null ? "aún no toca ninguna sesión" : "esta semana" });
   }
-  return (
-    <section aria-label="Resumen de la carga" className={`grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line ${items.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-      {items.map((i, k) => (
-        <div key={i.label} className={`bg-white p-4 ${items.length === 3 && k === 2 ? "col-span-2 lg:col-span-1" : ""}`}>
-          <p className="text-sm text-muted">{i.label}</p>
-          <p className={`mt-1 font-display text-3xl font-extrabold tabular-nums ${i.alert ? "text-alerta-fg" : "text-ink"}`}>{i.value}</p>
-          {i.sub && <p className="text-xs text-muted">{i.sub}</p>}
-        </div>
-      ))}
-    </section>
-  );
+  return <StatStrip items={items} />;
 }
 
 // "tras lesión" → "lesión"; "tras una ausencia por salud" → "ausencia por salud".
@@ -122,6 +115,7 @@ function PlayerLoadBlock({
   returns: TeamReturnSummary | null;
 }) {
   const heading = "Carga por jugador";
+  const subtitle = "Esta semana (lunes a domingo), por tipo de sesión";
   if (!team) {
     return (
       <MetricsBlock heading={heading} info="carga_jugador">
@@ -152,25 +146,25 @@ function PlayerLoadBlock({
     };
   });
   const t = returns?.team;
-  return (
-    <MetricsBlock heading={heading} subtitle="Esta semana (lunes a domingo), por tipo de sesión" info="carga_jugador">
-      <div className="space-y-3">
-        {t && (
-          <div className="rounded-lg bg-paron-bg px-3 py-2.5 text-sm text-paron-ink">
-            <p>
-              <span className="font-semibold">El plantel vuelve tras {weeksText(t.weeks)} sin entrenar.</span> {t.count} de{" "}
-              {t.roster} jugadores{t.squad_break ? " (parón del plantel)" : " vuelven juntos"}. Conviene retomar la carga de a poco.
-            </p>
-            <div className="mt-1">
-              <InfoBox topic="paron" label="¿Qué es volver tras un parón?" />
-            </div>
-          </div>
-        )}
-        {!t && back.size > 0 && <InfoBox topic="paron" label="¿Qué es volver tras un parón?" />}
-        <PlayerLoadTable players={players} />
+  const header = (
+    <div className="space-y-3">
+      <div>
+        <CardHeader title={heading} subtitle={subtitle} className="mb-0" />
+        <InfoBox topic="carga_jugador" />
       </div>
-    </MetricsBlock>
+      {t && (
+        <div className="rounded-lg bg-paron-bg px-3 py-2.5 text-sm text-paron-ink">
+          <p>
+            <span className="font-semibold">El plantel vuelve tras {weeksText(t.weeks)} sin entrenar.</span> {t.count} de{" "}
+            {t.roster} jugadores{t.squad_break ? " (parón del plantel)" : " vuelven juntos"}. Conviene retomar la carga de a poco.
+          </p>
+          <InfoBox topic="paron" label="¿Qué es volver tras un parón?" />
+        </div>
+      )}
+      {!t && back.size > 0 && <InfoBox topic="paron" label="¿Qué es volver tras un parón?" />}
+    </div>
   );
+  return <PlayerLoadTable id={anchorId(heading)} header={header} players={players} />;
 }
 
 // "Asistencia a entrenamientos": último mes, los 5 con menor %, con los cortes de /asistencia.
@@ -183,7 +177,7 @@ function AttendanceBlock({
 }) {
   const heading = "Asistencia a entrenamientos";
   const link = (
-    <Link href="/asistencia" className={`mt-4 w-full text-sm sm:w-auto ${buttonSecondary}`}>
+    <Link href="/asistencia" className={`w-full text-sm sm:w-auto ${buttonSecondary}`}>
       Ver asistencia completa
     </Link>
   );
@@ -198,34 +192,40 @@ function AttendanceBlock({
     .filter((r) => r.total > 0 && (!roster || roster.has(r.player_id)))
     .sort((a, b) => attendancePercent(a) - attendancePercent(b) || b.total - a.total || a.full_name.localeCompare(b.full_name))
     .slice(0, 5);
-  return (
-    <MetricsBlock heading={heading} subtitle="Último mes · los 5 con menos" info="asistencia">
-      {rows.length === 0 ? (
+  if (rows.length === 0) {
+    return (
+      <MetricsBlock heading={heading} subtitle="Último mes · los 5 con menos" info="asistencia">
         <p className="flex items-start gap-2 text-sm text-muted">
           <ListChecks aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           Todavía no hay listas guardadas este mes. El staff pasa lista desde cada entrenamiento en el calendario.
         </p>
-      ) : (
-        <ul className="space-y-3">
-          {rows.map((r) => {
-            const pct = attendancePercent(r);
-            return (
-              <li key={r.player_id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
-                <Link href={`/jugadores/${r.player_id}`} className="truncate text-sm font-medium text-ink hover:underline">
-                  {r.full_name}
-                </Link>
-                <span className="text-sm font-semibold text-ink tabular-nums">
-                  {pct} %<span className="ml-1.5 text-xs font-normal text-muted">{r.attended}/{r.total}</span>
-                </span>
-                <span role="img" aria-label={`${pct} % de asistencia`} className="col-span-2 block h-2 overflow-hidden rounded-full bg-line">
-                  <span className={`block h-full rounded-full ${attendanceBarClass(pct)}`} style={{ width: `${pct}%` }} />
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {link}
-    </MetricsBlock>
+        <div className="mt-4">{link}</div>
+      </MetricsBlock>
+    );
+  }
+  return (
+    <MetricsTable heading={heading} subtitle="Último mes · los 5 con menos" info="asistencia" footer={link}>
+      {rows.map((r) => {
+        const pct = attendancePercent(r);
+        return (
+          <ListRow key={r.player_id} className="min-h-15">
+            <div className="min-w-0 flex-1">
+              <Link
+                href={`/jugadores/${r.player_id}`}
+                className="block truncate text-15 font-semibold text-ink after:absolute after:inset-0 after:content-[''] hover:underline"
+              >
+                {r.full_name}
+              </Link>
+              <span role="img" aria-label={`${pct} % de asistencia`} className="mt-1.5 block h-2 overflow-hidden rounded-full bg-line">
+                <span className={`block h-full rounded-full ${attendanceBarClass(pct)}`} style={{ width: `${pct}%` }} />
+              </span>
+            </div>
+            <span className="shrink-0 text-sm font-semibold text-ink tabular-nums">
+              {pct} %<span className="ml-1.5 text-13 font-normal text-muted">{r.attended}/{r.total}</span>
+            </span>
+          </ListRow>
+        );
+      })}
+    </MetricsTable>
   );
 }

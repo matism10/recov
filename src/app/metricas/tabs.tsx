@@ -21,7 +21,7 @@ export function MetricsTabs({ tabs, active }: { tabs: MetricsTab[]; active: Metr
               href={`/metricas?tab=${t}`}
               scroll={false}
               aria-current={t === active ? "page" : undefined}
-              className={`flex h-10 items-center justify-center rounded-lg text-sm font-semibold transition ${
+              className={`flex h-11 items-center justify-center rounded-lg text-sm font-semibold transition ${
                 t === active ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
               }`}
             >

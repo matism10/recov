@@ -18,7 +18,7 @@ export function InfoBox({ topic, label = "¿Cómo se lee?" }: { topic: MetricsHe
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1 rounded-md text-xs font-medium text-brand-text hover:underline focus-visible:outline-2 focus-visible:outline-brand-strong"
+        className="-my-1.5 inline-flex min-h-11 items-center gap-1 rounded-md text-xs font-medium text-brand-text hover:underline focus-visible:outline-2 focus-visible:outline-brand-strong"
       >
         <Info aria-hidden="true" className="size-4" />
         {label}

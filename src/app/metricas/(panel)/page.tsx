@@ -3,7 +3,8 @@ import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { isStaff, type UserRole } from "@/lib/roles";
 import { can } from "@/lib/permissions";
 import { getActiveFormat } from "@/lib/format";
-import { PageTitle, cardClass } from "@/app/ui";
+import { cardClass } from "@/app/ui";
+import { PageHeader } from "@/app/ui-blocks";
 import { MetricsTabs, type MetricsTab } from "../tabs";
 import { InjuriesTab } from "../injuries-tab";
 import { LoadTab } from "../load-tab";
@@ -30,9 +31,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 lg:px-8">
-      <header className="mb-4 lg:mb-6">
-        <PageTitle>Métricas del plantel</PageTitle>
-      </header>
+      <PageHeader title="Métricas del plantel" description="Lesiones y carga del plantel." className="mb-4 lg:mb-6" />
 
       {!active ? (
         <p className={`p-5 text-sm text-muted ${cardClass}`}>

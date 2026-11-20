@@ -153,7 +153,7 @@ export function ClubHero({
               {identity.name}
             </p>
             {subtitle && (
-              <p className="truncate text-sm leading-[18px] text-line-soft lg:text-[15px] lg:leading-5">
+              <p className="truncate text-sm leading-[18px] text-line-soft lg:text-15 lg:leading-5">
                 {subtitle}
               </p>
             )}

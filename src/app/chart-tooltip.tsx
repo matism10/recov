@@ -89,7 +89,8 @@ export function TooltipTarget({
   return (
     <div
       ref={ref}
-      className={`relative cursor-pointer ${className}`}
+      // Área táctil de al menos 44 px (invisible, no cambia el dibujo).
+      className={`relative cursor-pointer before:absolute before:top-1/2 before:left-1/2 before:h-[max(100%,2.75rem)] before:w-[max(100%,2.75rem)] before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] ${className}`}
       style={style}
       onPointerEnter={(e) => e.pointerType === "mouse" && setOpen(true)}
       onPointerLeave={(e) => e.pointerType === "mouse" && setOpen(false)}

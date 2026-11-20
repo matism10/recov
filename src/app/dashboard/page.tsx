@@ -14,9 +14,10 @@ import {
 import {
   formatDate,
   formatDayMonth,
+  recoveryProgress,
   type InjuryStatus,
 } from "@/lib/injuries";
-import { InjuryProgress } from "@/app/lesiones/injury-progress";
+import { Card, PlayerCard, PlayerCardList } from "@/app/ui-blocks";
 import { type BodyMark } from "@/app/body-map";
 import { isBodyZone, isLaterality, type BodyZone } from "@/lib/body-zones";
 import { getSquad } from "@/lib/squad";
@@ -26,7 +27,6 @@ import {
   PageTitle,
   SectionTitle,
   buttonPrimary,
-  cardClass,
   textButton,
 } from "@/app/ui";
 import { MyStatusCard } from "./my-status";
@@ -421,16 +421,16 @@ export default async function DashboardPage() {
   const chartsClass = chartsDesktop && chartsMobile ? "flex" : chartsDesktop ? "hidden lg:flex" : "flex lg:hidden";
 
   // Bloques del jugador (también los ve quien es staff y jugador a la vez).
-  const absenceGym = (
-    <>
+  const absenceGym = me && (
+    <div className="grid gap-5 lg:grid-cols-2 lg:items-start lg:gap-6">
       {/* Jugador: "Avisar una ausencia" y su estado si está ausente varios días. */}
-      {me && <MyAbsenceBlock absences={byRole.myAbsences} />}
+      <MyAbsenceBlock absences={byRole.myAbsences} />
       {/* Jugador: "Hoy toca gimnasio" y el registro de una sesión por su cuenta. */}
-      {me && <GymTodayCard data={byRole.myGym} />}
-    </>
+      <GymTodayCard data={byRole.myGym} />
+    </div>
   );
   const pendingBanner = myPendingInjury && !diagnosisNotified && (
-    <div className="mb-8 space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-5">
+    <div className="space-y-3 rounded-xl border border-brand-strong bg-brand-soft p-4 lg:p-5">
       <div>
         <p className="font-medium text-ink">Tienes una lesión en evaluación: sube tu diagnóstico</p>
         <p className="mt-1 text-sm text-ink">
@@ -442,24 +442,11 @@ export default async function DashboardPage() {
       </Link>
     </div>
   );
+  const myInjuriesShown = (injuries ?? []).slice(0, 3);
   const playerSections = (
     <>
       {isPlayer && (
-        <Link
-          href="/evaluaciones/mias"
-          className="mb-8 flex min-h-14 items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 transition hover:bg-mist"
-        >
-          <Dumbbell aria-hidden="true" className="size-5 shrink-0 text-brand-strong" />
-          <span className="min-w-0 flex-1">
-            <span className="block font-medium text-ink">Mis evaluaciones</span>
-            <span className="block text-sm text-muted">Tus tests físicos, tu progreso y tu puesto en el plantel.</span>
-          </span>
-          <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
-        </Link>
-      )}
-
-      {isPlayer && (
-        <section id="mis-lesiones" className="mb-8 scroll-mt-4">
+        <section id="mis-lesiones" className="scroll-mt-4">
           <div className="mb-3 flex items-center justify-between gap-4">
             <SectionTitle>Mis lesiones</SectionTitle>
             <Link href="/registrar-lesion" className={`text-sm ${buttonPrimary}`}>
@@ -467,38 +454,48 @@ export default async function DashboardPage() {
             </Link>
           </div>
           {injuries && injuries.length > 0 ? (
-            <ul className="divide-y divide-line overflow-hidden rounded-xl bg-card border border-line">
-              {injuries.map((i) => (
-                <li key={i.id}>
-                  <Link href={`/lesiones/${i.id}`} className="block space-y-2 px-5 py-4 transition hover:bg-mist">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="font-medium text-ink">{i.type}</p>
-                        <p className="text-sm text-muted">Desde el {formatDate(i.started_on)}</p>
-                      </div>
-                      <InjuryStatusBadge status={i.status as InjuryStatus} />
-                    </div>
-                    {i.status === "cerrada" && i.closed_on ? (
-                      // Cerrada: la fecha de alta en vez de la barra al 100 %.
-                      <p className="text-sm text-muted">Alta el {formatDayMonth(i.closed_on)}</p>
-                    ) : (
-                      i.status !== "en_evaluacion" && (
-                        <InjuryProgress startedOn={i.started_on} expectedReturnOn={i.expected_return_on} />
-                      )
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <>
+              <PlayerCardList>
+                {myInjuriesShown.map((i) => {
+                  const open = i.status !== "cerrada" && i.status !== "en_evaluacion" && i.expected_return_on;
+                  return (
+                    <PlayerCard
+                      key={i.id}
+                      href={`/lesiones/${i.id}`}
+                      name={i.type}
+                      showAvatar={false}
+                      secondary={
+                        i.status === "cerrada" && i.closed_on
+                          ? `Alta el ${formatDayMonth(i.closed_on)}`
+                          : `Desde el ${formatDate(i.started_on)}`
+                      }
+                      progress={open ? recoveryProgress(i.started_on, i.expected_return_on as string).percent : undefined}
+                      progressLabel="Avance hacia el alta"
+                      badge={<InjuryStatusBadge status={i.status as InjuryStatus} />}
+                    />
+                  );
+                })}
+              </PlayerCardList>
+              {injuries.length > 3 && (
+                <Link
+                  href="/lesiones"
+                  className="mt-1 inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
+                >
+                  Ver todas ({injuries.length})
+                </Link>
+              )}
+            </>
           ) : (
-            <p className={`p-5 text-sm text-muted ${cardClass}`}>No has registrado lesiones.</p>
+            <Card>
+              <p className="text-sm text-muted">No has registrado lesiones.</p>
+            </Card>
           )}
         </section>
       )}
 
       {me && myLoad && (
         <>
-          <div className="mb-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6">
             <LoadBlock
               title="Mi carga"
               load={myLoad.ok ? myLoad.data : null}
@@ -516,6 +513,20 @@ export default async function DashboardPage() {
             />
           )}
         </>
+      )}
+
+      {isPlayer && (
+        <Link
+          href="/evaluaciones/mias"
+          className="flex min-h-14 items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 transition hover:bg-mist"
+        >
+          <Dumbbell aria-hidden="true" className="size-5 shrink-0 text-brand-strong" />
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium text-ink">Mis evaluaciones</span>
+            <span className="block text-13 text-muted">Tus tests físicos, tu progreso y tu puesto en el plantel.</span>
+          </span>
+          <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
+        </Link>
       )}
     </>
   );
@@ -603,7 +614,7 @@ export default async function DashboardPage() {
           </div>
 
           {isPlayer && (
-            <div className="mt-8">
+            <div className="mt-8 flex flex-col gap-5 lg:gap-6">
               {absenceGym}
               {pendingBanner}
               {playerSections}
@@ -618,38 +629,40 @@ export default async function DashboardPage() {
     <>
     {/* Portada del club: solo en el Resumen, no en el layout. */}
     {cover}
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1200px] lg:px-8 lg:py-10">
       {/* Selector de formato: solo aquí, y solo si la cuenta puede trabajar en Sevens. */}
       {formatCtx.canSevens && <FormatSwitch format={formatCtx.format} />}
       {askSevensPosition && <SevensPositionBanner />}
-      <header className="mb-8 flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="sr-only">Resumen</h1>
-          {myStatus && <MyStatusCard status={myStatus} phase={myPhase} />}
-        </div>
-        {nextMatch && <NextMatch match={nextMatch} canNomina={canNomina} className="hidden lg:inline-flex" />}
-      </header>
+      <div className="flex flex-col gap-5 lg:gap-6">
+        <header className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="sr-only">Resumen</h1>
+            {myStatus && <MyStatusCard status={myStatus} phase={myPhase} />}
+          </div>
+          {nextMatch && <NextMatch match={nextMatch} canNomina={canNomina} className="hidden lg:inline-flex" />}
+        </header>
 
-      {/* Franja "Requiere atención": chips por tipo (las tareas del jugador primero:
-          sRPE, esfuerzo del gimnasio y check de bienestar). La lista completa está en
-          la campana del encabezado. */}
-      <AttentionStrip cards={noticeCards} />
-      {absenceGym}
-      <MyWeek data={byRole.week} />
+        {/* Franja "Requiere atención": chips por tipo (las tareas del jugador primero:
+            sRPE, esfuerzo del gimnasio y check de bienestar). La lista completa está en
+            la campana del encabezado. */}
+        <AttentionStrip cards={noticeCards} />
+        {pendingBanner}
+        {absenceGym}
+        <MyWeek data={byRole.week} />
 
-      {(metricsDesktop.includes("asistencia") || metricsMobile.includes("asistencia")) && (
-        <Suspense fallback={<Block className="mb-8 min-h-56" />}>
-          <PlayerMetrics data={playerMetricsPromise} desktop={metricsDesktop} mobile={metricsMobile} />
-        </Suspense>
-      )}
+        {(metricsDesktop.includes("asistencia") || metricsMobile.includes("asistencia")) && (
+          <Suspense fallback={<Block className="min-h-56" />}>
+            <PlayerMetrics data={playerMetricsPromise} desktop={metricsDesktop} mobile={metricsMobile} />
+          </Suspense>
+        )}
 
-      {/* Celular: el próximo partido a lo ancho. */}
-      {nextMatch && (
-        <NextMatch match={nextMatch} canNomina={canNomina} stacked className="mb-6 flex w-full lg:hidden" />
-      )}
+        {/* Celular: el próximo partido a lo ancho. */}
+        {nextMatch && (
+          <NextMatch match={nextMatch} canNomina={canNomina} stacked className="flex w-full lg:hidden" />
+        )}
 
-      {pendingBanner}
-      {playerSections}
+        {playerSections}
+      </div>
     </main>
     </>
   );
