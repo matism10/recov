@@ -45,6 +45,7 @@ const staffWith = (p: Permission): SearchRule => ({ all: ["staff", perm(p)] });
 export const SEARCH_INDEX: readonly SearchDestination[] = [
   // --- Resumen ---
   { id: "resumen", title: "Resumen", context: "Inicio", keywords: ["inicio", "panel", "home", "principal", "tablero"], href: "/dashboard", requires: "todos" },
+  { id: "notificaciones", title: "Notificaciones", context: "Campana del encabezado", keywords: ["avisos", "alertas", "campana", "novedades", "pendientes", "por responder", "avisos del club"], href: "/dashboard#notificaciones", requires: "todos" },
   { id: "por-revisar", title: "Por revisar", context: "Resumen › lesiones por revisar", keywords: ["pendientes", "bandeja", "diagnostico", "revisar lesion", "confirmar lesion", "descartar"], href: "/dashboard#por-revisar", requires: perm("lesiones_revisar") },
   { id: "lesiones-activas", title: "Lesiones activas", context: "Resumen › lesionados y en reintegro", keywords: ["lesionados", "reintegro", "no disponibles", "bajas", "quienes estan lesionados"], href: "/dashboard#lesiones-activas", requires: "staff" },
   { id: "zonas", title: "Zonas lesionadas", context: "Resumen › mapa del cuerpo", keywords: ["lugar", "zona", "donde", "mapa", "cuerpo", "dolor", "muneco"], href: "/dashboard#zonas", requires: "staff" },

@@ -60,7 +60,7 @@ import {
   storedCard,
   type NoticeCard,
 } from "@/lib/notifications";
-import { Notifications } from "./notifications";
+import { AttentionStrip } from "./attention-strip";
 import { getMyGymToday } from "@/lib/gym";
 import { GymTodayCard } from "./gym-today";
 import { MyWeek } from "./my-week";
@@ -440,9 +440,10 @@ export default async function DashboardPage() {
           <MetricsStrip data={metricsPromise} desktop={metricsDesktop} mobile={metricsMobile} />
         </Suspense>
       )}
-      {/* Notificaciones: las 3 más urgentes y "Ver todas". Incluye lo que antes era
-          "Pendientes" (sRPE, esfuerzo del gimnasio y check de bienestar). */}
-      <Notifications cards={noticeCards} />
+      {/* Franja "Requiere atención": chips por tipo (las tareas del jugador primero:
+          sRPE, esfuerzo del gimnasio y check de bienestar). La lista completa está en
+          la campana del encabezado. */}
+      <AttentionStrip cards={noticeCards} />
       {/* Jugador: "Avisar una ausencia" y su estado si está ausente varios días. */}
       {me && <MyAbsenceBlock absences={byRole.myAbsences} />}
       {/* Jugador: "Hoy toca gimnasio" y el registro de una sesión por su cuenta. */}

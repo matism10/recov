@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Activity,
   ArrowRight,
+  Bell,
   Bandage,
   CalendarDays,
   CalendarOff,
@@ -30,6 +31,7 @@ import { searchDestinations, type SearchContext, type SearchDestination } from "
 import { highlightParts, MAX_PER_BLOCK, rankBy, searchTokens } from "@/lib/search-match";
 import { loadSearchData, type SearchData, type SearchPlayer } from "./actions";
 import { revealAnchor } from "./reveal-anchor";
+import { openNotifications } from "@/app/notifications/store";
 
 export type SearchLauncherProps = {
   // "dark" sobre la portada; "light" sobre la barra blanca.
@@ -62,6 +64,7 @@ const ICON_BY_ROOT: Record<string, LucideIcon> = {
 
 function destIcon(d: SearchDestination): LucideIcon {
   if (d.id === "zonas") return MapPin;
+  if (d.id === "notificaciones") return Bell;
   if (d.href.startsWith("/calendario/ausencias")) return CalendarOff;
   const root = "/" + d.href.split(/[?#]/)[0].split("/")[1];
   return ICON_BY_ROOT[root] ?? Search;
@@ -263,6 +266,11 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
   const go = useCallback(
     (row: Row) => {
       onClose();
+      // "Notificaciones" no es una pantalla: abre la hoja de la campana.
+      if (row.kind === "dest" && row.dest.id === "notificaciones") {
+        openNotifications();
+        return;
+      }
       router.push(row.href);
       const hash = row.href.split("#")[1];
       if (hash) revealAnchor(hash);

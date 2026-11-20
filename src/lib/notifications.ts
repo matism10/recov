@@ -32,15 +32,6 @@ export const TONE_COLOR: Record<NoticeTone, string> = {
   gris: "#888780",
 };
 
-// Grupos de la hoja "Ver todas", en este orden.
-export const TONE_GROUPS: { tone: NoticeTone; label: string }[] = [
-  { tone: "rojo", label: "Cambios y alertas" },
-  { tone: "celeste", label: "Calendario y nóminas" },
-  { tone: "naranjo", label: "Lesiones" },
-  { tone: "azul", label: "Gimnasio y evaluaciones" },
-  { tone: "gris", label: "Cuenta y registros" },
-];
-
 // Nombre del ícono (lucide); el componente del cliente lo traduce.
 export type NoticeIcon =
   | "calendar-x"
@@ -74,6 +65,9 @@ export type NoticeIcon =
 // Tarjeta lista para mostrar (viaja al cliente).
 export type NoticeCard = {
   key: string;
+  // Tipo de la notificación: el `kind` de evento o de estado de la base, y para las
+  // tareas del jugador "tarea_esfuerzo", "tarea_gimnasio", "tarea_bienestar" y "vuelta".
+  kind: string;
   // id de la fila en notifications: solo las de evento (se pueden descartar).
   id: string | null;
   tone: NoticeTone;
@@ -244,6 +238,7 @@ export function storedCard(
   const p = n.payload ?? {};
   const base = {
     key: n.id,
+    kind: n.kind,
     id: n.id,
     badge: relativeDay(n.created_at),
     urgent: false,
@@ -583,6 +578,7 @@ export function playerStateCard(r: PlayerStateRow): NoticeCard | null {
     return {
       ...base,
       key: `session:${r.ref_id}`,
+      kind: "tarea_esfuerzo",
       tone: "celeste",
       icon: "chart",
       title: r.event_type === "competencia" ? "¿Qué tan duro fue el partido?" : "¿Qué tan duro fue el entrenamiento?",
@@ -594,6 +590,7 @@ export function playerStateCard(r: PlayerStateRow): NoticeCard | null {
     return {
       ...base,
       key: `gym:${r.ref_id}`,
+      kind: "tarea_gimnasio",
       tone: "azul",
       icon: "biceps",
       title: "¿Qué tan dura fue la sesión de gimnasio?",
@@ -607,6 +604,7 @@ export function playerStateCard(r: PlayerStateRow): NoticeCard | null {
     return {
       ...base,
       key: "wellness",
+      kind: "tarea_bienestar",
       tone: "celeste",
       icon: "heart",
       title: "Check de bienestar",
@@ -620,6 +618,7 @@ export function playerStateCard(r: PlayerStateRow): NoticeCard | null {
     return {
       ...base,
       key: "return",
+      kind: "vuelta",
       tone: "celeste",
       icon: "activity",
       title: team
@@ -638,7 +637,7 @@ export function playerStateCard(r: PlayerStateRow): NoticeCard | null {
 export function staffStateCard(r: StaffStateRow): NoticeCard | null {
   const p = r.payload ?? {};
   const at = r.occurs_at ? new Date(r.occurs_at).getTime() : 0;
-  const base = { id: null, urgent: false, badge: null as string | null, rank: 2, time: at };
+  const base = { kind: r.kind, id: null, urgent: false, badge: null as string | null, rank: 2, time: at };
   const name = str(p.player_name) ?? "Jugador";
   switch (r.kind) {
     case "carga_alta": {
