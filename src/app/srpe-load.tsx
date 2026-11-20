@@ -23,6 +23,32 @@ import {
 
 const CHART_PX = 96;
 
+// Aviso informativo "Vuelve tras N semanas" (promedio antes del parón vs. esta semana).
+export function ReturnNotice({ flag: returnFlag }: { flag: PlayerReturnFlag }) {
+  return (
+    <div className="space-y-1 rounded-xl bg-brand-wash px-4 py-3">
+      <p className="text-sm font-semibold text-brand-text">
+        <span className="rounded-full bg-brand-soft px-2.5 py-0.5">
+          Vuelve tras {weeksText(returnFlag.weeks)} · {causeText(returnFlag.cause)}
+        </span>
+      </p>
+      <dl className="grid grid-cols-2 gap-3 pt-1 text-sm">
+        <div>
+          <dt className="text-xs text-muted">Promedio antes del parón</dt>
+          <dd className="font-display text-xl font-bold text-ink tabular-nums">
+            {returnFlag.baseline !== null ? formatLoad(returnFlag.baseline) : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted">Esta semana</dt>
+          <dd className="font-display text-xl font-bold text-ink tabular-nums">{formatLoad(returnFlag.current_load)}</dd>
+        </div>
+      </dl>
+      <p className="text-xs text-muted">{RETURN_LEGEND}. Conviene retomar de a poco.</p>
+    </div>
+  );
+}
+
 export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null; returnFlag?: PlayerReturnFlag | null }) {
   if (!data) {
     return <p className={`p-5 text-sm text-muted ${cardClass}`}>No se pudo cargar la carga semanal.</p>;
@@ -39,28 +65,7 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
 
   return (
     <div className={`space-y-4 p-5 ${cardClass}`}>
-      {returnFlag && (
-        <div className="space-y-1 rounded-xl bg-brand-wash px-4 py-3">
-          <p className="text-sm font-semibold text-brand-text">
-            <span className="rounded-full bg-brand-soft px-2.5 py-0.5">
-              Vuelve tras {weeksText(returnFlag.weeks)} · {causeText(returnFlag.cause)}
-            </span>
-          </p>
-          <dl className="grid grid-cols-2 gap-3 pt-1 text-sm">
-            <div>
-              <dt className="text-xs text-muted">Promedio antes del parón</dt>
-              <dd className="font-display text-xl font-bold text-ink tabular-nums">
-                {returnFlag.baseline !== null ? formatLoad(returnFlag.baseline) : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-muted">Esta semana</dt>
-              <dd className="font-display text-xl font-bold text-ink tabular-nums">{formatLoad(returnFlag.current_load)}</dd>
-            </div>
-          </dl>
-          <p className="text-xs text-muted">{RETURN_LEGEND}. Conviene retomar de a poco.</p>
-        </div>
-      )}
+      {returnFlag && <ReturnNotice flag={returnFlag} />}
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[13px] text-muted">Esta semana (esfuerzo × minutos)</span>

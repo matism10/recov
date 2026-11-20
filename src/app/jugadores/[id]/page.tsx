@@ -1,58 +1,52 @@
-import Link from "next/link";
+import { redirect, notFound } from "next/navigation";
 import { BackLink } from "@/app/back-link";
-import { notFound, redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
-import {
-  isStaff,
-  type Availability,
-  type UserRole,
-} from "@/lib/roles";
-import {
-  INJURY_STATUS_LABEL,
-  OCCURRED_DURING_LABEL,
-  PHASE_STATUS_LABEL,
-  SEVERITY_LABEL,
-  formatDate,
-  returnLabel,
-  type InjurySeverity,
-  type InjuryStatus,
-  type OccurredDuring,
-  type PhaseStatus,
-} from "@/lib/injuries";
-import { InjuryProgress } from "@/app/lesiones/injury-progress";
-import { getMyLoad, getTeamLoad, type LoadResult, type MyLoad, type TeamLoad } from "@/lib/match-load";
+import { isStaff, type Availability, type UserRole } from "@/lib/roles";
+import { returnLabel, type InjuryStatus } from "@/lib/injuries";
+import { getMyLoad, getTeamLoad, totalLabel, type LoadResult, type MyLoad, type TeamLoad } from "@/lib/match-load";
 import { getActiveFormat } from "@/lib/format";
 import { LoadBlock } from "@/app/load-block";
 import { PlayerEvaluations } from "@/app/evaluaciones/player-evaluations";
 import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
-import { WhatsAppButton } from "@/app/whatsapp-button";
-import { SrpeLoad, WellnessHistory } from "@/app/srpe-load";
-import { getPlayerReturnFlag } from "@/lib/return-break";
+import { ReturnNotice, SrpeLoad, WellnessHistory } from "@/app/srpe-load";
+import { getPlayerReturnFlag, weeksText } from "@/lib/return-break";
 import { can } from "@/lib/permissions";
-import { PositionSection } from "./position-section";
-import { WELLNESS_COLUMNS, getPlayerWeeklyLoad, type WeeklyLoad, type WellnessReport } from "@/lib/srpe";
+import { canReadEvaluations } from "@/lib/evaluations";
+import { WELLNESS_COLUMNS, WELLNESS_MAX, formatLoad, getPlayerWeeklyLoad, type WeeklyLoad, type WellnessReport } from "@/lib/srpe";
 import { getPlayerGymSummary } from "@/lib/gym";
+import { AvailabilityBadge, StatusBadge } from "@/app/ui";
+import { StatStrip } from "@/app/ui-blocks";
+import { PositionSection } from "./position-section";
 import { GymSummary } from "./gym-summary";
+import { PlayerActions } from "./player-actions";
+import { PlayerTabs, playerTabHref, type PlayerTab } from "./player-tabs";
 import {
-  AvailabilityBadge,
-  InjuryStatusBadge,
-  PageTitle,
-  PhaseDot,
-  SectionTitle,
-  cardClass,
-  } from "@/app/ui";
-
-const OPEN_STATUSES: InjuryStatus[] = ["en_evaluacion", "activa"];
+  GymCompact,
+  InjuryCompact,
+  InjuryFull,
+  InjuryTimeline,
+  LoadMini,
+  OPEN_STATUSES,
+  WellnessLatest,
+  isWellnessLow,
+  todayInChile,
+  type InjuryRow,
+  type PhaseRow,
+} from "./blocks";
 
 // Ficha del jugador para el staff: lesión abierta, avance, línea de tiempo y carga
 // de partidos. El jugador puede ver solo su propia ficha (su carga, sin semáforo).
+// En pestañas (?tab=, renderizadas en el servidor): Resumen, Lesiones, Carga, Gimnasio y
+// Evaluaciones; cada una con las mismas condiciones de acceso de siempre.
 export default async function PlayerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const supabase = await getSupabase();
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -76,77 +70,97 @@ export default async function PlayerPage({
       .then(({ data }) => data),
   );
   // RLS: el staff ve las lesiones del club.
-  const injuriesPromise = supabase
+  const injuriesPromise: PromiseLike<InjuryRow[]> = supabase
     .from("injuries")
     .select(
       "id, type, status, severity, started_on, expected_return_on, closed_on, occurred_during, reviewed_at",
     )
     .eq("player_id", id)
     .order("started_on", { ascending: false })
-    .then(({ data }) => data ?? []);
+    .then(({ data }) => (data ?? []) as InjuryRow[]);
 
   const formatPromise = getActiveFormat(user.id);
-  const [me, staff, player, all, loadResult, phases, avatarUrl, phone, weekly, wellness, gym, returnFlag] = await Promise.all([
-    profilePromise,
-    staffPromise,
-    playerPromise,
-    injuriesPromise,
-    // Carga de los últimos 6 partidos: el staff la toma de la carga del plantel;
-    // el jugador, de su propia función (sin datos de otros).
-    // Del formato activo (Rugby 15 o Sevens).
-    Promise.all([staffPromise, formatPromise]).then(
-      ([isStaffUser, format]): Promise<LoadResult<TeamLoad> | LoadResult<MyLoad>> =>
-        isStaffUser ? getTeamLoad(supabase, 6, format) : getMyLoad(supabase, format),
-    ),
-    // Fases de las lesiones abiertas.
-    injuriesPromise.then(async (injuries) => {
-      const openIds = injuries
-        .filter((i) => OPEN_STATUSES.includes(i.status as InjuryStatus))
-        .map((i) => i.id);
-      if (openIds.length === 0) return [];
-      const { data } = await supabase
-        .from("injury_phases")
-        .select("id, injury_id, name, status, started_on, ended_on")
-        .in("injury_id", openIds)
-        .is("archived_at", null)
-        .order("position");
-      return data ?? [];
-    }),
-    // Foto del jugador.
-    playerPromise.then(async (p) =>
-      p ? (await getAvatarUrls(supabase, [p.user_id])).get(p.user_id) : undefined,
-    ),
-    // Teléfono para contactarlo: solo el staff. get_player_phone devuelve null a quien
-    // no corresponde (0030); abajo se descarta si es la propia ficha.
-    staffPromise.then((isStaffUser) =>
-      isStaffUser
-        ? supabase.rpc("get_player_phone", { p_player_id: id }).then(({ data }) => data as string | null)
-        : null,
-    ),
-    // Carga semanal sRPE (staff), del formato activo.
-    Promise.all([staffPromise, formatPromise]).then(
-      ([isStaffUser, format]): Promise<WeeklyLoad | null> | null =>
-        isStaffUser ? getPlayerWeeklyLoad(supabase, id, format) : null,
-    ),
-    // Últimos checks de bienestar (staff; RLS: el staff confirmado ve los del club).
-    staffPromise.then((isStaffUser) =>
-      isStaffUser
-        ? supabase
-            .from("wellness_reports")
-            .select(WELLNESS_COLUMNS)
-            .eq("player_id", id)
-            .order("report_date", { ascending: false })
-            .limit(6)
-            .then(({ data, error }) => (error ? null : ((data ?? []) as WellnessReport[])))
-        : null,
-    ),
-    // Plan de gimnasio: asignado, cumplimiento y últimas sesiones (staff).
-    staffPromise.then((isStaffUser) => (isStaffUser ? getPlayerGymSummary(supabase, id) : null)),
-    // Vuelta tras parón (staff; solo informativa), del formato activo.
-    Promise.all([staffPromise, formatPromise]).then(([isStaffUser, format]) =>
-      isStaffUser ? getPlayerReturnFlag(supabase, id, format) : null,
-    ),
-  ]);
+  // Pestañas que ve cada persona: el staff, todas las de siempre; el propio jugador, las suyas.
+  const tabsPromise = Promise.all([profilePromise, staffPromise, playerPromise]).then(([m, isStaffUser, p]) => {
+    const roles = (m?.roles ?? []) as UserRole[];
+    const own = p?.user_id === user.id;
+    const list: { id: PlayerTab; label: string }[] = [{ id: "resumen", label: "Resumen" }];
+    if (isStaffUser || own) list.push({ id: "lesiones", label: "Lesiones" });
+    if (isStaffUser || own) list.push({ id: "carga", label: isStaffUser ? "Carga y bienestar" : "Mi carga" });
+    if (isStaffUser) list.push({ id: "gimnasio", label: "Gimnasio" });
+    if (own || canReadEvaluations(roles)) list.push({ id: "evaluaciones", label: "Evaluaciones" });
+    return list;
+  });
+  const activePromise = tabsPromise.then((list) => list.find((t) => t.id === query.tab)?.id ?? "resumen");
+  const onTab = <T,>(tabs: PlayerTab[], run: () => PromiseLike<T> | T): Promise<T | null> =>
+    activePromise.then((a) => (tabs.includes(a) ? run() : null));
+
+  const [me, staff, player, all, loadResult, phases, avatarUrl, phone, weekly, wellness, gym, returnFlag, tabs, active] =
+    await Promise.all([
+      profilePromise,
+      staffPromise,
+      playerPromise,
+      injuriesPromise,
+      // Carga de los últimos 6 partidos (Resumen y Carga): el staff la toma de la carga del
+      // plantel; el jugador, de su propia función (sin datos de otros). Del formato activo.
+      Promise.all([staffPromise, formatPromise]).then(([isStaffUser, format]) =>
+        onTab(["resumen", "carga"], (): Promise<LoadResult<TeamLoad> | LoadResult<MyLoad>> =>
+          isStaffUser ? getTeamLoad(supabase, 6, format) : getMyLoad(supabase, format),
+        ),
+      ),
+      // Fases de las lesiones abiertas (Resumen y Lesiones).
+      onTab(["resumen", "lesiones"], () =>
+        injuriesPromise.then(async (injuries) => {
+          const openIds = injuries.filter((i) => OPEN_STATUSES.includes(i.status as InjuryStatus)).map((i) => i.id);
+          if (openIds.length === 0) return [] as PhaseRow[];
+          const { data } = await supabase
+            .from("injury_phases")
+            .select("id, injury_id, name, status, started_on, ended_on")
+            .in("injury_id", openIds)
+            .is("archived_at", null)
+            .order("position");
+          return (data ?? []) as PhaseRow[];
+        }),
+      ),
+      // Foto del jugador.
+      playerPromise.then(async (p) =>
+        p ? (await getAvatarUrls(supabase, [p.user_id])).get(p.user_id) : undefined,
+      ),
+      // Teléfono para contactarlo: solo el staff. get_player_phone devuelve null a quien
+      // no corresponde (0030); abajo se descarta si es la propia ficha.
+      staffPromise.then((isStaffUser) =>
+        isStaffUser
+          ? supabase.rpc("get_player_phone", { p_player_id: id }).then(({ data }) => data as string | null)
+          : null,
+      ),
+      // Carga semanal sRPE (staff), del formato activo. Va siempre: las alertas del encabezado.
+      Promise.all([staffPromise, formatPromise]).then(
+        ([isStaffUser, format]): Promise<WeeklyLoad | null> | null =>
+          isStaffUser ? getPlayerWeeklyLoad(supabase, id, format) : null,
+      ),
+      // Últimos checks de bienestar (staff; RLS: el staff confirmado ve los del club). Siempre.
+      staffPromise.then((isStaffUser) =>
+        isStaffUser
+          ? supabase
+              .from("wellness_reports")
+              .select(WELLNESS_COLUMNS)
+              .eq("player_id", id)
+              .order("report_date", { ascending: false })
+              .limit(6)
+              .then(({ data, error }) => (error ? null : ((data ?? []) as WellnessReport[])))
+          : null,
+      ),
+      // Plan de gimnasio: asignado, cumplimiento y últimas sesiones (staff; Resumen y Gimnasio).
+      staffPromise.then((isStaffUser) =>
+        isStaffUser ? onTab(["resumen", "gimnasio"], () => getPlayerGymSummary(supabase, id)) : null,
+      ),
+      // Vuelta tras parón (staff; solo informativa), del formato activo. Siempre: encabezado.
+      Promise.all([staffPromise, formatPromise]).then(([isStaffUser, format]) =>
+        isStaffUser ? getPlayerReturnFlag(supabase, id, format) : null,
+      ),
+      tabsPromise,
+      activePromise,
+    ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
   if (me?.status !== "confirmado") redirect("/dashboard");
@@ -154,8 +168,8 @@ export default async function PlayerPage({
   if (!staff && player?.user_id !== user.id) redirect("/dashboard");
   if (!player) notFound();
 
-  const load = loadResult.ok ? loadResult.data : null;
-  const playerLoad = loadResult.ok
+  const load = loadResult?.ok ? loadResult.data : null;
+  const playerLoad = loadResult?.ok
     ? "players" in loadResult.data
       ? (loadResult.data.players.find((p) => p.player_id === id) ?? null)
       : loadResult.data.player
@@ -164,200 +178,145 @@ export default async function PlayerPage({
   const open = all.filter((i) => OPEN_STATUSES.includes(i.status as InjuryStatus));
   // Teléfono solo en la ficha de otro jugador (el propio no muestra el botón).
   const contactPhone = staff && player.user_id !== user.id ? phone : null;
+  const canChangePosition = can((me.roles ?? []) as UserRole[], "posicion_cambiar");
 
   const availability = player.availability as Availability;
   const latestReturn = open
-    .map((i) => i.expected_return_on as string | null)
+    .map((i) => i.expected_return_on)
     .filter((d): d is string => !!d)
     .sort()
     .at(-1);
   // Una lesión activa que nadie ha revisado todavía no tiene un regreso confiable.
   const pendingReview = open.some((i) => i.status === "activa" && i.reviewed_at === null);
+  const lowWellness = isWellnessLow(wellness, todayInChile());
+  const href = (t: PlayerTab) => playerTabHref(id, t);
+
+  // Números del Resumen: solo los que hay.
+  const lastWellness = wellness?.[0];
+  const stats = [
+    ...(weekly
+      ? [
+          {
+            label: "Carga de la semana",
+            value: formatLoad(weekly.current_load),
+            context:
+              weekly.prior_weeks >= 3 && weekly.baseline !== null && weekly.baseline > 0
+                ? `Promedio: ${formatLoad(weekly.baseline)}`
+                : "Sin promedio aún",
+            tone: weekly.high_load ? ("alerta" as const) : ("default" as const),
+          },
+        ]
+      : []),
+    ...(lastWellness
+      ? [
+          {
+            label: "Último bienestar",
+            value: `${lastWellness.total}/${WELLNESS_MAX}`,
+            tone: lowWellness ? ("alerta" as const) : ("default" as const),
+          },
+        ]
+      : []),
+    ...(load && playerLoad && load.matches_count > 0
+      ? [
+          {
+            label: load.mode === "jugo" ? "Partidos jugados" : "Minutos jugados",
+            value: totalLabel(load.mode, playerLoad.total, load.matches_count),
+            context: `Últimos ${load.matches_count} ${load.matches_count === 1 ? "partido" : "partidos"}`,
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
-      <header className="mb-6">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1200px] lg:px-8 lg:py-10">
+      <header className="mb-5">
         <BackLink fallback="/plantel">← Volver</BackLink>
-        <div className="mt-3 flex items-center gap-4">
+        <div className="mt-3 flex items-start gap-3 lg:gap-4">
           <Avatar name={player.full_name} url={avatarUrl} size="lg" />
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <PageTitle>{player.full_name}</PageTitle>
-              <AvailabilityBadge status={availability} />
-            </div>
-            <p className="mt-1 text-sm text-muted">
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display text-2xl leading-8 font-bold text-ink lg:text-[30px] lg:leading-[34px]">
+              {player.full_name}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted">
               {player.position && `${player.position} · `}
               {pendingReview ? "Lesión por revisar" : returnLabel(latestReturn ?? null)}
             </p>
-            {contactPhone && (
-              <div className="mt-3">
-                <WhatsAppButton phone={contactPhone} name={player.full_name} />
-              </div>
-            )}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <AvailabilityBadge status={availability} />
+              {lowWellness && <StatusBadge className="bg-alerta-bg text-alerta-fg">Bienestar bajo</StatusBadge>}
+              {weekly?.high_load && <StatusBadge className="bg-alerta-bg text-alerta-fg">Carga alta</StatusBadge>}
+              {returnFlag && (
+                <StatusBadge className="bg-brand-soft text-brand-text">Vuelve tras {weeksText(returnFlag.weeks)}</StatusBadge>
+              )}
+            </div>
           </div>
+          <PlayerActions
+            name={player.full_name}
+            phone={contactPhone}
+            positionForm={
+              canChangePosition ? (
+                <PositionSection
+                  supabase={supabase}
+                  playerId={player.id}
+                  clubId={player.club_id}
+                  userId={player.user_id}
+                  sport={me.club?.sport ?? ""}
+                  hasSevens={me.club?.sport === "rugby" && !!me.club?.has_sevens}
+                />
+              ) : null
+            }
+          />
         </div>
       </header>
 
-      {/* Cambiar posición: head coach o quien tenga el permiso posicion_cambiar. */}
-      {me?.status === "confirmado" && can((me.roles ?? []) as UserRole[], "posicion_cambiar") && (
-        <PositionSection
-          supabase={supabase}
-          playerId={player.id}
-          clubId={player.club_id}
-          userId={player.user_id}
-          sport={me.club?.sport ?? ""}
-          hasSevens={me.club?.sport === "rugby" && !!me.club?.has_sevens}
-        />
-      )}
+      <PlayerTabs playerId={id} tabs={tabs} active={active} />
 
-      {/* En escritorio: lesión actual a la izquierda y línea de tiempo a la derecha. */}
-      <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
-        <section>
-          <SectionTitle className="mb-3">Lesión actual</SectionTitle>
-          {open.length > 0 ? (
-            <div className="space-y-3">
-              {open.map((i) => {
-                const status = i.status as InjuryStatus;
-                const severity = i.severity as InjurySeverity | null;
-                const occurredDuring = i.occurred_during as OccurredDuring | null;
-                const injuryPhases = (phases ?? []).filter((ph) => ph.injury_id === i.id);
-                return (
-                  <article
-                    key={i.id}
-                    className={`space-y-4 p-5 ${cardClass}`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-ink">{i.type}</p>
-                        <p className="text-sm text-muted">
-                          Desde el {formatDate(i.started_on)}
-                          {occurredDuring &&
-                            (occurredDuring === "externo"
-                              ? " · fuera del club"
-                              : ` · en ${OCCURRED_DURING_LABEL[occurredDuring].toLowerCase()}`)}
-                          {severity && ` · ${SEVERITY_LABEL[severity]}`}
-                        </p>
-                      </div>
-                      <InjuryStatusBadge status={status} />
-                    </div>
-
-                    {status === "en_evaluacion" ? (
-                      <p className="text-sm text-muted">
-                        Esperando el diagnóstico del jugador.
-                      </p>
-                    ) : (
-                      <InjuryProgress
-                        startedOn={i.started_on}
-                        expectedReturnOn={i.expected_return_on}
-                      />
-                    )}
-
-                    {injuryPhases.length > 0 && (
-                      <ol className="space-y-3 border-l-2 border-line pl-5">
-                        {injuryPhases.map((ph) => (
-                          <li key={ph.id} className="relative text-sm">
-                            <PhaseDot status={ph.status as PhaseStatus} />
-                            <span className="font-medium text-ink">{ph.name}</span>
-                            <span className="text-muted">
-                              {" · "}
-                              {PHASE_STATUS_LABEL[ph.status as PhaseStatus]}
-                              {ph.started_on && ` · desde ${formatDate(ph.started_on)}`}
-                              {ph.ended_on && ` · hasta ${formatDate(ph.ended_on)}`}
-                            </span>
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-
-                    <Link
-                      href={`/lesiones/${i.id}`}
-                      className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
-                    >
-                      Ver detalle de la lesión
-                    </Link>
-                  </article>
-                );
-              })}
+      {active === "resumen" && (
+        <div className="space-y-4">
+          {stats.length > 0 && <StatStrip items={stats} />}
+          {returnFlag && <ReturnNotice flag={returnFlag} />}
+          <div className="space-y-4 lg:grid lg:grid-cols-3 lg:items-start lg:gap-4 lg:space-y-0">
+            {staff && <WellnessLatest reports={wellness} moreHref={href("carga")} />}
+            {staff && <LoadMini data={weekly} moreHref={href("carga")} />}
+            <div className="space-y-4">
+              <InjuryCompact open={open} phases={phases ?? []} availability={availability} moreHref={href("lesiones")} />
+              {staff && <GymCompact data={gym} moreHref={href("gimnasio")} />}
             </div>
-          ) : (
-            <p className={`p-5 text-sm text-muted ${cardClass}`}>
-              {availability === "disponible"
-                ? "No tiene lesiones actuales."
-                : "Sin lesión registrada: la disponibilidad se cambió a mano."}
-            </p>
-          )}
-        </section>
-
-        <section>
-          <SectionTitle className="mb-3">Línea de tiempo</SectionTitle>
-          {all.length > 0 ? (
-            <ol className="space-y-4 border-l-2 border-line pl-5">
-              {all.map((i) => {
-                const status = i.status as InjuryStatus;
-                return (
-                  <li key={i.id} className="relative">
-                    <PhaseDot
-                      status={
-                        OPEN_STATUSES.includes(status)
-                          ? "en_curso"
-                          : status === "cerrada"
-                            ? "completada"
-                            : "pendiente"
-                      }
-                    />
-                    <Link href={`/lesiones/${i.id}`} className="group block">
-                      <p className="font-medium text-ink group-hover:underline">
-                        {i.type}
-                      </p>
-                      <p className="text-sm text-muted">
-                        {formatDate(i.started_on)}
-                        {i.closed_on && ` – ${formatDate(i.closed_on)}`}
-                        {" · "}
-                        {INJURY_STATUS_LABEL[status]}
-                      </p>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ol>
-          ) : (
-            <p className={`p-5 text-sm text-muted ${cardClass}`}>
-              Sin lesiones registradas.
-            </p>
-          )}
-        </section>
-      </div>
-
-      {/* Staff: carga semanal sRPE (con el gimnasio), bienestar y gimnasio; en escritorio, de a dos. */}
-      {staff && (
-        <div className="mt-8 space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
-          <section>
-            <SectionTitle className="mb-3">Carga</SectionTitle>
-            <SrpeLoad data={weekly} returnFlag={returnFlag} />
-          </section>
-          <section>
-            <SectionTitle className="mb-3">Bienestar</SectionTitle>
-            <WellnessHistory reports={wellness} />
-          </section>
-          <section>
-            <SectionTitle className="mb-3">Gimnasio</SectionTitle>
-            <GymSummary data={gym} />
-          </section>
+          </div>
         </div>
       )}
 
-      <div className="mt-8">
-        <LoadBlock
-          title={staff ? "Minutos en partidos" : "Mi carga"}
-          load={load}
-          player={playerLoad}
-          error={!loadResult.ok}
-          lastInjury={
-            staff ? (all[0] ? { type: all[0].type, startedOn: all[0].started_on } : null) : undefined
-          }
-        />
-      </div>
-      <PlayerEvaluations playerId={id} clubId={player.club_id} />
+      {active === "lesiones" && (
+        <div className="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
+          <InjuryFull open={open} phases={phases ?? []} availability={availability} />
+          <InjuryTimeline all={all} />
+        </div>
+      )}
+
+      {active === "carga" && (
+        <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
+          {staff && <SrpeLoad data={weekly} returnFlag={returnFlag} />}
+          <div className="space-y-6">
+            {staff && (
+              <section>
+                <h2 className="mb-3 font-sans text-lg font-bold text-ink">Bienestar</h2>
+                <WellnessHistory reports={wellness} />
+              </section>
+            )}
+            <LoadBlock
+              title={staff ? "Minutos en partidos" : "Mi carga"}
+              load={load}
+              player={playerLoad}
+              error={!loadResult?.ok}
+              lastInjury={staff ? (all[0] ? { type: all[0].type, startedOn: all[0].started_on } : null) : undefined}
+            />
+          </div>
+        </div>
+      )}
+
+      {active === "gimnasio" && staff && <GymSummary data={gym} />}
+
+      {active === "evaluaciones" && <PlayerEvaluations playerId={id} clubId={player.club_id} inTab />}
     </main>
   );
 }

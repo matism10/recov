@@ -3,9 +3,19 @@
 import { getSupabase } from "@/lib/session";
 import { TEST_COLUMNS, formatValue, type TestDefinition } from "@/lib/evaluations";
 import { SectionTitle, cardClass } from "@/app/ui";
+import { EmptyState } from "@/app/ui-blocks";
 import { ChangeBadge, ProgressChart } from "./parts";
 
-export async function PlayerEvaluations({ playerId, clubId }: { playerId: string; clubId: string }) {
+export async function PlayerEvaluations({
+  playerId,
+  clubId,
+  inTab = false,
+}: {
+  playerId: string;
+  clubId: string;
+  // En la pestaña "Evaluaciones" de la ficha: sin título propio y con estado vacío.
+  inTab?: boolean;
+}) {
   const supabase = await getSupabase();
   const [{ data: tests }, { data: results }] = await Promise.all([
     supabase.from("test_definitions").select(TEST_COLUMNS).eq("club_id", clubId).order("name"),
@@ -23,10 +33,12 @@ export async function PlayerEvaluations({ playerId, clubId }: { playerId: string
     byTest.set(r.test_id as string, list);
   }
   const withData = ((tests ?? []) as TestDefinition[]).filter((t) => byTest.has(t.id));
-  if (withData.length === 0) return null;
+  if (withData.length === 0) {
+    return inTab ? <EmptyState title="Sin evaluaciones">Aún no hay resultados de tests para este jugador.</EmptyState> : null;
+  }
   return (
-    <section className="mt-8">
-      <SectionTitle className="mb-3">Evaluaciones</SectionTitle>
+    <section className={inTab ? "" : "mt-8"}>
+      {!inTab && <SectionTitle className="mb-3">Evaluaciones</SectionTitle>}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {withData.map((t) => {
           const points = byTest.get(t.id)!;

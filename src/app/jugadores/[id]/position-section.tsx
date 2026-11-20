@@ -1,8 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { SectionTitle, cardClass } from "@/app/ui";
 import { PositionForm } from "./position-form";
 
-// "Cambiar posición" en la ficha: catálogo del deporte (formato 15) y, en rugby con
+// Formulario de "Cambiar posición" (va en la hoja o el cuadro de acciones de la ficha): catálogo del deporte (formato 15) y, en rugby con
 // Sevens, la posición de Sevens si el jugador está en el grupo. La página solo la
 // muestra con el permiso posicion_cambiar; la base lo vuelve a verificar al guardar.
 export async function PositionSection({
@@ -37,9 +36,7 @@ export async function PositionSection({
     (positions ?? []).filter((p) => p.format === format).map((p) => p.name as string);
 
   return (
-    <section className={`mb-6 p-5 ${cardClass}`}>
-      <SectionTitle className="mb-3">Cambiar posición</SectionTitle>
-      <PositionForm
+    <PositionForm
         playerId={playerId}
         position={player?.position ?? null}
         secondary={player?.secondary_position ?? null}
@@ -49,7 +46,6 @@ export async function PositionSection({
             ? { position: group.position ?? null, secondary: group.secondary_position ?? null, options: names("7") }
             : null
         }
-      />
-    </section>
+    />
   );
 }
