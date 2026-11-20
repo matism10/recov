@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { canManageInjuries, isStaff, type Availability, type UserRole } from "@/lib/roles";
 import { isBodyZone, isLaterality, zoneLabel } from "@/lib/body-zones";
-import { formatDate, recoveryProgress, returnLabel, type InjuryStatus } from "@/lib/injuries";
+import { formatDate, recoveryProgress, returnLabel, todayInChile, type InjuryStatus } from "@/lib/injuries";
 import { getAvatarUrls } from "@/lib/avatars";
 import { formatPlayerIds } from "@/lib/format";
 import { InjuryStatusBadge, buttonPrimary, buttonSecondary } from "@/app/ui";
@@ -114,15 +114,18 @@ export default async function InjuriesPage({
     const player = playerOf(i);
     const review = toReview(i);
     const title = injuryTitle(i);
-    const since = `Desde el ${formatDate(i.started_on)}`;
+    // Sin el año si es el actual: la línea es corta y se corta en el celular.
+    const since = `desde el ${formatDate(i.started_on).replace(new RegExp(` ${todayInChile().slice(0, 4)}$`), "")}`;
     const detail = review ? since : returnLabel(i.expected_return_on);
+    const noDocument = review && canManage && staff && (i.documents?.[0]?.count ?? 0) === 0;
     return {
       id: i.id,
       name: staff && player ? player.full_name : title,
       photoUrl: staff && player?.user_id ? (avatarUrls.get(player.user_id) ?? null) : null,
       group: review ? "revisar" : "recuperacion",
-      secondary: staff ? `${title} · ${detail}` : detail,
-      noDocument: review && canManage && staff && (i.documents?.[0]?.count ?? 0) === 0,
+      // Con "sin documento" a la vista, la línea no alcanza para la zona.
+      secondary: staff && !noDocument ? `${title} · ${detail}` : detail.charAt(0).toUpperCase() + detail.slice(1),
+      noDocument,
       progress:
         i.status === "activa" && i.expected_return_on
           ? recoveryProgress(i.started_on, i.expected_return_on).percent

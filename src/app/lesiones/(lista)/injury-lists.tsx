@@ -55,7 +55,7 @@ export function CurrentInjuries({
   return (
     <div>
       {withFilters && (
-        <div role="group" aria-label="Filtrar lesiones" className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0">
+        <div role="group" aria-label="Filtrar lesiones" className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0">
           {chips
             .filter((c) => c.id === "todas" || count(c.id) > 0)
             .map((c) => {
