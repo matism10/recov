@@ -1,47 +1,26 @@
-// Esqueleto de la ficha del jugador: foto y nombre; lesión actual y línea de tiempo
-// (en dos columnas en escritorio); carga semanal y bienestar; y la carga de partidos.
+// Esqueleto de la ficha del jugador: encabezado con foto, nombre y badges; pestañas; y la
+// pestaña Resumen (franja de números y tres tarjetas, en tres columnas en escritorio).
 import { Block, Circle, Line, PageSkeleton } from "@/app/skeleton";
 
 export default function Loading() {
   return (
     <PageSkeleton label="la ficha del jugador">
       <Line className="mb-5 h-4 w-16" />
-      <div className="mb-8 flex items-center gap-4">
+      <div className="mb-5 flex items-start gap-3">
         <Circle className="size-16" />
         <div className="space-y-3">
-          <Line className="h-8 w-52 max-w-[55vw]" />
+          <Line className="h-7 w-52 max-w-[55vw]" />
           <Line className="h-4 w-40" />
+          <Line className="h-6 w-28 rounded-full" />
         </div>
       </div>
-      <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-8 lg:space-y-0">
-        <div className="space-y-3">
-          <Line className="h-6 w-32" />
-          <Block className="space-y-4 p-5">
-            <Line className="h-4 w-44" />
-            <Line className="h-3 w-56 max-w-full" />
-            <Line className="h-2 w-full rounded-full" />
-          </Block>
-        </div>
-        <div className="space-y-3">
-          <Line className="h-6 w-36" />
-          <div className="space-y-4 border-l-2 border-line pl-5">
-            <Line className="h-4 w-48" />
-            <Line className="h-4 w-40" />
-          </div>
-        </div>
+      <Line className="mb-5 h-11 w-full" />
+      <Block className="mb-4 h-28" />
+      <div className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-4 lg:space-y-0">
+        <Block className="h-44" />
+        <Block className="h-44" />
+        <Block className="h-44" />
       </div>
-      <div className="mt-8 space-y-6 lg:grid lg:grid-cols-2 lg:gap-8 lg:space-y-0">
-        <div>
-          <Line className="mb-3 h-6 w-20" />
-          <Block className="h-72" />
-        </div>
-        <div>
-          <Line className="mb-3 h-6 w-28" />
-          <Block className="h-48" />
-        </div>
-      </div>
-      <Line className="mt-8 mb-3 h-6 w-40" />
-      <Block className="h-64" />
     </PageSkeleton>
   );
 }
