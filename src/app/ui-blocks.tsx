@@ -21,14 +21,16 @@ export function Card({
   flush = false,
   as: Tag = "div",
   id,
+  "aria-label": ariaLabel,
 }: {
   children: ReactNode;
   className?: string;
   flush?: boolean;
-  as?: "div" | "section" | "article";
+  as?: "div" | "section" | "article" | "header";
   id?: string;
+  "aria-label"?: string;
 }) {
-  return <Tag id={id} className={`${cardClass} ${flush ? "overflow-hidden" : "p-4 lg:p-5"} ${className}`}>{children}</Tag>;
+  return <Tag id={id} aria-label={ariaLabel} className={`${cardClass} ${flush ? "overflow-hidden" : "p-4 lg:p-5"} ${className}`}>{children}</Tag>;
 }
 
 // Título 16/700, contador opcional (chip), acción opcional a la derecha (link de 44 px

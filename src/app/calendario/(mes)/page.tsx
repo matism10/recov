@@ -13,7 +13,8 @@ import {
   type EventRow,
   type GymEntry,
 } from "@/lib/events";
-import { PageTitle, buttonPrimary, buttonSecondary } from "@/app/ui";
+import { buttonPrimary, buttonSecondary } from "@/app/ui";
+import { PageHeader } from "@/app/ui-blocks";
 import { can } from "@/lib/permissions";
 import { absenceTag, getEventAbsences, type ExpectedAbsence } from "@/lib/absences";
 import { CalendarView } from "../calendar-view";
@@ -122,10 +123,11 @@ export default async function CalendarPage({
   const attendanceSaved = await attendancePromise;
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <PageTitle>Calendario</PageTitle>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1200px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Calendario"
+        actions={
+          <>
           {canAbsences && (
             <Link href="/calendario/ausencias" className={`text-sm ${buttonSecondary}`}>
               <CalendarOff aria-hidden="true" className="size-4" />
@@ -138,8 +140,9 @@ export default async function CalendarPage({
               Nuevo evento
             </Link>
           )}
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <CalendarView
         key={`${anchor}-${selectedId ?? ""}-${mobileView}`}

@@ -1,12 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight } from "lucide-react";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { ROLE_LABEL, isDirection, type UserRole } from "@/lib/roles";
-import { Avatar } from "@/app/avatar";
 import { getAvatarUrls } from "@/lib/avatars";
 import { DelegateForm } from "./staff-forms";
-import { PageTitle, SectionTitle, cardClass, chipClass } from "@/app/ui";
+import { chipClass } from "@/app/ui";
+import { Card, CardHeader, PageHeader, PlayerCard, PlayerCardList } from "@/app/ui-blocks";
 import { isCoHeadCoach, isCustomized, loadStaff } from "./data";
 
 // Gestión del staff para la dirección (head coach y manager): lista con roles y
@@ -33,67 +31,58 @@ export default async function StaffPage() {
   const delegateOptions = staff.map(({ id, full_name }) => ({ id, full_name }));
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
-      <header className="mb-8">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <PageTitle>Staff del plantel</PageTitle>
-          <span className="text-sm font-medium text-brand-text">Maneja los permisos</span>
-        </div>
-        <p className="mt-1 text-sm text-muted">
-          Toca a una persona para ver sus roles y permisos. Cada rol trae sus permisos;
-          el head coach puede sumar o quitar permisos a cada persona.
-        </p>
-      </header>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1200px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Staff del plantel"
+        description="Toca a una persona para ver sus roles y permisos. Cada rol trae sus permisos; el head coach puede sumar o quitar permisos a cada persona."
+      />
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         <section>
-          <SectionTitle className="mb-3">Staff ({staff.length})</SectionTitle>
-          <ul className="space-y-2">
+          <CardHeader title="Staff" count={staff.length} />
+          <PlayerCardList>
             {staff.map((p) => (
-              <li key={p.id} className="overflow-hidden rounded-xl border border-line bg-card">
-                <Link
-                  href={`/staff/${p.id}`}
-                  className="flex min-h-16 items-center gap-3 px-5 py-3 transition hover:bg-mist focus-visible:outline-2 focus-visible:outline-brand-strong"
-                >
-                  <Avatar name={p.full_name ?? ""} url={avatarUrls.get(p.id)} />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 font-medium text-ink">
-                      <span className="truncate">{p.full_name}</span>
-                      {p.id === user.id && <span className="font-normal text-muted">(tú)</span>}
+              <PlayerCard
+                key={p.id}
+                href={`/staff/${p.id}`}
+                name={`${p.full_name ?? ""}${p.id === user.id ? " (tú)" : ""}`}
+                photoUrl={avatarUrls.get(p.id)}
+                secondary={
+                  <>
+                    {p.roles.map((r) => ROLE_LABEL[r]).join(", ")}
+                    {p.id === delegateId && " · Funciones de kinesiólogo"}
+                    {p.id === nominaDelegateId && " · Nóminas"}
+                  </>
+                }
+                badge={
+                  (isCoHeadCoach(p) || isCustomized(p)) && (
+                    <span className="flex flex-wrap justify-end gap-1">
                       {isCoHeadCoach(p) && <span className={chipClass}>co</span>}
                       {isCustomized(p) && <span className={chipClass}>personalizado</span>}
-                    </p>
-                    <p className="truncate text-sm text-muted">
-                      {p.roles.map((r) => ROLE_LABEL[r]).join(", ")}
-                      {p.id === delegateId && " · Funciones de kinesiólogo"}
-                      {p.id === nominaDelegateId && " · Nóminas"}
-                    </p>
-                  </div>
-                  <ChevronRight aria-hidden className="size-5 shrink-0 text-muted" />
-                </Link>
-              </li>
+                    </span>
+                  )
+                }
+              />
             ))}
-          </ul>
+          </PlayerCardList>
         </section>
 
-        <div className="grid gap-8 lg:grid-cols-2">
-          <section id="funciones-kinesiologo" className={`scroll-mt-4 p-5 ${cardClass}`}>
-            <SectionTitle>Funciones de kinesiólogo</SectionTitle>
-            <p className="mt-1 mb-4 text-sm text-muted">
-              Si el plantel no tiene kinesiólogo, delega sus funciones en alguien del staff:
-              podrá revisar lesiones, ver documentos médicos y cambiar la disponibilidad.
-            </p>
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <Card as="section" id="funciones-kinesiologo" className="scroll-mt-4">
+            <CardHeader
+              title="Funciones de kinesiólogo"
+              subtitle="Si el plantel no tiene kinesiólogo, delega sus funciones en alguien del staff: podrá revisar lesiones, ver documentos médicos y cambiar la disponibilidad."
+            />
             <DelegateForm staff={delegateOptions} currentDelegateId={delegateId} />
-          </section>
+          </Card>
 
-          <section id="delegado-nominas" className={`scroll-mt-4 p-5 ${cardClass}`}>
-            <SectionTitle>Nóminas</SectionTitle>
-            <p className="mt-1 mb-4 text-sm text-muted">
-              El head coach y el manager arman la convocatoria de cada partido y cargan la
-              participación. Puedes delegarlo también en alguien del staff.
-            </p>
+          <Card as="section" id="delegado-nominas" className="scroll-mt-4">
+            <CardHeader
+              title="Nóminas"
+              subtitle="El head coach y el manager arman la convocatoria de cada partido y cargan la participación. Puedes delegarlo también en alguien del staff."
+            />
             <DelegateForm kind="nomina" staff={delegateOptions} currentDelegateId={nominaDelegateId} />
-          </section>
+          </Card>
         </div>
       </div>
     </main>

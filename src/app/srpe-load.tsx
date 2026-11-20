@@ -68,7 +68,7 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
       {returnFlag && <ReturnNotice flag={returnFlag} />}
       <div className="space-y-1">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[13px] text-muted">Esta semana (esfuerzo × minutos)</span>
+          <span className="text-13 text-muted">Esta semana (esfuerzo × minutos)</span>
           {data.high_load && (
             <span className="rounded-full bg-alerta-bg px-2.5 py-1 text-xs font-semibold text-alerta-fg">
               Carga alta
@@ -100,7 +100,7 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
                 style={{ bottom: 22 + Math.round((data.baseline! / max) * CHART_PX) }}
               />
               <span
-                className="absolute right-0 bg-mist pl-1 text-[11px] text-muted"
+                className="absolute right-0 bg-mist pl-1 text-xs text-muted"
                 style={{ bottom: 26 + Math.round((data.baseline! / max) * CHART_PX) }}
               >
                 promedio 4 sem · {formatLoad(data.baseline!)}
@@ -134,7 +134,7 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
                         ) : null,
                       )}
                   </div>
-                  <span aria-hidden="true" className="text-[11px] text-muted">
+                  <span aria-hidden="true" className="text-xs text-muted">
                     {breakWeeks.has(w.week_start) ? "Parón" : label}
                   </span>
                 </li>
@@ -159,7 +159,7 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
       {gymShare !== null && (
         <div className="rounded-xl bg-brand-wash px-4 py-3">
           <p className="text-sm font-semibold text-brand-text">El gimnasio es el {gymShare} % de su carga</p>
-          <p className="text-[13px] text-ink/80">En las últimas {weeks.length} semanas, contando cancha, gimnasio y partidos.</p>
+          <p className="text-13 text-ink/80">En las últimas {weeks.length} semanas, contando cancha, gimnasio y partidos.</p>
         </div>
       )}
 
@@ -176,7 +176,7 @@ export function SrpeLoad({ data, returnFlag = null }: { data: WeeklyLoad | null;
                   className="size-2.5 shrink-0 rounded-[3px]"
                   style={{ background: LOAD_KIND_COLOR[s.kind] ?? LOAD_KIND_COLOR.cancha }}
                 />
-                <span className="w-9 text-[13px] text-muted">
+                <span className="w-9 text-13 text-muted">
                   {WEEKDAY_LABELS[isoWeekday(chileDateTime(s.starts_at).date) - 1]}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -241,7 +241,7 @@ export function WellnessHistory({ reports }: { reports: WellnessReport[] | null 
                       sev === "mal" ? "bg-alerta-bg text-alerta-fg" : "bg-white text-ink"
                     }`}
                   >
-                    <dt className="truncate text-[11px]">{q.short}</dt>
+                    <dt className="truncate text-xs">{q.short}</dt>
                     <dd className="font-display font-bold tabular-nums">
                       {shown}
                       {label && <span className="sr-only"> · {label}</span>}

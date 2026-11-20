@@ -141,7 +141,7 @@ export function SearchLauncher(props: SearchLauncherProps) {
         <span className="hidden text-sm font-medium lg:inline">Buscar</span>
         <kbd
           aria-hidden="true"
-          className={`hidden rounded-md px-1.5 py-0.5 font-sans text-[11px] font-medium lg:inline ${
+          className={`hidden rounded-md px-1.5 py-0.5 font-sans text-xs font-medium lg:inline ${
             tone === "dark" ? "bg-white/20 text-white" : "bg-fill-soft text-body"
           }`}
         >
@@ -382,7 +382,7 @@ function SearchDialog({ onClose }: { onClose: () => void }) {
     );
   };
 
-  const labelClass = "px-3 pt-3 pb-1 font-display text-[13px] font-semibold tracking-wide text-body uppercase";
+  const labelClass = "px-3 pt-3 pb-1 font-display text-13 font-semibold tracking-wide text-body uppercase";
 
   return (
     <div className="fixed inset-0 z-[60]" onKeyDown={onKeyDown}>

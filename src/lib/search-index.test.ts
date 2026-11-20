@@ -139,12 +139,12 @@ const EXCEPTIONS: Record<string, string> = {
   "Ranking del plantel": "Mis evaluaciones: solo con un test cargado",
   // Títulos de estados vacíos, ventanas y banners (no son secciones a las que ir).
   "Aún no hay tests en el plantel": "estado vacío de Evaluaciones",
-  "Aún no hay planes": "estado vacío de Planes de gimnasio",
   "Declarar ausencia": "ventana de Ausencias (se abre desde ese botón)",
   "Elige tu posición en Sevens": "aviso temporal del Resumen y Plantel",
   "Buscar jugadores y secciones": "título accesible del propio buscador",
   // Contenido principal de una pantalla que ya se ofrece como destino.
   "Activas y próximas": "contenido de Mis ausencias (ya ofrecida)",
+  "Staff": "lista de la pantalla Staff (ya ofrecida)",
   "Entrenamiento": "bloque dentro del editor de Nuevo plan (ya ofrecido)",
 };
 
@@ -160,6 +160,7 @@ describe("índice: cada sección con título está ofrecida o justificada", () =
     const patterns = [
       /<SectionTitle[^>]*>\s*([^<{}]+?)\s*<\/SectionTitle>/g,
       /<h2[^>]*>\s*([^<{}]+?)\s*<\/h2>/g,
+      /<CardHeader[^>]*?\btitle="([^"]+)"/g,
       /heading\s*=\s*"([^"]+)"/g,
     ];
     for (const re of patterns) for (const m of src.matchAll(re)) found.set(m[1].replace(/\s+/g, " "), relative(ROOT, f));

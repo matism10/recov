@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
-import { PageTitle, SectionTitle, buttonPrimary, cardClass } from "@/app/ui";
-import { BackLink } from "@/app/back-link";
+import { buttonPrimary } from "@/app/ui";
+import { Card, CardHeader, ListRow, PageHeader, TableCard } from "@/app/ui-blocks";
 import { requireMember } from "@/app/calendario/member";
 import {
   ABSENCE_REASON_LABEL,
@@ -47,28 +47,30 @@ export default async function MyAbsencesPage() {
   const squad = all.filter((a) => a.is_squad);
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
-      <header className="mb-6">
-        <BackLink fallback="/dashboard">← Volver al Resumen</BackLink>
-        <div className="mt-2 flex items-start justify-between gap-4">
-          <PageTitle>Mis ausencias</PageTitle>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1080px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Mis ausencias"
+        back={{ fallback: "/dashboard", label: "← Volver al Resumen" }}
+        actions={
           <Link href="/ausencias/nueva" className={`shrink-0 text-sm ${buttonPrimary}`}>
             <Plus aria-hidden="true" className="size-4" />
             Avisar
           </Link>
-        </div>
-      </header>
-
-      <section className="mb-8">
-        <SectionTitle>Activas y próximas</SectionTitle>
+        }
+      />
+      <div className="space-y-6">
+      <section>
         {mine.length === 0 ? (
-          <p className={`mt-3 p-5 text-sm text-muted ${cardClass}`}>No tienes avisos de ausencia.</p>
+          <Card>
+            <CardHeader title="Activas y próximas" />
+            <p className="text-sm text-muted">No tienes avisos de ausencia.</p>
+          </Card>
         ) : (
-          <ul className="mt-3 space-y-3">
+          <TableCard header={<CardHeader title="Activas y próximas" count={mine.length} className="mb-0" />}>
             {mine.map((a) => {
               const d = describe(a);
               return (
-                <li key={a.id} className={`p-4 ${cardClass}`}>
+                <ListRow key={a.id} className="block py-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-medium text-ink">{d.title}</p>
@@ -79,36 +81,36 @@ export default async function MyAbsencesPage() {
                     </span>
                   </div>
                   {a.note && <p className="mt-2 text-sm text-ink">{a.note}</p>}
-                  {a.by_staff && <p className="mt-2 text-xs text-muted">Lo registró tu staff.</p>}
+                  {a.by_staff && <p className="mt-2 text-13 text-muted">Lo registró tu staff.</p>}
                   <div className="mt-3 flex flex-wrap gap-2">
                     {a.scope === "periodo" && a.in_progress && <EndAbsenceButton id={a.id} returned />}
                     <EndAbsenceButton id={a.id} label="Quitar aviso" />
                   </div>
-                </li>
+                </ListRow>
               );
             })}
-          </ul>
+          </TableCard>
         )}
       </section>
 
       {squad.length > 0 && (
-        <section className="mb-8">
-          <SectionTitle>Del plantel</SectionTitle>
-          <ul className="mt-3 space-y-3">
+        <section>
+          <TableCard header={<CardHeader title="Del plantel" className="mb-0" />}>
             {squad.map((a) => {
               const d = describe(a);
               return (
-                <li key={a.id} className={`p-4 ${cardClass}`}>
+                <ListRow key={a.id} className="block py-3">
                   <p className="font-medium text-ink">{d.title}</p>
                   <p className="text-sm text-muted">
                     {ABSENCE_REASON_LABEL[a.reason]} · {d.when}
                   </p>
-                </li>
+                </ListRow>
               );
             })}
-          </ul>
+          </TableCard>
         </section>
       )}
+      </div>
     </main>
   );
 }

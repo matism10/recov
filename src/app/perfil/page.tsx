@@ -1,10 +1,10 @@
-import { BackLink } from "@/app/back-link";
 import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { signOut } from "@/app/login/actions";
 import { ROLE_LABEL, type UserRole } from "@/lib/roles";
 import { photoUrl } from "@/lib/photos";
-import { cardClass, signOutButtonClass } from "@/app/ui";
+import { signOutButtonClass } from "@/app/ui";
+import { Card, CardHeader, PageHeader } from "@/app/ui-blocks";
 import { LogOut } from "lucide-react";
 import { allowedScreens, defaultSlots, resolveSlots } from "@/lib/nav-slots";
 import { NavSlotsForm } from "./nav-slots-form";
@@ -76,62 +76,59 @@ export default async function ProfilePage() {
   const avatarUrl = profile.avatar_path ? photoUrl("avatars", profile.avatar_path) : null;
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
-      <header className="mb-6">
-        <BackLink fallback="/dashboard">← Volver</BackLink>
-        <h1 className="mt-2 text-2xl font-semibold text-ink">Tu perfil</h1>
-        <p className="mt-1 text-sm text-muted">
-          {club?.name}
-          {roles.length > 0 && ` · ${roles.map((r) => ROLE_LABEL[r]).join(", ")}`}
-        </p>
-      </header>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1080px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Tu perfil"
+        back={{ fallback: "/dashboard" }}
+        description={`${club?.name ?? ""}${roles.length > 0 ? ` · ${roles.map((r) => ROLE_LABEL[r]).join(", ")}` : ""}`}
+      />
 
-      <div className="space-y-6">
-        <section id="foto" className={`scroll-mt-4 p-5 ${cardClass}`}>
-          <h2 className="mb-4 font-semibold text-ink">Foto</h2>
+      <div className="max-w-2xl space-y-6">
+        <Card as="section" id="foto" className="scroll-mt-4">
+          <CardHeader title="Foto" />
           <AvatarForm
             name={profile.full_name ?? ""}
             url={avatarUrl}
             folder={`${profile.club_id}/${user.id}`}
           />
-        </section>
+        </Card>
 
-        <section id="datos" className={`scroll-mt-4 p-5 ${cardClass}`}>
-          <h2 className="mb-4 font-semibold text-ink">Tus datos</h2>
+        <Card as="section" id="datos" className="scroll-mt-4">
+          <CardHeader title="Tus datos" />
           <ProfileForm
             firstName={firstName}
             lastName={lastName}
             player={player}
             positions={(positions ?? []).map((p) => p.name as string)}
           />
-        </section>
+        </Card>
 
         {playerRow && (
-          <section id="contacto" className={`scroll-mt-4 p-5 ${cardClass}`}>
-            <h2 className="mb-4 font-semibold text-ink">Contacto</h2>
+          <Card as="section" id="contacto" className="scroll-mt-4">
+            <CardHeader title="Contacto" />
             <PhoneForm phone={(phone as string | null) ?? null} />
-          </section>
+          </Card>
         )}
 
-        <section id="cuenta" className={`scroll-mt-4 p-5 ${cardClass}`}>
-          <h2 className="mb-4 font-semibold text-ink">Cuenta</h2>
+        <Card as="section" id="cuenta" className="scroll-mt-4">
+          <CardHeader title="Cuenta" />
           <dl className="mb-4 text-sm">
             <dt className="text-muted">Correo</dt>
             <dd className="font-medium text-ink">{user.email}</dd>
           </dl>
           <PasswordForm />
-        </section>
+        </Card>
 
         {/* Barra inferior: solo existe en el celular. */}
-        <section id="barra-principal" className={`scroll-mt-4 p-5 lg:hidden ${cardClass}`}>
-          <h2 className="mb-4 font-semibold text-ink">Barra principal</h2>
+        <Card as="section" id="barra-principal" className="scroll-mt-4 lg:hidden">
+          <CardHeader title="Barra principal" />
           <NavSlotsForm
             current={navSlots}
             defaults={defaultSlots(roles, navOpts)}
             allowed={allowedScreens(roles)}
             player={roles.includes("jugador")}
           />
-        </section>
+        </Card>
 
         <form id="cerrar-sesion" action={signOut} className="scroll-mt-4">
           <button className={signOutButtonClass}>

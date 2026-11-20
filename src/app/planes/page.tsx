@@ -5,7 +5,8 @@ import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import type { UserRole } from "@/lib/roles";
 import { WEEKDAY_LABELS } from "@/lib/events";
 import { PLAN_STATUS_LABEL, canPlanGym, rangeLabel, type PlanStatus, type TargetKind } from "@/lib/gym";
-import { PageTitle, SectionTitle, buttonPrimary, cardClass } from "@/app/ui";
+import { buttonPrimary } from "@/app/ui";
+import { CardHeader, EmptyState, ListRow, PageHeader, TableCard } from "@/app/ui-blocks";
 import { targetSummary } from "./targets";
 
 type PlanRow = {
@@ -84,49 +85,41 @@ export default async function PlanesPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-5xl lg:px-8">
-      <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <PageTitle>Planes de gimnasio</PageTitle>
-          <p className="mt-1 text-sm text-muted">
-            Arma sesiones de fuerza con kilos calculados desde los máximos de Evaluaciones.
-          </p>
-        </div>
-        <Link href="/planes/nuevo" className={buttonPrimary}>
-          <Plus aria-hidden="true" className="size-4" />
-          Nuevo plan
-        </Link>
-      </header>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1200px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Planes de gimnasio"
+        description="Arma sesiones de fuerza con kilos calculados desde los máximos de Evaluaciones."
+        actions={
+          <Link href="/planes/nuevo" className={buttonPrimary}>
+            <Plus aria-hidden="true" className="size-4" />
+            Nuevo plan
+          </Link>
+        }
+      />
 
       {groups.length === 0 ? (
-        <section className={`space-y-3 p-6 ${cardClass}`}>
-          <SectionTitle>Aún no hay planes</SectionTitle>
-          <p className="text-sm text-muted">
-            Crea el primero: elige a quién va, sus días y los ejercicios de cada sesión. Los jugadores lo ven en
-            &quot;Mi plan&quot; con sus kilos.
-          </p>
-          <Link href="/planes/nuevo" className={buttonPrimary}>
-            Crear plan
-          </Link>
-        </section>
+        <EmptyState
+          title="Aún no hay planes"
+          action={
+            <Link href="/planes/nuevo" className={buttonPrimary}>
+              Crear plan
+            </Link>
+          }
+        >
+          Crea el primero: elige a quién va, sus días y los ejercicios de cada sesión. Los jugadores lo ven en
+          &quot;Mi plan&quot; con sus kilos.
+        </EmptyState>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {groups.map((g) => (
             <section key={g.status}>
-              <h2 className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
-                {PLAN_STATUS_LABEL[g.status]}s ({g.items.length})
-              </h2>
-              <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
+              <TableCard header={<CardHeader title={`${PLAN_STATUS_LABEL[g.status]}s`} count={g.items.length} className="mb-0" />}>
                 {g.items.map((p) => {
                   const days = [...(daysByPlan.get(p.id) ?? [])].sort().map((d) => WEEKDAY_LABELS[d - 1]);
                   const prog = progressByPlan.get(p.id);
                   const pct = prog && prog.due > 0 ? Math.round((Math.min(prog.done, prog.due) / prog.due) * 100) : null;
                   return (
-                    <li key={p.id}>
-                      <Link
-                        href={`/planes/${p.id}`}
-                        className="flex items-center gap-4 px-5 py-4 transition hover:bg-mist"
-                      >
+                    <ListRow key={p.id} href={`/planes/${p.id}`} className="gap-4 py-4">
                         <div className="min-w-0 flex-1 space-y-1">
                           <p className="flex flex-wrap items-center gap-2">
                             <span className="font-medium text-ink">{p.name}</span>
@@ -158,11 +151,10 @@ export default async function PlanesPage() {
                           )}
                         </div>
                         <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-muted" />
-                      </Link>
-                    </li>
+                    </ListRow>
                   );
                 })}
-              </ul>
+              </TableCard>
             </section>
           ))}
         </div>

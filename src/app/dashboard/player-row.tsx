@@ -41,7 +41,7 @@ export function PlayerRow({
           <PlayerIdentity playerId={p.id} linkToProfile={linkToProfile}>
             <Avatar name={p.full_name} url={avatarUrl} size="md" />
             <div className="min-w-0">
-              <p className="text-[17px] leading-6 font-semibold break-words text-ink group-hover:underline">
+              <p className="text-base leading-6 font-semibold break-words text-ink group-hover:underline">
                 {p.full_name}
               </p>
               {(p.position || phase) && (

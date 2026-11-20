@@ -69,7 +69,7 @@ export default async function GymDonePage({ params }: { params: Promise<{ logId:
               )}
             </p>
           ) : null}
-          <Link href="/dashboard" className="flex h-12 items-center justify-center text-[15px] font-semibold text-brand-night">
+          <Link href="/dashboard" className="flex h-12 items-center justify-center text-15 font-semibold text-brand-night">
             Volver al inicio
           </Link>
         </div>

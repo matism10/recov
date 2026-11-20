@@ -3,7 +3,7 @@ import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/
 import { canManageInjuries, isStaff, type UserRole } from "@/lib/roles";
 import { getSquad } from "@/lib/squad";
 import { SquadViews } from "./squad-views";
-import { PageTitle, cardClass } from "@/app/ui";
+import { EmptyState, PageHeader } from "@/app/ui-blocks";
 import { getFormatContext, inFormat } from "@/lib/format";
 import { SevensPositionBanner } from "@/app/sevens-ui";
 import { SevensSquad } from "./sevens-squad";
@@ -48,15 +48,11 @@ export default async function SquadPage() {
   const canManage = canManageInjuries(roles, user.id, club?.kine_delegate_id);
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
-      <header className="mb-8">
-        <PageTitle>
-          Plantel
-        </PageTitle>
-        <p className="mt-1 text-sm text-muted">
-          {players.length === 1 ? "1 jugador" : `${players.length} jugadores`}
-        </p>
-      </header>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1200px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Plantel"
+        description={players.length === 1 ? "1 jugador" : `${players.length} jugadores`}
+      />
 
       {/* Aviso de posición de Sevens: solo jugadores del grupo, no el staff. */}
       {sevens && roles.includes("jugador") && mySevens && !mySevens.position && <SevensPositionBanner />}
@@ -81,11 +77,11 @@ export default async function SquadPage() {
           linkToProfile={isStaff(roles)}
         />
       ) : (
-        <p className={`p-8 text-center text-muted ${cardClass}`}>
+        <EmptyState title={sevens ? "El grupo Sevens aún no tiene jugadores" : "Aún no hay jugadores"}>
           {sevens
-            ? "El grupo Sevens aún no tiene jugadores. La dirección lo arma en Configuración."
-            : "Aún no hay jugadores registrados en tu plantel."}
-        </p>
+            ? "La dirección lo arma en Configuración."
+            : "Cuando se registren en el link del plantel, aparecerán aquí."}
+        </EmptyState>
       )}
     </main>
   );

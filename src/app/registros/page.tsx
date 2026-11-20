@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { ROLE_LABEL, canApproveRegistrations, type UserRole } from "@/lib/roles";
 import { ReviewButtons } from "./review-buttons";
-import { PageTitle, SectionTitle } from "@/app/ui";
+import { CardHeader, EmptyState, ListRow, PageHeader, TableCard } from "@/app/ui-blocks";
 
 type PendingProfile = {
   id: string;
@@ -116,13 +116,11 @@ export default async function RegistrosPage({
   ];
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-6xl lg:px-8">
-      <header className="mb-8">
-        <PageTitle>Registros pendientes</PageTitle>
-        <p className="mt-1 text-sm text-muted">
-          Confirma a quienes se registraron con el link del plantel.
-        </p>
-      </header>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1200px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Registros pendientes"
+        description="Confirma a quienes se registraron con el link del plantel."
+      />
 
       {/* Tras confirmar: la decisión quedó guardada, pero el correo no salió. */}
       {correo === "no-enviado" && (
@@ -132,39 +130,37 @@ export default async function RegistrosPage({
       )}
 
       {pending.length === 0 ? (
-        <p className="rounded-xl bg-card p-8 text-center text-muted border border-line">
-          No hay registros pendientes.
-        </p>
+        <EmptyState title="No hay registros pendientes" />
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {sections
             .filter((s) => s.items.length > 0)
             .map((s) => (
               <section key={s.title}>
-                <SectionTitle className="mb-3">
-                  {s.title} ({s.items.length})
-                </SectionTitle>
-                <ul className="divide-y divide-line overflow-hidden rounded-xl bg-card border border-line lg:hidden">
+                <TableCard
+                  className="lg:hidden"
+                  header={<CardHeader title={s.title} count={s.items.length} className="mb-0" />}
+                >
                   {s.items.map((p) => (
-                    <li
-                      key={p.id}
-                      className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
-                    >
+                    <ListRow key={p.id} className="flex-wrap justify-between gap-4 py-4">
                       <div>
                         <p className="font-medium text-ink">
                           {p.full_name}
                         </p>
                         <p className="text-sm text-muted">{s.details(p)}</p>
-                        <p className="text-xs text-muted">
+                        <p className="text-13 text-muted">
                           Registrado el {dateFormat.format(new Date(p.created_at))}
                         </p>
                       </div>
                       <ReviewButtons profileId={p.id} />
-                    </li>
+                    </ListRow>
                   ))}
-                </ul>
+                </TableCard>
                 {/* En escritorio, la misma lista como tabla. */}
                 <div className="hidden overflow-x-auto rounded-xl border border-line bg-card lg:block">
+                  <div className="border-b border-line p-5 pb-3">
+                    <CardHeader title={s.title} count={s.items.length} className="mb-0" />
+                  </div>
                   <table className="w-full text-left">
                     <thead className="text-sm text-muted">
                       <tr className="border-b border-line">

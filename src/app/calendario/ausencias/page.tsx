@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { PageTitle, SectionTitle, cardClass } from "@/app/ui";
-import { BackLink } from "@/app/back-link";
+import { Card, CardHeader, ListRow, PageHeader, TableCard } from "@/app/ui-blocks";
 import { requireMember } from "../member";
 import { can } from "@/lib/permissions";
 import {
@@ -27,7 +26,7 @@ function Row({ a, canDeclare, canSquad }: { a: ClubAbsence; canDeclare: boolean;
   const squad = a.player_id === null;
   const removable = a.state === "vigente" && (squad ? canSquad : canDeclare);
   return (
-    <li className={`p-4 ${cardClass}`}>
+    <ListRow className="block py-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium text-ink">{squad ? "Todo el plantel" : (a.player_name ?? "Jugador")}</p>
@@ -38,7 +37,7 @@ function Row({ a, canDeclare, canSquad }: { a: ClubAbsence; canDeclare: boolean;
         </span>
       </div>
       {a.note && <p className="mt-2 text-sm text-ink">{a.note}</p>}
-      <p className="mt-2 text-xs text-muted">
+      <p className="mt-2 text-13 text-muted">
         {a.created_by_name ? `Registró ${a.created_by_name}` : "Registrado"}
         {a.state === "quitado" ? " · Aviso quitado" : a.state === "pasado" ? " · Ya pasó" : ""}
       </p>
@@ -48,7 +47,7 @@ function Row({ a, canDeclare, canSquad }: { a: ClubAbsence; canDeclare: boolean;
           <EndAbsenceButton id={a.id} label="Quitar aviso" />
         </div>
       )}
-    </li>
+    </ListRow>
   );
 }
 
@@ -65,16 +64,18 @@ function Group({
   canSquad: boolean;
 }) {
   return (
-    <section className="mb-8">
-      <SectionTitle>{title}</SectionTitle>
+    <section>
       {rows.length === 0 ? (
-        <p className={`mt-3 p-5 text-sm text-muted ${cardClass}`}>{empty}</p>
+        <Card>
+          <CardHeader title={title} />
+          <p className="text-sm text-muted">{empty}</p>
+        </Card>
       ) : (
-        <ul className="mt-3 space-y-3">
+        <TableCard header={<CardHeader title={title} count={rows.length} className="mb-0" />}>
           {rows.map((a) => (
             <Row key={a.id} a={a} {...rest} />
           ))}
-        </ul>
+        </TableCard>
       )}
     </section>
   );
@@ -110,27 +111,27 @@ export default async function AbsencesPage() {
   const groupProps = { canDeclare, canSquad };
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <header className="mb-6">
-        <BackLink fallback="/calendario">← Volver al calendario</BackLink>
-        <div className="mt-2 flex items-start justify-between gap-4">
-          <PageTitle>Ausencias</PageTitle>
-          {canDeclare && (
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1080px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Ausencias"
+        description="Avisos de jugadores que no van a un evento o estarán varios días fuera. No cambian la lista de asistencia."
+        back={{ fallback: "/calendario", label: "← Volver al calendario" }}
+        actions={
+          canDeclare && (
             <DeclareAbsenceDialog
               players={(playersRes.data ?? []).map((p) => ({ id: p.id, name: p.full_name }))}
               events={events}
               today={todayInChile()}
               canSquad={canSquad}
             />
-          )}
-        </div>
-        <p className="mt-1 text-sm text-muted">
-          Avisos de jugadores que no van a un evento o estarán varios días fuera. No cambian la lista de asistencia.
-        </p>
-      </header>
-
+          )
+        }
+      />
+      <div className="space-y-6">
       {!current.ok && (
-        <p className={`mb-8 p-5 text-sm text-danger ${cardClass}`}>No se pudieron cargar las ausencias.</p>
+        <Card>
+          <p className="text-sm text-danger">No se pudieron cargar las ausencias.</p>
+        </Card>
       )}
       <Group title="Ahora" rows={now} empty="Nadie está ausente por varios días ahora." {...groupProps} />
       <Group title="Próximas" rows={upcoming} empty="No hay avisos próximos." {...groupProps} />
@@ -141,6 +142,7 @@ export default async function AbsencesPage() {
         empty="Todavía no hay avisos pasados."
         {...groupProps}
       />
+      </div>
     </main>
   );
 }

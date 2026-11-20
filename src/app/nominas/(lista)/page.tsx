@@ -6,7 +6,8 @@ import { isStaff, type UserRole } from "@/lib/roles";
 import { canManageNominas, getLineupSize } from "@/lib/match-load";
 import { getActiveFormat } from "@/lib/format";
 import { chileDateTime, eventTitle, longDayLabel } from "@/lib/events";
-import { PageTitle, SectionTitle, buttonPrimary, buttonSecondary, cardClass } from "@/app/ui";
+import { buttonPrimary, buttonSecondary } from "@/app/ui";
+import { CardHeader, EmptyState, ListRow, PageHeader, TableCard } from "@/app/ui-blocks";
 
 type MatchRow = {
   id: string;
@@ -19,7 +20,12 @@ type MatchRow = {
 // las arma (head coach, manager y el delegado), el acceso directo a armar la del
 // próximo partido. RLS (0048): todo confirmado del club ve las convocatorias. El
 // jugador las ve en lectura en /nominas/[eventId] (sin disponibilidad ni minutos).
-export default async function NominasPage() {
+export default async function NominasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ jugados?: string }>;
+}) {
+  const { jugados } = await searchParams;
   const supabase = await getSupabase();
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -90,19 +96,29 @@ export default async function NominasPage() {
 
   const armarHref = next ? `/calendario/${next.id}/disponibles` : "/nominas/sin-partido";
 
-  const card = (m: MatchRow, past: boolean) => {
+  const PLAYED_SHOWN = 5;
+  const playedShown = jugados === "todos" ? played : played.slice(0, PLAYED_SHOWN);
+
+  const row = (m: MatchRow, past: boolean) => {
     const { date, time } = chileDateTime(m.starts_at);
     const n = byEvent.get(m.id)!;
     return (
-      <li key={m.id} className={`space-y-3 p-4 sm:p-5 ${cardClass}`}>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-semibold text-ink">{eventTitle({ type: "competencia", opponent: m.opponent })}</p>
-            <p className="text-sm text-muted">
-              {longDayLabel(date)} · {time}
-              {m.location && ` · ${m.location}`}
-            </p>
-          </div>
+      <ListRow key={m.id} className="flex-wrap justify-between gap-y-2 py-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-ink">{eventTitle({ type: "competencia", opponent: m.opponent })}</p>
+          <p className="text-13 text-muted">
+            {longDayLabel(date)} · {time}
+            {m.location && ` · ${m.location}`}
+          </p>
+          <p className="mt-0.5 text-13 text-ink">
+            <span className="font-semibold">{n.total}</span> {n.total === 1 ? "convocado" : "convocados"}
+            <span className="text-muted">
+              {" "}
+              · Titulares {n.titulares}/{starters} · Banca {n.banca}/{bench}
+            </span>
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           {past && staff && (
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -112,15 +128,6 @@ export default async function NominasPage() {
               {withParticipation.has(m.id) ? "Participación cargada" : "Falta la participación"}
             </span>
           )}
-        </div>
-        <p className="text-sm text-ink">
-          <span className="font-semibold">{n.total}</span> {n.total === 1 ? "convocado" : "convocados"}
-          <span className="text-muted">
-            {" "}
-            · Titulares {n.titulares}/{starters} · Banca {n.banca}/{bench}
-          </span>
-        </p>
-        <div className="flex flex-wrap gap-2">
           <Link
             href={staff ? `/calendario/${m.id}/disponibles` : `/nominas/${m.id}`}
             className={`text-sm ${buttonSecondary}`}
@@ -133,47 +140,54 @@ export default async function NominasPage() {
             </Link>
           )}
         </div>
-      </li>
+      </ListRow>
     );
   };
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <header className="mb-6">
-        <PageTitle>Nóminas</PageTitle>
-        <p className="mt-1 text-sm text-muted">Convocatorias de cada partido: titulares y banca.</p>
-      </header>
-
-      {canNomina && (
-        <Link id="armar-nomina" href={armarHref} className={`mb-8 flex w-full flex-col py-4 text-base ${buttonPrimary}`}>
-          <span className="flex items-center gap-2 text-lg font-semibold">
-            <ClipboardList aria-hidden="true" className="size-6" />
-            Armar nómina
-          </span>
-          {next && (
-            <span className="text-sm font-normal">
-              Próximo partido: {eventTitle({ type: "competencia", opponent: next.opponent })} ·{" "}
-              {longDayLabel(chileDateTime(next.starts_at).date)}
-            </span>
-          )}
-        </Link>
-      )}
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1200px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Nóminas"
+        description={
+          next
+            ? `Próximo partido: ${eventTitle({ type: "competencia", opponent: next.opponent })} · ${longDayLabel(chileDateTime(next.starts_at).date)}`
+            : "Convocatorias de cada partido: titulares y banca."
+        }
+        actions={
+          canNomina && (
+            <Link id="armar-nomina" href={armarHref} className={`gap-2 ${buttonPrimary}`}>
+              <ClipboardList aria-hidden="true" className="size-5" />
+              Armar nómina
+            </Link>
+          )
+        }
+      />
 
       {all.length === 0 ? (
-        <p className={`p-5 text-sm text-muted ${cardClass}`}>Todavía no hay nóminas registradas.</p>
+        <EmptyState title="Todavía no hay nóminas registradas" />
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {upcoming.length > 0 && (
-            <section>
-              <SectionTitle className="mb-3">Próximos partidos</SectionTitle>
-              <ul className="space-y-3">{upcoming.map((m) => card(m, false))}</ul>
-            </section>
+            <TableCard header={<CardHeader title="Próximos partidos" count={upcoming.length} className="mb-0" />}>
+              {upcoming.map((m) => row(m, false))}
+            </TableCard>
           )}
           {played.length > 0 && (
-            <section>
-              <SectionTitle className="mb-3">Partidos jugados</SectionTitle>
-              <ul className="space-y-3">{played.map((m) => card(m, true))}</ul>
-            </section>
+            <TableCard
+              header={<CardHeader title="Partidos jugados" count={played.length} className="mb-0" />}
+              footer={
+                played.length > PLAYED_SHOWN && (
+                  <Link
+                    href={jugados === "todos" ? "/nominas" : "/nominas?jugados=todos"}
+                    className="inline-flex min-h-11 items-center text-sm font-medium text-brand-text underline"
+                  >
+                    {jugados === "todos" ? "Ver menos" : `Ver todos (${played.length})`}
+                  </Link>
+                )
+              }
+            >
+              {playedShown.map((m) => row(m, true))}
+            </TableCard>
           )}
         </div>
       )}

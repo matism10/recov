@@ -18,7 +18,7 @@ const CHIP_STYLE: Record<NoticeChip["style"], string> = {
 export function AttentionStrip({
   cards: initial,
   action,
-  className = "mb-8",
+  className = "",
 }: {
   cards: NoticeCard[];
   // Acción a la derecha de la franja (por ejemplo "Ver métricas"). Con ella la franja aparece aunque no haya avisos.

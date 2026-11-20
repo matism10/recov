@@ -124,7 +124,7 @@ export async function PlayerMetrics({
   const attendance = await data;
   if (!attendance) return null;
   return (
-    <div className={`mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 ${visibilityOf("asistencia", desktop, mobile)}`}>
+    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 ${visibilityOf("asistencia", desktop, mobile)}`}>
       <div className={`min-w-0 *:h-full sm:col-span-2`}>
         <AttendanceCard result={attendance} />
       </div>

@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getActiveClubId, getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import { ROLE_LABEL, isDirection, type UserRole } from "@/lib/roles";
-import { textButton } from "@/app/ui";
+import { PageHeader } from "@/app/ui-blocks";
 import { SevensGroupForm, type GroupCandidate } from "./group-form";
 
 type MemberRow = {
@@ -49,17 +48,12 @@ export default async function SevensGroupPage() {
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <header className="mb-8">
-        <Link href="/configuracion" className={textButton}>
-          ← Volver a configuración
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-ink">Grupo Sevens</h1>
-        <p className="mt-1 text-sm text-muted">
-          Quienes están en el grupo ven el selector Rugby 15 | Sevens y, en Sevens, el plantel es
-          este grupo. Si alguien sale, conserva su posición de Sevens por si vuelve.
-        </p>
-      </header>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 lg:max-w-[1080px] lg:px-8 lg:py-10">
+      <PageHeader
+        title="Grupo Sevens"
+        back={{ fallback: "/configuracion", label: "← Volver a configuración" }}
+        description="Quienes están en el grupo ven el selector Rugby 15 | Sevens y, en Sevens, el plantel es este grupo. Si alguien sale, conserva su posición de Sevens por si vuelve."
+      />
       <SevensGroupForm
         candidates={candidates}
         selected={((group ?? []) as { member_id: string }[]).map((g) => g.member_id)}

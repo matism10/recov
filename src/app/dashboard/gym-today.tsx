@@ -8,40 +8,35 @@ import type { GymToday } from "@/lib/gym";
 export function GymTodayCard({ data }: { data: GymToday | null }) {
   const pending = data?.sessions.find((s) => s.today && !s.log_id) ?? null;
   return (
-    <div className="mb-8 space-y-3">
+    <div className="space-y-3">
       {pending && (
         <Link
           href="/mi-plan"
-          className="block space-y-3 rounded-3xl bg-brand p-5 text-brand-night transition hover:bg-brand-press lg:max-w-xl"
+          className="flex min-h-14 items-center gap-3 rounded-xl bg-brand p-4 text-brand-night transition hover:bg-brand-press"
         >
-          <span className="flex items-start justify-between gap-4">
-            <span>
-              <span className="block text-sm font-semibold">Plan de gimnasio</span>
-              <span className="block font-display text-[28px] leading-tight font-extrabold">Hoy toca gimnasio</span>
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/70">
+            <BicepsFlexed aria-hidden="true" className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-lg leading-6 font-extrabold">Hoy toca gimnasio</span>
+            <span className="block text-sm font-medium">
+              {pending.label} · {pending.exercises.length} {pending.exercises.length === 1 ? "ejercicio" : "ejercicios"} · ~
+              {pending.est_minutes} min
             </span>
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/70">
-              <BicepsFlexed aria-hidden="true" className="size-6" />
-            </span>
           </span>
-          <span className="block text-[15px] font-medium">
-            {pending.label} · {pending.exercises.length} {pending.exercises.length === 1 ? "ejercicio" : "ejercicios"} · ~
-            {pending.est_minutes} min
-          </span>
-          <span className="flex h-12 items-center justify-center rounded-2xl bg-brand-night font-semibold text-white">
-            Ver mi plan de hoy
-          </span>
+          <span className="shrink-0 rounded-lg bg-brand-night px-3 py-2 text-sm font-semibold text-white">Ver mi plan</span>
         </Link>
       )}
       <Link
         href="/mi-plan/propia"
-        className="flex min-h-11 items-center gap-3 rounded-[14px] border-[0.5px] border-line bg-white p-3 transition hover:bg-mist lg:max-w-xl"
+        className="flex min-h-14 items-center gap-3 rounded-xl border border-line bg-card px-4 py-2 transition hover:bg-mist"
       >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-brand-soft">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft">
           <Dumbbell aria-hidden="true" className="size-5 text-brand-text" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium text-ink">¿Entrenaste por tu cuenta?</span>
-          <span className="block text-xs text-muted">Registra tu esfuerzo</span>
+          <span className="block text-13 text-muted">Registra tu esfuerzo</span>
         </span>
         <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted" />
       </Link>

@@ -25,8 +25,8 @@ export function NominaModeForm({ mode, loadedCount }: { mode: NominaMode; loaded
         {NOMINA_MODES.map((m) => (
           <label
             key={m}
-            className={`flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${
-              selected === m ? "border-brand-strong bg-brand-soft" : "border-line bg-white hover:bg-mist"
+            className={`relative flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition focus-within:outline-2 focus-within:outline-brand-strong ${
+              selected === m ? "border-brand-strong bg-brand-soft" : "border-line bg-card hover:bg-mist"
             }`}
           >
             <input
@@ -36,8 +36,16 @@ export function NominaModeForm({ mode, loadedCount }: { mode: NominaMode; loaded
               checked={selected === m}
               onChange={() => setSelected(m)}
               disabled={pending}
-              className="mt-1 size-4 accent-brand-strong"
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
             />
+            <span
+              aria-hidden="true"
+              className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                selected === m ? "border-brand-strong" : "border-muted"
+              }`}
+            >
+              {selected === m && <span className="size-2.5 rounded-full bg-brand-strong" />}
+            </span>
             <span>
               <span className="block font-medium text-ink">
                 {NOMINA_MODE_LABEL[m]}
