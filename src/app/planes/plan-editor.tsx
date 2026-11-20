@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronRight, Link2, Minus, Plus, Trash2, TriangleAlert, Unlink2, X } from "lucide-react";
+import { Check, ChevronRight, Ellipsis, Link2, Minus, Plus, Trash2, TriangleAlert, Unlink2, X } from "lucide-react";
 import {
   GYM_LIMITS,
   INTENSITY_OPTIONS,
+  PLAN_STATUS_LABEL,
   RUGBY_BACKS,
   RUGBY_FORWARDS,
   blockRuns,
@@ -30,6 +31,7 @@ import {
 import { WEEKDAYS, isoWeekday } from "@/lib/srpe";
 import { addDays, formatDate } from "@/lib/injuries";
 import { ErrorMessage, SuccessMessage, buttonPrimary, buttonSecondary, fieldClass, labelClass, textButton } from "@/app/ui";
+import { PageHeader } from "@/app/ui-blocks";
 import type { EditorData, EditorPlayer } from "./editor-data";
 import { archivePlan, savePlan } from "./actions";
 
@@ -98,10 +100,10 @@ function newSession(sessions: DraftSession[]): DraftSession {
 }
 
 const chip = (on: boolean) =>
-  `inline-flex min-h-10 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition disabled:opacity-60 ${
-    on ? "border-brand bg-brand-soft text-brand-text" : "border-line bg-white text-ink hover:bg-mist"
+  `inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition disabled:opacity-60 ${
+    on ? "border-brand bg-brand-soft text-brand-text" : "border-line bg-card text-ink hover:bg-mist"
   }`;
-const smallField = "min-h-10 w-full rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink outline-none focus:border-brand-strong focus:ring-2 focus:ring-brand-soft";
+const smallField = "min-h-11 w-full rounded-xl border border-line bg-white px-2 py-1.5 text-sm text-ink outline-none focus:border-brand-strong focus:ring-2 focus:ring-brand-soft";
 
 // Editor del plan (head coach y preparador físico). En escritorio: datos arriba, sesiones
 // en pestañas con su tabla de ejercicios y, a la derecha, la vista previa del jugador y
@@ -123,6 +125,10 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(saved);
   const [pending, startTransition] = useTransition();
+  // Para saber si hay cambios sin guardar: se compara con lo último cargado o guardado.
+  const [baseline, setBaseline] = useState(() => JSON.stringify(plan));
+  const currentJson = JSON.stringify(plan);
+  const dirty = currentJson !== baseline;
 
   const readOnly = data.status === "archivado";
   const session = plan.sessions[Math.min(active, plan.sessions.length - 1)];
@@ -365,19 +371,22 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
         if (!plan.id) router.replace(`/planes/${res.id}?ok=${ok}`);
         else {
           setMessage(okText(ok));
+          setBaseline(currentJson);
           router.refresh();
         }
       } else if (res.id && !plan.id) router.replace(`/planes/${res.id}`);
     });
   };
 
-  const archive = () =>
+  const archive = () => {
+    if (!window.confirm("Se archiva el plan: los jugadores dejan de verlo y no se puede editar. ¿Seguir?")) return;
     startTransition(async () => {
       if (!plan.id) return;
       const res = await archivePlan(plan.id);
       if (res.error) setError(res.error);
       else router.push("/planes");
     });
+  };
 
   const sheetExercise = session?.exercises.find((e) => e.key === sheet) ?? null;
   const runs = session ? blockRuns(session.exercises) : [];
@@ -386,50 +395,70 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   const daysUsed = new Set(plan.sessions.map((s) => s.weekday));
   const players = data.players.filter((p) => p.name.toLowerCase().includes(playerQuery.trim().toLowerCase()));
 
-  const actions = readOnly ? null : (
+  const published = data.status === "publicado";
+  const planState = plan.id ? (readOnly ? "Plan archivado" : published ? "Plan publicado" : "Borrador") : "Nuevo plan";
+  const stateBadge = plan.id
+    ? { archivado: "bg-mist text-muted border border-line", publicado: "bg-disponible-bg text-disponible-fg", borrador: "bg-revision-bg text-revision-fg" }[
+        data.status ?? "borrador"
+      ]
+    : null;
+  const actions = readOnly ? null : published ? (
+    <button type="button" onClick={() => save(false)} disabled={pending || !dirty} className={buttonPrimary}>
+      {pending ? "Guardando…" : "Guardar cambios"}
+    </button>
+  ) : (
     <>
-      {data.status === "publicado" ? (
-        <button type="button" onClick={() => save(false)} disabled={pending} className={buttonPrimary}>
-          {pending ? "Guardando…" : "Guardar cambios"}
-        </button>
-      ) : (
-        <>
-          <button type="button" onClick={() => save(false)} disabled={pending} className={buttonSecondary}>
-            Guardar borrador
-          </button>
-          <button type="button" onClick={() => save(true)} disabled={pending} className={buttonPrimary}>
-            {pending ? "Guardando…" : "Publicar plan"}
-          </button>
-        </>
-      )}
+      <button type="button" onClick={() => save(false)} disabled={pending} className={buttonSecondary}>
+        Guardar borrador
+      </button>
+      <button type="button" onClick={() => save(true)} disabled={pending} className={buttonPrimary}>
+        {pending ? "Guardando…" : "Publicar plan"}
+      </button>
     </>
   );
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 lg:max-w-7xl lg:px-8">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-muted">
-            <Link href="/planes" className="underline">
+      <PageHeader
+        breadcrumb={
+          <>
+            <Link href="/planes" className="inline-flex min-h-11 items-center underline">
               Planes de gimnasio
-            </Link>{" "}
-            / {plan.id ? (readOnly ? "Plan archivado" : data.status === "publicado" ? "Plan publicado" : "Borrador") : "Nuevo plan"}
-          </p>
-          <label htmlFor="plan-name" className="sr-only">
-            Nombre del plan
-          </label>
-          <input
-            id="plan-name"
-            value={plan.name}
-            onChange={(e) => setPlan((p) => ({ ...p, name: e.target.value }))}
-            maxLength={GYM_LIMITS.nameMax}
-            placeholder={MODES.find((m) => m.id === mode)!.placeholder}
-            disabled={readOnly}
-            className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-1 font-display text-2xl font-bold text-ink outline-none placeholder:text-muted/70 hover:border-line focus:border-brand-strong lg:text-[30px]"
-          />
-        </div>
-        <div className="hidden gap-2 lg:flex">{actions}</div>
-      </header>
+            </Link>
+            <span aria-hidden="true" className="mx-1.5">
+              /
+            </span>
+            {planState}
+          </>
+        }
+        badge={
+          stateBadge ? (
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${stateBadge}`}>{PLAN_STATUS_LABEL[data.status ?? "borrador"]}</span>
+          ) : undefined
+        }
+        title={
+          <>
+            <label htmlFor="plan-name" className="sr-only">
+              Nombre del plan
+            </label>
+            <input
+              id="plan-name"
+              value={plan.name}
+              onChange={(e) => setPlan((p) => ({ ...p, name: e.target.value }))}
+              maxLength={GYM_LIMITS.nameMax}
+              placeholder={MODES.find((m) => m.id === mode)!.placeholder}
+              disabled={readOnly}
+              className="min-h-11 w-full rounded-xl border border-transparent bg-transparent px-1 text-ink outline-none [font:inherit] placeholder:text-muted/70 hover:border-line focus:border-brand-strong"
+            />
+          </>
+        }
+        actions={
+          <>
+            <div className="hidden gap-2 lg:flex">{actions}</div>
+            {plan.id && !readOnly && <PlanMenu onArchive={archive} disabled={pending} />}
+          </>
+        }
+      />
 
       {readOnly && (
         <p className="mb-4 rounded-xl border border-line bg-card px-4 py-3 text-sm text-muted">
@@ -457,8 +486,8 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                     role="radio"
                     aria-checked={m.id === mode}
                     onClick={() => changeMode(m.id)}
-                    className={`min-h-11 rounded-lg px-2 text-sm font-semibold transition ${
-                      m.id === mode ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
+                    className={`min-h-11 rounded-xl px-2 text-sm font-semibold transition ${
+                      m.id === mode ? "border border-line bg-white text-ink" : "text-muted hover:text-ink"
                     }`}
                   >
                     {m.label}
@@ -628,8 +657,8 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                         return (
                           <li
                             key={l}
-                            className={`flex size-10 items-center justify-center rounded-lg text-sm font-semibold ${
-                              on ? "bg-brand text-ink" : "border border-line bg-white text-muted"
+                            className={`flex size-10 items-center justify-center rounded-xl text-sm font-semibold ${
+                              on ? "bg-brand text-ink" : "border border-line bg-card text-muted"
                             }`}
                           >
                             <span aria-hidden="true">{l}</span>
@@ -661,7 +690,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                       role="tab"
                       aria-selected={on}
                       onClick={() => setActive(i)}
-                      className={`min-h-10 shrink-0 rounded-lg px-3 text-sm font-medium whitespace-nowrap ${
+                      className={`min-h-11 shrink-0 rounded-xl px-3 text-sm font-medium whitespace-nowrap ${
                         on ? "bg-ink text-white" : "bg-mist text-ink hover:bg-line/60"
                       }`}
                     >
@@ -674,7 +703,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                   <button
                     type="button"
                     onClick={addSession}
-                    className="min-h-10 shrink-0 rounded-lg border border-dashed border-muted/60 px-3 text-sm font-medium text-brand-text"
+                    className="min-h-11 shrink-0 rounded-xl border border-dashed border-muted/60 px-3 text-sm font-medium text-brand-text"
                   >
                     + Sesión
                   </button>
@@ -760,7 +789,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                           <th className="w-72 py-2 font-medium">Intensidad</th>
                           <th className="w-24 py-2 font-medium">Descanso</th>
                           <th className="py-2 font-medium">Nota</th>
-                          <td className="w-20" />
+                          <td className="w-24" />
                         </tr>
                       </thead>
                       {runs.map((run) => (
@@ -861,7 +890,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                                         title={linked ? "Separar de la superserie" : "Hacer superserie con el siguiente"}
                                         aria-label={linked ? `Separar ${codes[i]} y ${codes[i + 1]}` : `Superserie de ${codes[i]} con el siguiente`}
                                         onClick={() => toggleSuperset(session.key, i)}
-                                        className={`flex size-10 items-center justify-center rounded-lg hover:bg-mist ${linked ? "text-brand-text" : "text-muted"}`}
+                                        className={`flex size-11 items-center justify-center rounded-xl hover:bg-mist ${linked ? "text-brand-text" : "text-muted"}`}
                                       >
                                         {linked ? <Unlink2 aria-hidden="true" className="size-4" /> : <Link2 aria-hidden="true" className="size-4" />}
                                       </button>
@@ -870,7 +899,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                                       type="button"
                                       aria-label={`Quitar ${e.name || `ejercicio ${codes[i]}`}`}
                                       onClick={() => removeExercise(session.key, e.key)}
-                                      className="ml-auto flex size-10 items-center justify-center rounded-lg text-muted hover:bg-mist hover:text-danger"
+                                      className="ml-auto flex size-11 items-center justify-center rounded-xl text-muted hover:bg-mist hover:text-danger"
                                     >
                                       <Trash2 aria-hidden="true" className="size-4" />
                                     </button>
@@ -912,7 +941,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                                   } ${withPrev ? "rounded-b-2xl border-t-0" : "rounded-t-2xl"} ${withNext ? "" : "rounded-b-2xl"}`}
                                 >
                                   <span
-                                    className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-lg px-1 text-xs font-semibold ${
+                                    className={`flex h-7 min-w-7 shrink-0 items-center justify-center rounded-xl px-1 text-xs font-semibold ${
                                       withPrev || withNext ? "bg-brand text-brand-night" : "bg-mist text-ink"
                                     }`}
                                   >
@@ -982,7 +1011,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                     <select
                       value={previewPlayer.id}
                       onChange={(e) => setPreviewId(e.target.value)}
-                      className="min-h-9 flex-1 rounded-lg border border-line bg-white px-2 text-sm font-semibold"
+                      className="min-h-11 flex-1 rounded-xl border border-line bg-white px-2 text-sm font-semibold"
                     >
                       {recipients.map((p) => (
                         <option key={p.id} value={p.id}>
@@ -1082,24 +1111,19 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
               </p>
             ))}
 
-            {plan.id && data.status !== "archivado" && (
-              <button type="button" onClick={archive} disabled={pending} className={`${textButton} hidden lg:inline-flex`}>
-                Archivar plan
-              </button>
-            )}
           </aside>
         </div>
       </fieldset>
 
-      {/* Celular: acciones abajo */}
-      {!readOnly && (
-        <div className="mt-6 space-y-2 lg:hidden">
-          {actions && <div className="grid gap-2 [&>*]:w-full">{actions}</div>}
-          {plan.id && (
-            <button type="button" onClick={archive} disabled={pending} className={`w-full justify-center ${textButton}`}>
-              Archivar plan
-            </button>
+      {/* Celular: barra de guardado fija sobre la barra inferior */}
+      {actions && (
+        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 -mx-4 mt-6 space-y-2 border-t border-line bg-card px-4 py-3 lg:hidden">
+          {dirty && (
+            <p role="status" className="text-13 font-medium text-alerta-fg">
+              Cambios sin guardar
+            </p>
           )}
+          <div className={`grid gap-2 [&>*]:w-full ${published ? "" : "grid-cols-2"}`}>{actions}</div>
         </div>
       )}
 
@@ -1133,6 +1157,67 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
   );
 }
 
+// Menú ⋯ del plan: hoy solo "Archivar plan". Desplegable en escritorio, hoja inferior en celular.
+function PlanMenu({ onArchive, disabled }: { onArchive: () => void; disabled: boolean }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+  const item = (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => {
+        setOpen(false);
+        onArchive();
+      }}
+      className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-medium text-ink hover:bg-mist disabled:opacity-60"
+    >
+      Archivar plan
+    </button>
+  );
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-label="Más acciones del plan"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex size-11 items-center justify-center rounded-xl border border-line bg-card text-ink transition hover:bg-mist"
+      >
+        <Ellipsis aria-hidden="true" className="size-5" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40 hidden lg:block" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div role="menu" className="absolute right-0 z-50 mt-1 hidden w-48 rounded-xl border border-line bg-card p-1 lg:block">
+            {item}
+          </div>
+          <div className="fixed inset-0 z-40 flex items-end bg-ink/50 lg:hidden" onClick={() => setOpen(false)}>
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Acciones del plan"
+              onClick={(ev) => ev.stopPropagation()}
+              className="w-full space-y-1 rounded-t-3xl bg-card px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+            >
+              <div aria-hidden="true" className="mx-auto mb-2 h-1 w-10 rounded-full bg-line" />
+              {item}
+              <button type="button" onClick={() => setOpen(false)} className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm text-muted hover:bg-mist">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function okText(ok: string) {
   return ok === "publicado" ? "Plan publicado: los jugadores ya lo ven." : ok === "guardado" ? "Cambios guardados." : "Borrador guardado.";
 }
@@ -1159,10 +1244,10 @@ function BlockHeader({
         maxLength={GYM_LIMITS.blockMax}
         placeholder="Nombre del bloque"
         onChange={(ev) => onRename(ev.target.value)}
-        className="min-h-10 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1.5 text-sm font-bold tracking-wide text-ink uppercase outline-none hover:border-line focus:border-brand-strong focus:bg-white"
+        className="min-h-11 min-w-0 flex-1 rounded-xl border border-transparent bg-transparent px-1.5 text-sm font-bold tracking-wide text-ink uppercase outline-none hover:border-line focus:border-brand-strong focus:bg-white"
       />
       {canAdd && (
-        <button type="button" onClick={onAdd} className="min-h-10 shrink-0 rounded-lg px-2 text-sm font-semibold text-brand-text hover:bg-mist">
+        <button type="button" onClick={onAdd} className="min-h-11 shrink-0 rounded-xl px-2 text-sm font-semibold text-brand-text hover:bg-mist">
           + Ejercicio
         </button>
       )}
@@ -1170,7 +1255,7 @@ function BlockHeader({
         type="button"
         onClick={onRemove}
         aria-label={`Quitar bloque ${name}`}
-        className="flex size-10 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-mist hover:text-danger"
+        className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-mist hover:text-danger"
       >
         <Trash2 aria-hidden="true" className="size-4" />
       </button>
@@ -1195,7 +1280,7 @@ function CheckRow({
       role="checkbox"
       aria-checked={checked}
       onClick={onToggle}
-      className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left hover:bg-mist"
+      className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2 text-left hover:bg-mist"
     >
       <span
         className={`flex size-5 shrink-0 items-center justify-center rounded-md border-2 ${
@@ -1371,12 +1456,12 @@ function ExerciseSheet({
         aria-modal="true"
         aria-label="Editar ejercicio"
         onClick={(ev) => ev.stopPropagation()}
-        className="max-h-[92vh] w-full space-y-4 overflow-y-auto rounded-t-3xl bg-white px-5 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+        className="max-h-[92vh] w-full space-y-4 overflow-y-auto rounded-t-3xl bg-card px-5 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
       >
         <div aria-hidden="true" className="mx-auto h-1 w-10 rounded-full bg-line" />
         <div className="flex items-center justify-between gap-3">
           {code && (
-            <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-lg bg-mist px-1.5 text-sm font-semibold text-ink">
+            <span className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-xl bg-mist px-1.5 text-sm font-semibold text-ink">
               {code}
             </span>
           )}
@@ -1387,7 +1472,7 @@ function ExerciseSheet({
             maxLength={GYM_LIMITS.exerciseMax}
             placeholder="Nombre del ejercicio"
             onChange={(ev) => onChange({ name: ev.target.value })}
-            className="min-h-11 min-w-0 flex-1 rounded-lg border border-transparent px-1 font-display text-xl font-extrabold text-ink outline-none focus:border-brand-strong"
+            className="min-h-11 min-w-0 flex-1 rounded-xl border border-transparent px-1 font-display text-lg font-extrabold text-ink outline-none focus:border-brand-strong"
           />
           <button type="button" onClick={onClose} className="min-h-11 px-2 font-semibold text-brand-text">
             Listo
@@ -1441,8 +1526,8 @@ function ExerciseSheet({
                   aria-pressed={on}
                   disabled={o.value === "pct" && tests.length === 0}
                   onClick={() => onType(o.value)}
-                  className={`min-h-11 rounded-lg border text-13 font-semibold disabled:opacity-50 ${
-                    on ? "border-brand bg-brand text-brand-night" : "border-line bg-white text-ink"
+                  className={`min-h-11 rounded-xl border text-13 font-semibold disabled:opacity-50 ${
+                    on ? "border-brand bg-brand text-brand-night" : "border-line bg-card text-ink"
                   }`}
                 >
                   {o.label}
@@ -1456,7 +1541,7 @@ function ExerciseSheet({
         </div>
 
         {e.intensity_type === "pct" && (
-          <div className="space-y-3 rounded-2xl bg-brand-wash p-3.5">
+          <div className="space-y-3 rounded-xl bg-brand-wash p-3.5">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-semibold text-ink">Porcentaje</span>
               <div className="flex items-center gap-2">
@@ -1466,7 +1551,7 @@ function ExerciseSheet({
                 >
                   <Minus aria-hidden="true" className="size-4" />
                 </RoundButton>
-                <span className="min-w-14 text-center font-display text-xl font-extrabold text-ink tabular-nums">{e.pct} %</span>
+                <span className="min-w-14 text-center font-display text-lg font-extrabold text-ink tabular-nums">{e.pct} %</span>
                 <RoundButton
                   label="Subir porcentaje"
                   onClick={() => onChange({ pct: Math.min(GYM_LIMITS.pctMax, (e.pct ?? 80) + GYM_LIMITS.pctStep) })}
@@ -1480,7 +1565,7 @@ function ExerciseSheet({
               <select
                 value={e.test_id ?? ""}
                 onChange={(ev) => onChange({ test_id: ev.target.value || null })}
-                className="min-h-11 max-w-[60%] rounded-lg border border-brand-line bg-white px-2 text-sm text-brand-text"
+                className="min-h-11 max-w-[60%] rounded-xl border border-brand-line bg-white px-2 text-sm text-brand-text"
               >
                 {tests.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -1518,9 +1603,9 @@ function ExerciseSheet({
             />
           </label>
         )}
-        {e.intensity_type === "bw" && <p className="rounded-2xl bg-brand-wash p-3.5 text-sm text-ink">Peso corporal, sin kilos.</p>}
+        {e.intensity_type === "bw" && <p className="rounded-xl bg-brand-wash p-3.5 text-sm text-ink">Peso corporal, sin kilos.</p>}
         {time && (
-          <p className="rounded-2xl bg-brand-wash p-3.5 text-sm text-ink">
+          <p className="rounded-xl bg-brand-wash p-3.5 text-sm text-ink">
             {e.sets} {e.sets === 1 ? "serie" : "series"} de {durationLabel(secs)} (ej.: plancha). Sin repeticiones.
           </p>
         )}
@@ -1595,7 +1680,7 @@ function RoundButton({ label, onClick, children }: { label: string; onClick: () 
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="flex h-10 w-11 items-center justify-center rounded-lg bg-mist text-ink hover:bg-line/70"
+      className="flex h-11 w-11 items-center justify-center rounded-xl bg-mist text-ink hover:bg-line/70"
     >
       {children}
     </button>
