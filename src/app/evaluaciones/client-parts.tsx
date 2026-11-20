@@ -79,7 +79,7 @@ export type LoadRow = {
   sameDay: { id: string; value: number } | null;
 };
 
-// Grupo de posiciones para filtrar y agrupar la lista (en rugby, Delanteros y Backs).
+// Grupo de posiciones para filtrar y agrupar la lista (en rugby, Forwards y Backs).
 export type LoadGroup = { label: string; names: string[] };
 
 type Filter = "todos" | "sin_cargar" | `g:${number}`;

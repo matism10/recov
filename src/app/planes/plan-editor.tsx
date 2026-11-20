@@ -483,7 +483,7 @@ export function PlanEditor({ data, saved }: { data: EditorData; saved: string | 
                       onClick={() => togglePositions(forwards, !groupOn(forwards))}
                       className={chip(groupOn(forwards))}
                     >
-                      Delanteros ({countIn(RUGBY_FORWARDS)})
+                      Forwards ({countIn(RUGBY_FORWARDS)})
                     </button>
                   )}
                   {data.rugby && backs.length > 0 && (
