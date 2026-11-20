@@ -1,6 +1,7 @@
 // Piezas de Evaluaciones que se renderizan en el servidor: cambio desde la evaluación
 // anterior, ranking del plantel y gráfico de progreso. Sin JS en el cliente.
 import { ArrowDown, ArrowUp, Equal } from "lucide-react";
+import { ListRow, TableCard } from "@/app/ui-blocks";
 import { changeFrom, formatNumber, formatValue, type TestDefinition } from "@/lib/evaluations";
 
 // Cambio con ícono y texto (no solo color): "▲ +10 kg · mejor".
@@ -64,41 +65,49 @@ export function Ranking({
   const best = test.higher_is_better ? Math.max(...values) : Math.min(...values);
   // Barra: el mejor llena el ancho; el resto, en proporción (en tiempos, mejor = menor).
   const width = (v: number) => Math.max(4, Math.round((test.higher_is_better ? v / best : best / v) * 100));
+  const cols = "lg:grid-cols-[2rem_minmax(0,1.4fr)_minmax(0,2fr)_6rem_11rem]";
   return (
-    <ol className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-card">
+    <TableCard
+      columns={cols}
+      head={
+        <>
+          <span>#</span>
+          <span>Jugador</span>
+          <span>Comparado con el mejor</span>
+          <span>Resultado</span>
+          <span>Cambio</span>
+        </>
+      }
+    >
       {rows.map((r, i) => {
         const value = Number(r.value);
         const mine = r.player_id === highlightPlayerId;
         return (
-          <li
-            key={r.player_id}
-            aria-current={mine ? "true" : undefined}
-            className={`px-4 py-3 ${mine ? "bg-brand-soft" : ""}`}
-          >
-            <div className="flex items-baseline gap-3">
-              <span className="w-6 shrink-0 text-right text-sm font-semibold text-muted tabular-nums">{i + 1}</span>
-              <span className="min-w-0 flex-1 truncate font-medium text-ink">
+          <ListRow key={r.player_id} columns={cols} className={`flex-wrap py-3 ${mine ? "bg-brand-soft" : ""}`}>
+            <span className="w-6 shrink-0 text-right text-sm font-semibold text-muted tabular-nums lg:order-1 lg:w-auto lg:text-left">{i + 1}</span>
+            <div className="min-w-0 flex-1 lg:order-2">
+              <p className="truncate text-15 font-semibold text-ink">
                 {r.full_name}
                 {mine && <span className="font-normal text-muted"> (tú)</span>}
-              </span>
-              <span className="shrink-0 font-semibold text-ink tabular-nums">{formatValue(value, test)}</span>
+              </p>
+              <p className="text-13 text-muted">{shortDateLabel(r.measured_on)}</p>
             </div>
-            <div className="mt-1.5 flex items-center gap-3 pl-9">
-              <span aria-hidden="true" className="h-2 flex-1 overflow-hidden rounded-full bg-white ring-1 ring-line">
+            <span className="shrink-0 font-semibold text-ink tabular-nums lg:order-4">{formatValue(value, test)}</span>
+            <div className="flex basis-full items-center gap-3 pl-9 lg:contents">
+              <span aria-hidden="true" className="h-2 flex-1 overflow-hidden rounded-full bg-mist ring-1 ring-line lg:order-3">
                 <span
                   className={`block h-full rounded-full ${mine ? "bg-brand-strong" : "bg-brand"}`}
                   style={{ width: `${width(value)}%` }}
                 />
               </span>
-              <span className="w-40 shrink-0 text-right">
+              <span className="shrink-0 text-right lg:order-5 lg:text-left">
                 <ChangeBadge current={value} previous={r.previous_value === null ? null : Number(r.previous_value)} test={test} />
               </span>
             </div>
-            <p className="mt-0.5 pl-9 text-xs text-muted">{shortDateLabel(r.measured_on)}</p>
-          </li>
+          </ListRow>
         );
       })}
-    </ol>
+    </TableCard>
   );
 }
 

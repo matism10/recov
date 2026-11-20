@@ -5,9 +5,11 @@ import { getProfile, getSessionUser, getSupabase } from "@/lib/session";
 import type { UserRole } from "@/lib/roles";
 import { parseIsoDate, todayInChile } from "@/lib/injuries";
 import { TEST_COLUMNS, canReadEvaluations, canWriteEvaluations, type TestDefinition } from "@/lib/evaluations";
-import { PageTitle, SectionTitle, cardClass } from "@/app/ui";
+import { SectionTitle, cardClass } from "@/app/ui";
+import { Card, PageHeader } from "@/app/ui-blocks";
+import { RUGBY_BACKS, RUGBY_FORWARDS } from "@/lib/gym";
 import { Ranking, type RankingRow } from "../parts";
-import { CatalogManager, DatePicker, ResultsForm, SuggestedTestsButton, TestPicker, type LoadRow } from "../client-parts";
+import { CatalogManager, DatePicker, ResultsForm, SuggestedTestsButton, TestPicker, type LoadGroup, type LoadRow } from "../client-parts";
 
 type Tab = "cargar" | "comparar";
 
@@ -46,10 +48,7 @@ export default async function EvaluacionesPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 lg:max-w-4xl lg:px-8">
-      <header className="mb-6">
-        <PageTitle>Evaluaciones</PageTitle>
-        <p className="mt-1 text-sm text-muted">Tests físicos del plantel: carga los resultados y compara la evolución.</p>
-      </header>
+      <PageHeader title="Evaluaciones" description="Tests físicos del plantel: carga los resultados y compara la evolución." />
 
       <nav aria-label="Secciones de evaluaciones" className="mb-6 grid grid-cols-2 gap-1 rounded-xl border border-line bg-mist p-1">
         {canWrite && (
@@ -81,7 +80,7 @@ export default async function EvaluacionesPage({
           )}
         </section>
       ) : tab === "cargar" ? (
-        <LoadTab clubId={me.club_id} tests={tests} test={test} date={date} today={today} saved={saved} />
+        <LoadTab clubId={me.club_id} sport={me.club?.sport ?? ""} tests={tests} test={test} date={date} today={today} saved={saved} />
       ) : (
         <CompareTab tests={tests} test={test} />
       )}
@@ -119,6 +118,7 @@ function TabLink({
 
 async function LoadTab({
   clubId,
+  sport,
   tests,
   test,
   date,
@@ -126,6 +126,7 @@ async function LoadTab({
   saved,
 }: {
   clubId: string;
+  sport: string;
   tests: TestDefinition[];
   test: TestDefinition;
   date: string;
@@ -133,7 +134,7 @@ async function LoadTab({
   saved: number | null;
 }) {
   const supabase = await getSupabase();
-  const [{ data: players }, { data: results }] = await Promise.all([
+  const [{ data: players }, { data: results }, { data: positionRows }] = await Promise.all([
     supabase
       .from("players")
       .select("id, full_name, position")
@@ -150,7 +151,17 @@ async function LoadTab({
       .is("voided_at", null)
       .lte("measured_on", date)
       .order("measured_on", { ascending: false }),
+    supabase.from("positions").select("name, sort").eq("sport", sport).eq("format", "15").order("sort"),
   ]);
+  // Grupos de posición para filtrar: en rugby, Delanteros y Backs (igual que el editor de
+  // planes); en el resto, una posición por grupo.
+  const groups: LoadGroup[] =
+    sport === "rugby"
+      ? [
+          { label: "Delanteros", names: RUGBY_FORWARDS },
+          { label: "Backs", names: RUGBY_BACKS },
+        ]
+      : (positionRows ?? []).map((p) => ({ label: p.name as string, names: [p.name as string] }));
   const byPlayer = new Map<string, { id: string; value: number; measured_on: string }[]>();
   for (const r of results ?? []) {
     const list = byPlayer.get(r.player_id as string) ?? [];
@@ -172,17 +183,19 @@ async function LoadTab({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <TestPicker tests={tests} selectedId={test.id} />
-        <DatePicker value={date} max={today} />
-      </div>
-      {test.display_format === "mmss" && (
-        <p className="text-sm text-muted">Anota los tiempos como minutos y segundos, por ejemplo 4:35.</p>
-      )}
+      <Card>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+          <TestPicker tests={tests} selectedId={test.id} />
+          <DatePicker value={date} max={today} />
+        </div>
+        {test.display_format === "mmss" && (
+          <p className="mt-3 text-13 text-muted">Anota los tiempos como minutos y segundos, por ejemplo 4:35.</p>
+        )}
+      </Card>
       {rows.length === 0 ? (
         <p className={`p-6 text-center text-sm text-muted ${cardClass}`}>Aún no hay jugadores confirmados en el plantel.</p>
       ) : (
-        <ResultsForm key={`${test.id}-${date}`} test={test} date={date} rows={rows} savedCount={saved} />
+        <ResultsForm key={`${test.id}-${date}`} test={test} date={date} rows={rows} groups={groups} savedCount={saved} />
       )}
       <details className={`p-5 ${cardClass}`}>
         <summary className="flex min-h-11 cursor-pointer items-center font-medium text-ink">Administrar tests</summary>
@@ -199,11 +212,13 @@ async function CompareTab({ tests, test }: { tests: TestDefinition[]; test: Test
   const { data } = await supabase.rpc("get_test_ranking", { p_test: test.id });
   const rows = (data ?? []) as RankingRow[];
   return (
-    <div className="space-y-5">
-      <TestPicker tests={tests} selectedId={test.id} />
-      <p className="text-sm text-muted">
-        Último resultado de cada jugador{test.higher_is_better ? "" : " (menos es mejor)"} y el cambio desde su evaluación anterior.
-      </p>
+    <div className="space-y-4">
+      <Card>
+        <TestPicker tests={tests} selectedId={test.id} />
+        <p className="mt-3 text-13 text-muted">
+          Último resultado de cada jugador{test.higher_is_better ? "" : " (menos es mejor)"} y el cambio desde su evaluación anterior.
+        </p>
+      </Card>
       <Ranking rows={rows} test={test} />
     </div>
   );
