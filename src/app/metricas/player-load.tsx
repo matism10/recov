@@ -8,7 +8,8 @@
 // filas de al menos 60 px (sin tarjetas por jugador).
 // Los datos y umbrales vienen de la base (team_srpe_load, team_load_breakdown,
 // wellness_flags, team_return_summary, gym_adherence): aquí solo se presentan.
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { LOAD_KINDS, LOAD_KIND_COLOR, LOAD_KIND_LABEL } from "@/lib/gym";
 import { formatLoad } from "@/lib/srpe";
@@ -41,25 +42,67 @@ const TAG = {
 
 const hasAlert = (p: PlayerLoadItem) => p.high || p.wellness !== null || p.back !== null;
 
+// Avisos del jugador: un ícono junto al nombre; el detalle sale al pasar el mouse, al
+// enfocarlo con teclado o al tocarlo (otro toque fuera lo cierra). Va sobre el link de
+// la fila (z-10), así que tocarlo no abre la ficha.
 function Tags({ p }: { p: PlayerLoadItem }) {
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const shown = open || hover;
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   if (!hasAlert(p)) return null;
+  const items: { key: keyof typeof TAG; text: string }[] = [];
+  if (p.high) items.push({ key: "alta", text: `Carga alta${p.pctOver !== null ? ` · +${p.pctOver} %` : ""}` });
+  if (p.back) items.push({ key: "paron", text: `Vuelve tras ${p.back.weeks} sem · ${p.back.cause}` });
+  if (p.wellness) items.push({ key: "bienestar", text: `Bienestar ${p.wellness.total}/25 · ${p.wellness.reason}` });
+  const tone = p.wellness ? TAG.bienestar : p.high ? TAG.alta : TAG.paron;
+  const id = `avisos-${p.id}`;
+
   return (
-    <span className="mt-1 flex flex-wrap gap-1.5">
-      {p.high && (
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${TAG.alta}`}>
-          Carga alta{p.pctOver !== null ? ` · +${p.pctOver} %` : ""}
+    <span
+      ref={rootRef}
+      className="relative z-10 -mx-2.5 inline-flex shrink-0"
+      onPointerEnter={(e) => e.pointerType === "mouse" && setHover(true)}
+      onPointerLeave={(e) => e.pointerType === "mouse" && setHover(false)}
+    >
+      <button
+        type="button"
+        aria-label={`Avisos de ${p.name}: ${items.map((i) => i.text).join("; ")}`}
+        aria-expanded={shown}
+        aria-describedby={id}
+        onClick={() => setOpen((o) => !o)}
+        className={`inline-flex size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-brand-strong`}
+      >
+        <span className={`flex size-6 items-center justify-center rounded-full ${tone}`}>
+          <TriangleAlert aria-hidden="true" className="size-3.5" />
         </span>
-      )}
-      {p.back && (
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${TAG.paron}`}>
-          Vuelve tras {p.back.weeks} sem · {p.back.cause}
-        </span>
-      )}
-      {p.wellness && (
-        <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${TAG.bienestar}`}>
-          Bienestar {p.wellness.total}/25 · {p.wellness.reason}
-        </span>
-      )}
+      </button>
+      <span
+        id={id}
+        role="tooltip"
+        hidden={!shown}
+        className="absolute top-full left-0 z-30 -mt-1 flex w-max max-w-72 flex-col gap-1.5 rounded-xl border border-line bg-card p-3 shadow-lg"
+      >
+        {items.map((i) => (
+          <span key={i.key} className={`rounded-lg px-2 py-1 text-xs font-semibold ${TAG[i.key]}`}>
+            {i.text}
+          </span>
+        ))}
+      </span>
     </span>
   );
 }
@@ -135,8 +178,8 @@ export function PlayerLoadTable({ players, header, id }: { players: PlayerLoadIt
   const showGym = players.some((p) => p.gym && p.gym.assigned > 0);
   // Columnas desde lg (clases literales).
   const cols = showGym
-    ? "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_5rem_7rem_8rem]"
-    : "lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_5rem_7rem]";
+    ? "lg:grid-cols-[minmax(10rem,2fr)_minmax(0,3fr)_5rem_7rem_8rem]"
+    : "lg:grid-cols-[minmax(10rem,2fr)_minmax(0,3fr)_5rem_7rem]";
 
   const chips: { key: Filter; label: ReactNode }[] = [
     { key: "todos", label: "Todos" },
@@ -229,13 +272,15 @@ export function PlayerLoadTable({ players, header, id }: { players: PlayerLoadIt
         {visible.map((p) => (
           <ListRow key={p.id} columns={cols} className="min-h-15 py-2.5">
             <div className="min-w-0 flex-1">
-              <Link
-                href={`/jugadores/${p.id}`}
-                className="block truncate text-15 font-semibold text-ink after:absolute after:inset-0 after:content-[''] hover:underline"
-              >
-                {p.name}
-              </Link>
-              <Tags p={p} />
+              <div className="-my-2.5 flex items-center gap-1">
+                <Link
+                  href={`/jugadores/${p.id}`}
+                  className="min-w-0 truncate text-15 font-semibold text-ink after:absolute after:inset-0 after:content-[''] hover:underline"
+                >
+                  {p.name}
+                </Link>
+                <Tags p={p} />
+              </div>
               {/* Celular: barra y comparación bajo el nombre. */}
               <div className="mt-1.5 lg:hidden">
                 <Bar p={p} max={max} />
