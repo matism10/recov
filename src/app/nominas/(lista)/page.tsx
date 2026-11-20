@@ -136,7 +136,7 @@ export default async function NominasPage({
           </Link>
           {past && canNomina && (
             <Link href={`/calendario/${m.id}/participacion`} className={`text-sm ${buttonSecondary}`}>
-              Cargar participación
+              Cargar minutos
             </Link>
           )}
         </div>

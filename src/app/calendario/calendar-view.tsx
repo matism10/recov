@@ -739,7 +739,7 @@ function EventPanel({
                 className={`w-full text-sm lg:w-auto ${buttonPrimary}`}
               >
                 <ClipboardList aria-hidden="true" className="size-4" />
-                Cargar participación
+                Cargar minutos
               </Link>
             ) : (
               <Link
