@@ -241,20 +241,34 @@ export function PageHeader({
   description,
   back,
   actions,
+  breadcrumb,
+  badge,
   className = "mb-6",
 }: {
   title: ReactNode;
   description?: ReactNode;
   back?: { fallback: string; label?: string };
   actions?: ReactNode;
+  // Ruta de 14 px sobre el título (por ejemplo "Planes de gimnasio / Plan publicado") y
+  // badge de estado a la derecha del título.
+  breadcrumb?: ReactNode;
+  badge?: ReactNode;
   className?: string;
 }) {
   return (
     <header className={className}>
       {back && <BackLink fallback={back.fallback}>{back.label ?? "← Volver"}</BackLink>}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <PageTitle>{title}</PageTitle>
+        <div className="min-w-0 flex-1">
+          {breadcrumb && <div className="flex min-h-11 items-center text-sm text-muted">{breadcrumb}</div>}
+          {badge ? (
+            <div className="flex items-center gap-3">
+              <PageTitle className="min-w-0 flex-1">{title}</PageTitle>
+              <span className="shrink-0">{badge}</span>
+            </div>
+          ) : (
+            <PageTitle>{title}</PageTitle>
+          )}
           {description && <p className="mt-1 text-15 text-muted">{description}</p>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}

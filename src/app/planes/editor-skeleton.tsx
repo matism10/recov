@@ -23,12 +23,12 @@ export function EditorSkeleton() {
           <Block className="h-44" />
           <Block className="p-4">
             <div className="mb-4 flex gap-2">
-              <Line className="h-10 w-36 rounded-lg" />
-              <Line className="h-10 w-36 rounded-lg" />
+              <Line className="h-11 w-36 rounded-xl" />
+              <Line className="h-11 w-36 rounded-xl" />
             </div>
             <div className="space-y-2">
               {Array.from({ length: 5 }, (_, i) => (
-                <Line key={i} className="h-11 w-full rounded-lg" />
+                <Line key={i} className="h-11 w-full rounded-xl" />
               ))}
             </div>
           </Block>
