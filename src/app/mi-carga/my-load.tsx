@@ -3,7 +3,7 @@
 // bienestar. Solo presentación: las lecturas salen de src/lib/my-load.ts. Sin "riesgo de
 // lesión": se dice "Carga alta" y "Bajo lo habitual".
 import Link from "next/link";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Plus } from "lucide-react";
 import { addDays } from "@/lib/injuries";
 import { WEEKDAY_LABELS } from "@/lib/events";
 import { formatShortDate } from "@/lib/metrics";
@@ -468,9 +468,14 @@ function HowToRead({ data }: { data: MyLoadScreen }) {
   const baseline = comparableBaseline(w);
   const sessions = w.current_sessions;
   return (
-    <section aria-label="Cómo entender tu carga" className="rounded-xl border border-brand-line bg-brand-wash p-4 lg:p-5">
-      <h2 className="font-sans text-base font-bold text-ink">¿Qué significa tu {formatLoad(w.current_load)}?</h2>
-      <p className="mt-2 text-sm text-ink">
+    <details className="group rounded-xl border border-brand-line bg-brand-wash">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 marker:hidden lg:px-5 [&::-webkit-details-marker]:hidden">
+        <Info aria-hidden="true" className="size-5 shrink-0 text-brand-text" />
+        <span className="min-w-0 flex-1 font-sans text-base font-bold text-ink">¿Qué significa tu {formatLoad(w.current_load)}?</span>
+        <ChevronDown aria-hidden="true" className="size-5 shrink-0 text-muted transition group-open:rotate-180" />
+      </summary>
+      <div className="px-4 pb-4 lg:px-5 lg:pb-5">
+      <p className="text-sm text-ink">
         Es cuánto trabajó tu cuerpo esta semana. Cada sesión vale <strong>lo duro que fue (0 a 10) × los minutos</strong> que
         duró, y la carga de la semana es la suma de todas.
       </p>
@@ -501,6 +506,7 @@ function HowToRead({ data }: { data: MyLoadScreen }) {
         </li>
         <li>Para que sea justo, responde lo duro que fue cada sesión el mismo día: así tu carga refleja lo que realmente hiciste.</li>
       </ul>
-    </section>
+      </div>
+    </details>
   );
 }
