@@ -84,6 +84,7 @@ export function MyLoadScreenView({ data, format }: { data: MyLoadScreen; format:
           <PendingList data={data} />
           <ReturnCard data={data} />
           <ThisWeek data={data} />
+          <HowToRead data={data} />
           <WeeksChart data={data} />
           <SessionsTable data={data} />
         </div>
@@ -457,5 +458,49 @@ function WellnessCard({ data }: { data: MyLoadScreen }) {
       )}
       {next && <p className="mt-3 border-t border-line pt-3 text-13 text-muted">Próximo check: {next}</p>}
     </Card>
+  );
+}
+
+// "¿Qué significa este número?": explica la carga con las propias sesiones del jugador.
+function HowToRead({ data }: { data: MyLoadScreen }) {
+  const w = data.weekly;
+  if (!w) return null;
+  const baseline = comparableBaseline(w);
+  const sessions = w.current_sessions;
+  return (
+    <section aria-label="Cómo entender tu carga" className="rounded-xl border border-brand-line bg-brand-wash p-4 lg:p-5">
+      <h2 className="font-sans text-base font-bold text-ink">¿Qué significa tu {formatLoad(w.current_load)}?</h2>
+      <p className="mt-2 text-sm text-ink">
+        Es cuánto trabajó tu cuerpo esta semana. Cada sesión vale <strong>lo duro que fue (0 a 10) × los minutos</strong> que
+        duró, y la carga de la semana es la suma de todas.
+      </p>
+      {sessions.length > 0 ? (
+        <ul className="mt-2 space-y-1 text-sm text-ink">
+          {sessions.slice(0, 4).map((s) => (
+            <li key={s.event_id} className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate text-muted">
+                {s.type === "gimnasio" ? "Gimnasio" : s.kind === "partido" ? "Partido" : "Entrenamiento"}: {s.rpe} × {s.minutes} min
+              </span>
+              <span className="shrink-0 font-semibold tabular-nums">{formatLoad(s.load)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-muted">
+          Por ejemplo, un entrenamiento de 90 minutos que te costó 6 (Duro) vale 6 × 90 = 540.
+        </p>
+      )}
+      <ul className="mt-3 space-y-1.5 border-t border-brand-line pt-3 text-sm text-ink">
+        <li>
+          <strong>No es una nota:</strong> no hay un número bueno ni malo. Lo que importa es compararlo con{" "}
+          {baseline ? `tu promedio (${formatLoad(baseline)})` : "tu promedio, que aparece cuando tengas 3 semanas con datos"}.
+        </li>
+        <li>
+          <strong>Cerca de tu promedio:</strong> semana habitual. <strong>Mucho más alto:</strong> semana exigente; cuida el
+          descanso, el sueño y avisa si algo te molesta. <strong>Más bajo:</strong> semana liviana, o faltaste a sesiones.
+        </li>
+        <li>Para que sea justo, responde lo duro que fue cada sesión el mismo día: así tu carga refleja lo que realmente hiciste.</li>
+      </ul>
+    </section>
   );
 }
