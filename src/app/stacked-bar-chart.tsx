@@ -19,6 +19,7 @@ export type StackColumn = {
   values: Record<string, number> | null;
   tip?: TooltipContent | null;
   dashed?: boolean; // semana en curso
+  hatched?: string; // semana de parón: franja rayada índigo con este rótulo ("Parón")
 };
 
 // Máximo "redondo" del eje, con la guía central también entera: 2, 4… 10, 12, 14, 16, 20, 30…
@@ -37,6 +38,8 @@ export function StackedBarChart({
   height = 220,
   reference,
   formatValue = (v) => String(v),
+  showTotals = false,
+  allLabels = false,
 }: {
   series: StackSeries[];
   columns: StackColumn[];
@@ -44,6 +47,10 @@ export function StackedBarChart({
   height?: number;
   reference?: { value: number; label: string } | null;
   formatValue?: (v: number) => string;
+  // Total sobre cada barra, el rótulo de la referencia sobre su línea y todas las
+  // etiquetas del eje X (por defecto solo la primera, la del medio y la última).
+  showTotals?: boolean;
+  allLabels?: boolean;
 }) {
   const n = columns.length;
   const totals = columns.map((c) => (c.values ? series.reduce((s, x) => s + (c.values![x.key] ?? 0), 0) : 0));
@@ -51,7 +58,9 @@ export function StackedBarChart({
   const slot = 100 / Math.max(n, 1);
   const center = (i: number) => slot * (i + 0.5);
   const y = (v: number) => 100 - (v / max) * 100;
-  const xTicks = [...new Set([0, Math.floor((n - 1) / 2), n - 1])].filter((i) => i >= 0);
+  const xTicks = allLabels
+    ? columns.map((_, i) => i)
+    : [...new Set([0, Math.floor((n - 1) / 2), n - 1])].filter((i) => i >= 0);
   const defaultTip = (c: StackColumn, i: number): TooltipContent | null =>
     c.values
       ? {
@@ -69,7 +78,7 @@ export function StackedBarChart({
             {s.label}
           </li>
         ))}
-        {reference && (
+        {reference && !showTotals && (
           <li className="flex items-center gap-1.5">
             <span className="w-4 border-t-2 border-dashed border-ink/60" />
             {reference.label}
@@ -150,6 +159,45 @@ export function StackedBarChart({
               />
             )}
           </svg>
+          {columns.map((c, i) =>
+            c.hatched ? (
+              <div
+                key={`h${i}`}
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 flex items-start justify-center rounded-sm pt-1"
+                style={{
+                  left: `${center(i) - (slot * BAR_WIDTH) / 2}%`,
+                  width: `${slot * BAR_WIDTH}%`,
+                  background:
+                    "repeating-linear-gradient(135deg, var(--color-paron-bg) 0 5px, transparent 5px 10px)",
+                }}
+              >
+                <span className="rounded bg-card px-1 text-xs font-semibold text-paron-fg">{c.hatched}</span>
+              </div>
+            ) : null,
+          )}
+          {showTotals &&
+            columns.map((c, i) =>
+              c.values && totals[i] > 0 ? (
+                <span
+                  key={`t${i}`}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -translate-x-1/2 -translate-y-full pb-0.5 text-xs font-semibold text-ink tabular-nums"
+                  style={{ left: `${center(i)}%`, top: `${y(totals[i])}%` }}
+                >
+                  {formatValue(totals[i])}
+                </span>
+              ) : null,
+            )}
+          {showTotals && reference && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute right-0 -translate-y-full bg-card pl-1 text-xs text-muted"
+              style={{ top: `${y(reference.value)}%` }}
+            >
+              {reference.label}
+            </span>
+          )}
           <ChartColumnsTooltip tips={columns.map((c, i) => (c.tip !== undefined ? c.tip : defaultTip(c, i)))} />
         </div>
       </div>

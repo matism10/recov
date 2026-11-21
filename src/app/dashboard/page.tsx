@@ -496,13 +496,25 @@ export default async function DashboardPage() {
       {me && myLoad && (
         <>
           <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-6">
-            <LoadBlock
-              title="Mi carga"
-              load={myLoad.ok ? myLoad.data : null}
-              player={myLoad.ok ? myLoad.data.player : null}
-              error={!myLoad.ok}
-            />
-            <MyWellness last={byRole.myWellness} />
+            <Link
+              href="/mi-carga"
+              aria-label="Mi carga: ver el detalle"
+              className="block rounded-xl transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-brand-strong"
+            >
+              <LoadBlock
+                title="Mi carga"
+                load={myLoad.ok ? myLoad.data : null}
+                player={myLoad.ok ? myLoad.data.player : null}
+                error={!myLoad.ok}
+              />
+            </Link>
+            <Link
+              href="/mi-carga"
+              aria-label="Mi bienestar: ver el detalle"
+              className="block rounded-xl transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-brand-strong"
+            >
+              <MyWellness last={byRole.myWellness} />
+            </Link>
           </div>
           {myLoad.ok && (
             <MyMatches
