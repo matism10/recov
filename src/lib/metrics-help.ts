@@ -44,6 +44,11 @@ export const METRICS_HELP = {
     "Un jugador vuelve tras parón cuando pasó 10 días o más sin actividad (ausencia avisada, \"No fui\", ausente en la lista o lesión) y volvió en los últimos 14 días.",
     "Si vuelve el 60 % del plantel o más (o hubo parón del plantel), se muestra un solo aviso de equipo. Es solo informativo: no cambia \"Carga alta\".",
   ],
+  mi_carga: [
+    "Carga = esfuerzo × minutos de cada sesión (cancha, gimnasio y partido). Cada barra es una semana, de lunes a domingo.",
+    "La línea punteada es tu promedio de las 4 semanas anteriores con datos. La semana en curso va punteada porque aún puede subir.",
+    "\"Carga alta\" aparece cuando esta semana pasa 1,3 veces tu promedio; no es un diagnóstico, solo una señal para ir con calma.",
+  ],
   asistencia: [
     "Asistencia a entrenamientos con lista en los últimos 30 días: los 5 con menor porcentaje. Verde desde 85 %, ámbar de 70 a 84 % y rojo bajo 70 %.",
   ],

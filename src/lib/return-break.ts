@@ -32,6 +32,9 @@ export function causeText(cause: string | null | undefined) {
   }
 }
 
+// Texto del aviso para el propio jugador (sin números de carga).
+export const RETURN_PLAYER_TEXT = "Retoma de a poco: sube la exigencia con calma estas semanas. Tu staff lo sabe.";
+
 // "1 semana", "3 semanas".
 export function weeksText(weeks: number) {
   return `${weeks} ${weeks === 1 ? "semana" : "semanas"}`;

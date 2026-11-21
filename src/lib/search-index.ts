@@ -99,6 +99,7 @@ export const SEARCH_INDEX: readonly SearchDestination[] = [
   { id: "plan-propia", title: "Gimnasio por tu cuenta", context: "Mi plan › registrar sesión propia", keywords: ["gimnasio", "gym", "entrene por mi cuenta", "registrar sesion", "libre"], href: "/mi-plan/propia", requires: "jugador" },
 
   // --- Jugador: bienestar y ausencias ---
+  { id: "mi-carga", title: "Mi carga", context: "Mi carga de la semana y mi bienestar", keywords: ["carga", "esfuerzo", "srpe", "semana", "sesiones", "minutos", "gimnasio", "paron", "como voy", "mi bienestar"], href: "/mi-carga", requires: "jugador" },
   { id: "bienestar", title: "Mi bienestar", context: "Check de bienestar · ¿Cómo estás hoy?", keywords: ["check", "sueno", "fatiga", "animo", "encuesta", "como estoy", "como estas hoy", "estres"], href: "/bienestar", requires: "jugador" },
   { id: "ausencias", title: "Mis ausencias", context: "Avisos de ausencia", keywords: ["avisar", "falta", "no puedo ir", "viaje", "avisos", "ausentarme"], href: "/ausencias", requires: "jugador" },
   { id: "ausencia-nueva", title: "Avisar una ausencia", context: "Mis ausencias › nuevo aviso", keywords: ["falta", "no puedo ir", "viaje", "aviso", "ausentarme", "no voy"], href: "/ausencias/nueva", requires: "jugador" },
