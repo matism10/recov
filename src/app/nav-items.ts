@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CalendarOff,
   CircleUserRound,
+  Gauge,
   ChartColumn,
   ClipboardList,
   Dumbbell,
@@ -156,7 +157,7 @@ export function sidebarItems({
   main.push(NOMINAS);
   if (evaluations) main.push(EVALUACIONES);
   if (gymPlanner) main.push(PLANES);
-  if (player) main.push(MI_PLAN, MIS_AUSENCIAS);
+  if (player) main.push(MI_PLAN, MI_CARGA, MIS_AUSENCIAS);
   const admin = direction ? [REGISTROS, STAFF, CONFIGURACION] : wellnessConfig ? [CONFIGURACION] : [];
   return { main, admin };
 }
@@ -174,6 +175,13 @@ export const MIS_EVALUACIONES: NavItem = {
   label: "Mis evaluaciones",
   Icon: Dumbbell,
   isActive: (p) => startsWith(p, "/evaluaciones/mias"),
+};
+// Carga y bienestar del propio jugador: va en "Más" y en la sidebar (no es una pantalla de la barra).
+export const MI_CARGA: NavItem = {
+  href: "/mi-carga",
+  label: "Mi carga",
+  Icon: Gauge,
+  isActive: (p) => startsWith(p, "/mi-carga"),
 };
 // Aviso de ausencias del jugador: va en "Más" y en la sidebar (no es una pantalla de la barra).
 export const MIS_AUSENCIAS: NavItem = {

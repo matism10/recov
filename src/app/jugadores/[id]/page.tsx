@@ -5,8 +5,6 @@ import { isStaff, type Availability, type UserRole } from "@/lib/roles";
 import { returnLabel, type InjuryStatus } from "@/lib/injuries";
 import { getMyLoad, getTeamLoad, totalLabel, type LoadResult, type MyLoad, type TeamLoad } from "@/lib/match-load";
 import { getActiveFormat } from "@/lib/format";
-import { getMyLoadScreen } from "@/lib/my-load";
-import { MyLoadScreenView } from "./my-load";
 import { LoadBlock } from "@/app/load-block";
 import { PlayerEvaluations } from "@/app/evaluaciones/player-evaluations";
 import { Avatar } from "@/app/avatar";
@@ -97,7 +95,7 @@ export default async function PlayerPage({
   const onTab = <T,>(tabs: PlayerTab[], run: () => PromiseLike<T> | T): Promise<T | null> =>
     activePromise.then((a) => (tabs.includes(a) ? run() : null));
 
-  const [me, staff, player, all, loadResult, phases, avatarUrl, phone, weekly, wellness, gym, returnFlag, tabs, active, mine] =
+  const [me, staff, player, all, loadResult, phases, avatarUrl, phone, weekly, wellness, gym, returnFlag, tabs, active] =
     await Promise.all([
       profilePromise,
       staffPromise,
@@ -162,12 +160,6 @@ export default async function PlayerPage({
       ),
       tabsPromise,
       activePromise,
-      // "Mi carga": solo el propio jugador, en la pestaña Carga (reemplaza su contenido).
-      Promise.all([playerPromise, formatPromise, activePromise]).then(([p, format, a]) =>
-        p && p.user_id === user.id && a === "carga"
-          ? getMyLoadScreen(supabase, { playerId: p.id, clubId: p.club_id }, format).then((data) => ({ data, format }))
-          : null,
-      ),
     ]);
 
   if (me?.status === "pendiente") redirect("/pendiente");
@@ -175,7 +167,8 @@ export default async function PlayerPage({
   // El jugador no ve lesiones de otros: fuera de su propia ficha, es solo para el staff.
   if (!staff && player?.user_id !== user.id) redirect("/dashboard");
   if (!player) notFound();
-  if (mine) return <MyLoadScreenView data={mine.data} format={mine.format} />;
+  // "Mi carga" es una pantalla propia (/mi-carga, en "Más"): la pestaña del propio jugador va allí.
+  if (player.user_id === user.id && active === "carga") redirect("/mi-carga");
 
   const load = loadResult?.ok ? loadResult.data : null;
   const playerLoad = loadResult?.ok
