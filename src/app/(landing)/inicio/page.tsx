@@ -1,131 +1,207 @@
 import Image from "next/image";
 import Link from "next/link";
-import { existsSync } from "node:fs";
-import path from "node:path";
-import { ALL_IMAGE_FILES, LANDING_IMAGES, PHONE_SIZE } from "@/lib/landing/config";
 import logo from "@/app/recov-logo.png";
+import { FAQS, PLAYER_FEATURES, SPORTS, STAFF_FEATURES } from "@/lib/landing/config";
 import { AccessForm } from "./access-form";
-import { BrowserFrame, Shot } from "./frame";
-import { Screens } from "./screens";
-import { Sports } from "./sports";
+import { Features } from "./features";
 
-// Resuelve cada captura de public/landing/ (webp o png); sin archivo, null (bloque gris).
-function resolveImages() {
-  const out: Record<string, string | null> = {};
-  for (const f of ALL_IMAGE_FILES) {
-    const ext = ["webp", "png"].find((e) => existsSync(path.join(process.cwd(), "public", "landing", `${f}.${e}`)));
-    out[f] = ext ? `/landing/${f}.${ext}` : null;
-  }
-  return out;
+const NAV = [
+  ["Cómo funciona", "#como-funciona"],
+  ["Funciones", "#funciones"],
+  ["Deportes", "#deportes"],
+  ["Preguntas", "#preguntas"],
+] as const;
+
+const STEPS = [
+  {
+    title: "Comparte el link del plantel.",
+    text: "El head coach lo manda al grupo. Cada jugador se registra desde su celular y tú apruebas quién entra.",
+    tag: "Sin planillas. Sin WhatsApp.",
+  },
+  {
+    title: "Registra estímulos, lesiones y cargas.",
+    text: "Staff o jugador marcan sus lesiones y registran sus estímulos para controlar la carga.",
+    tag: "Datos médicos solo para el staff.",
+  },
+  {
+    title: "Decide quién juega.",
+    text: "Disponibilidad, fecha de vuelta y carga de cada jugador antes de armar la nómina.",
+    tag: "Todo en una sola pantalla.",
+    blue: true,
+  },
+];
+
+const Arrow = ({ down = false }: { down?: boolean }) => <span aria-hidden="true">{down ? "↓" : "↗"}</span>;
+
+function Brand({ size }: { size: number }) {
+  return (
+    <>
+      <Image src={logo} alt="" width={size} height={size} style={{ width: size, height: size }} />
+      <span>Recov</span>
+    </>
+  );
 }
 
-const cta =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-7 font-bold text-white transition hover:bg-landing-ink-hover";
-const wrap = "mx-auto w-full max-w-[1200px] px-6";
-const h2 = "font-[family-name:var(--l-title)] text-3xl leading-tight font-extrabold tracking-tight sm:text-4xl";
-
 export default function LandingPage() {
-  const images = resolveImages();
-  const hero = LANDING_IMAGES.hero;
   return (
-    <main>
-      <section id="acceso" className="overflow-x-clip bg-brand pb-0 lg:pb-20">
-        <div className={wrap}>
-          <header className="flex min-h-16 items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Image src={logo} alt="" width={36} height={36} className="size-9 rounded-lg" />
-              <span className="font-[family-name:var(--l-title)] text-2xl font-extrabold tracking-tight">Recov</span>
-            </span>
-            <nav aria-label="Secciones" className="flex items-center gap-2">
-              {[["Funciones", "#funciones"], ["Deportes", "#deportes"]].map(([t, h]) => (
-                <a key={h} href={h} className="inline-flex min-h-11 items-center rounded-full border-[1.5px] border-ink bg-transparent px-4 text-sm font-semibold text-ink">{t}</a>
+    <>
+      <a href="#main" className="lp-skip">Saltar al contenido</a>
+
+      <header className="lp-header">
+        <div className="lp-wrap lp-header-in">
+          <a href="#main" className="lp-brand" aria-label="Recov, ir al inicio">
+            <Brand size={34} />
+          </a>
+          <nav aria-label="Secciones" className="lp-nav">
+            {NAV.map(([t, h]) => <a key={h} href={h}>{t}</a>)}
+          </nav>
+          <a href="#acceso" className="lp-btn lp-btn-navy">Pide acceso <Arrow /></a>
+        </div>
+      </header>
+
+      <main id="main">
+        {/* 1. Hero */}
+        <section aria-labelledby="hero-title" className="lp-hero">
+          <div className="lp-hero-box">
+            <Image src="/landing/hero.webp" alt="" fill priority sizes="100vw" className="lp-hero-photo" />
+            <div className="lp-hero-shade" aria-hidden="true" />
+            <div className="lp-hero-grid">
+              <div className="lp-hero-copy">
+                <p className="lp-kicker">Menos lesiones sorpresa. Más jugadores el sábado.</p>
+                <h1 id="hero-title" className="lp-display lp-h1">Tu plantel al día. Sin un solo WhatsApp.</h1>
+                <p className="lp-lead">Lesiones, fecha de vuelta, cargas y disponibilidad de tu club amateur, en una sola pantalla.</p>
+                <div className="lp-hero-ctas">
+                  <a href="#acceso" className="lp-btn lp-btn-lg lp-btn-celeste">Pide acceso para tu club <Arrow /></a>
+                  <a href="#como-funciona" className="lp-btn lp-btn-lg lp-btn-ghost">Cómo funciona <Arrow down /></a>
+                </div>
+              </div>
+              <div className="lp-ipad-wrap">
+                <div className="lp-ipad">
+                  <div className="lp-ipad-screen">
+                    <Image
+                      src="/landing/hero-ipad-staff-resumen.webp"
+                      alt="Resumen del staff en un iPad: disponibles, lesionados, en reintegro y el próximo partido del plantel demo."
+                      fill
+                      priority
+                      sizes="(min-width: 1100px) 670px, 572px"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 2. Cómo funciona */}
+        <section id="como-funciona" aria-labelledby="pasos-title" className="lp-steps-sec">
+          <div className="lp-wrap lp-two">
+            <div className="lp-steps-intro">
+              <p className="lp-kicker">El staff decide. El plantel se mantiene al día.</p>
+              <h2 id="pasos-title" className="lp-display lp-h2">Comparte.<br />Registra.<br />Decide.</h2>
+              <p className="lp-lead">Staff y jugadores usan la misma app. Se instala desde el navegador, sin App Store.</p>
+              <a href="#acceso" className="lp-link">Pide acceso para tu club <Arrow /></a>
+            </div>
+            <ol className="lp-steps">
+              {STEPS.map((s, i) => (
+                <li key={s.title} className="lp-step">
+                  <span className="lp-display lp-step-num" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
+                  <div>
+                    <h3>{s.title}</h3>
+                    <p>{s.text}</p>
+                    <p className={`lp-kicker lp-tag${s.blue ? " lp-tag-azul" : ""}`}>{s.tag}</p>
+                  </div>
+                </li>
               ))}
-            </nav>
-          </header>
-          <div className="mt-6 grid gap-y-8 lg:mt-12 lg:grid-cols-[42%_1fr] lg:gap-x-12 lg:gap-y-6">
-            <div className="space-y-6 lg:self-end">
-              <h1 className="font-[family-name:var(--l-title)] text-4xl leading-[1.05] font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-                Ten claro quién puede jugar el sábado. <span className="text-landing-accent">Sin un solo WhatsApp.</span>
-              </h1>
-              <p className="max-w-[34rem] text-lg text-ink">
-                Recov controla lesiones, fecha de vuelta y disponibilidad de tu club amateur en una sola pantalla.
+            </ol>
+          </div>
+        </section>
+
+        {/* 3. Funciones */}
+        <section id="funciones" aria-labelledby="funciones-title" className="lp-features">
+          <div className="lp-wrap">
+            <Features staff={STAFF_FEATURES} players={PLAYER_FEATURES} />
+          </div>
+        </section>
+
+        {/* 4. Deportes */}
+        <section id="deportes" aria-labelledby="deportes-title" className="lp-sports">
+          <div className="lp-wrap lp-two">
+            <div>
+              <p className="lp-kicker lp-label">✳ Deportes</p>
+              <h2 id="deportes-title" className="lp-display lp-h2">7 deportes.<br />Un solo Recov.</h2>
+              <p className="lp-lead">
+                La misma app se adapta a tu deporte: puestos, nóminas y minutos de partido. En rugby, plantel de 15 y Sevens en el mismo lugar.
               </p>
+              <ul className="lp-pills" aria-label="Deportes">
+                {SPORTS.map((s, i) => <li key={s} className={i === 0 ? "is-main" : undefined}>{s}</li>)}
+              </ul>
             </div>
-            <div className="relative mx-auto w-full max-w-[300px] md:max-w-none lg:row-span-2 lg:w-[calc(100%+6rem)] lg:max-w-none lg:self-center">
-              <div className="mx-auto h-[300px] w-[220px] overflow-hidden rounded-t-[36px] border-[8px] border-b-0 border-ink bg-white md:hidden">
-                <Shot src={images["staff-resumen"]} name="staff-resumen" width={PHONE_SIZE.width} height={PHONE_SIZE.height} sizes="220px" priority />
+            <figure className="lp-card" style={{ margin: 0 }}>
+              <div className="lp-phone">
+                <div className="lp-phone-screen">
+                  <Image
+                    src="/landing/deportes-plantel-cancha.webp"
+                    alt="Plantel de rugby en vista Cancha: cada puesto con el color de su disponibilidad."
+                    fill
+                    sizes="316px"
+                  />
+                </div>
               </div>
-              <BrowserFrame className="hidden md:block">
-                <Shot src={images[hero.name]} name={hero.name} width={hero.width} height={hero.height} sizes="(min-width: 1024px) 58vw, 100vw" priority />
-              </BrowserFrame>
-              <div className="absolute top-10 left-0 rounded-xl bg-white px-2 py-1.5 text-[11px] shadow-lg md:-top-3 md:left-2 md:px-3 md:py-2 md:text-sm lg:-left-4">
-                <p className="font-bold">Tomás R. vuelve el 18 nov</p>
-                <p className="text-body-soft">Rodilla · Reintegro</p>
+              <figcaption>Plantel de rugby en vista Cancha.</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        {/* 5. Pide acceso */}
+        <section id="acceso" aria-labelledby="acceso-title" className="lp-access">
+          <div className="lp-access-box">
+            <div className="lp-access-grid">
+              <div>
+                <p className="lp-kicker">Estás a un link de tu mejor pretemporada</p>
+                <h2 id="acceso-title" className="lp-display lp-h2">Parte 2027 con tu plantel al día.</h2>
+                <p className="lp-badge">2 meses gratis para los primeros 10 clubes</p>
               </div>
-              <div className="absolute right-0 bottom-10 rounded-xl bg-white px-2 py-1.5 text-[11px] shadow-lg md:-bottom-4 md:right-6 md:px-3 md:py-2 md:text-sm">
-                <p className="font-bold">51 disponibles</p>
-                <p className="text-body-soft">Sábado 16:00</p>
-              </div>
-            </div>
-            <div className="-mx-6 rounded-t-[28px] bg-white px-6 pt-6 pb-10 lg:mx-0 lg:self-start lg:rounded-none lg:bg-transparent lg:p-0">
               <AccessForm />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section id="funciones" className="scroll-mt-4 py-16 lg:py-24">
-        <div className={wrap}>
-          <h2 className={`${h2} max-w-3xl`}>Todo tu club, en el celular.</h2>
-          <p className="mt-3 max-w-2xl text-lg text-body-soft">
-            Tus jugadores y tu staff usan la misma app. Tú ves el estado real del plantel, sin planillas.
-          </p>
-          <div className="mt-8">
-            <Screens images={images} />
-          </div>
-          <a href="#acceso" className={`${cta} mt-6`}>Pedir acceso anticipado</a>
-        </div>
-      </section>
-
-      <section id="deportes" className="scroll-mt-4 bg-ink py-16 text-white lg:py-24">
-        <div className={wrap}>
-          <div className="flex items-end gap-4">
-            <span className="font-[family-name:var(--l-title)] text-[120px] leading-[0.8] font-extrabold tracking-tighter text-brand sm:text-[180px]">7</span>
-            <h2 className={h2}>deportes. Un solo Recov.</h2>
-          </div>
-          <p className="mt-4 mb-8 max-w-2xl text-lg text-landing-line">
-            La misma app para todo el club, adaptada a cada deporte. Por ejemplo, rugby con planteles de 15 y Sevens.
-          </p>
-          <Sports />
-          <a href="#acceso" className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-7 font-bold text-landing-night transition hover:bg-brand-mid">
-            Pedir acceso anticipado
-          </a>
-        </div>
-      </section>
-
-      <section className="bg-landing-wash py-16 lg:py-20">
-        <div className={`${wrap} grid gap-6 md:grid-cols-3`}>
-          {[
-            ["¿Mis jugadores lo van a usar?", "Se registran solos desde el celular. Tú solo apruebas a quién entra al plantel."],
-            ["¿Quién ve los datos médicos?", "Solo el staff autorizado de tu club. Cada club ve únicamente lo suyo."],
-            ["¿Me cobran o me atan a algo?", "No. Sin pago automático ni contrato: primero conversamos y ves si te sirve."],
-          ].map(([q, a]) => (
-            <div key={q} className="rounded-2xl border border-landing-line bg-white p-6">
-              <h3 className="font-[family-name:var(--l-title)] text-xl font-bold tracking-tight">{q}</h3>
-              <p className="mt-2 text-body-soft">{a}</p>
+        {/* 6. FAQs */}
+        <section id="preguntas" aria-labelledby="faq-title" className="lp-faq">
+          <div className="lp-wrap lp-faq-in">
+            <p className="lp-kicker lp-label">✳ Antes de partir</p>
+            <h2 id="faq-title" className="lp-display lp-h2">FAQs.</h2>
+            <div className="lp-faq-list">
+              {FAQS.map(([q, a], i) => (
+                <details key={q} open={i === 0}>
+                  <summary>{q}<span className="lp-plus" aria-hidden="true">+</span></summary>
+                  <p>{a}</p>
+                </details>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
+        </section>
+      </main>
 
-      <footer className="bg-ink py-8 text-sm text-landing-line">
-        <div className={`${wrap} flex flex-wrap items-center gap-x-6 gap-y-2`}>
-          <span>© 2026 Recov</span>
-          <Link href="/terminos" className="inline-flex min-h-11 items-center underline">Términos y Condiciones</Link>
-          <Link href="/privacidad" className="inline-flex min-h-11 items-center underline">Política de Privacidad</Link>
-          <a href="mailto:contacto@recov.cl" className="inline-flex min-h-11 items-center underline">contacto@recov.cl</a>
+      {/* 7. Footer */}
+      <footer className="lp-footer">
+        <div className="lp-wrap">
+          <div className="lp-footer-top">
+            <div>
+              <span className="lp-brand"><Brand size={44} /></span>
+              <p className="lp-display">Tu plantel al día.<br />Controla cada lesión.</p>
+            </div>
+            <a href="mailto:contacto@recov.cl" className="lp-footer-mail">contacto@recov.cl</a>
+          </div>
+          <div className="lp-footer-bottom">
+            <span>© 2026 Recov</span>
+            <nav aria-label="Legal">
+              <Link href="/terminos">Términos y Condiciones</Link>
+              <Link href="/privacidad">Política de Privacidad</Link>
+            </nav>
+          </div>
         </div>
       </footer>
-    </main>
+    </>
   );
 }
