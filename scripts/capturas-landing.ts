@@ -85,7 +85,9 @@ async function session(role: Role, device: Device) {
     { name: "recov_club", value: CLUB_ID, url: BASE },
     { name: "recov_format", value: "15", url: BASE },
   ]);
-  await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+  // Tras el login la app aún puede estar redirigiendo: se espera y, si se cruza, se reintenta.
+  await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+  await go(page, "/dashboard");
   if (!/Demo - Rugby/.test(await page.locator("body").innerText())) {
     throw new Error(`La cuenta ${role} no entró a Demo - Rugby`);
   }
@@ -100,13 +102,18 @@ async function settle(page: Page) {
 }
 
 async function go(page: Page, url: string) {
-  await page.goto(`${BASE}${url}`, { waitUntil: "domcontentloaded" });
+  // Si la app redirige a la misma pantalla (p. ej. al fijar el plantel activo), Playwright avisa
+  // que la navegación se cruzó: basta con esperar a que la segunda termine.
+  await page.goto(`${BASE}${url}`, { waitUntil: "domcontentloaded" }).catch(async (e: Error) => {
+    if (!/interrupted by another navigation/.test(e.message)) throw e;
+    await page.waitForLoadState("domcontentloaded");
+  });
   await settle(page);
 }
 
 /** Lleva un elemento a la parte de arriba de la pantalla, con un margen. */
 async function top(page: Page, loc: Locator, margin = 12) {
-  await loc.scrollIntoViewIfNeeded();
+  await loc.scrollIntoViewIfNeeded({ timeout: 8000 });
   await loc.evaluate((el, m) => window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - m)), margin);
   await page.waitForTimeout(300);
 }
@@ -116,44 +123,114 @@ async function click(p: Page, loc: Locator) {
   await settle(p);
 }
 
-type Cap = { file: string; role: Role; device: Device; run: (p: Page) => Promise<void> };
+/**
+ * Celular: oculta el encabezado del club y la barra inferior de la app (solo en la captura, con
+ * CSS inyectado) para que la pantalla muestre lo importante, sin chrome repetido.
+ */
+async function hideChrome(page: Page) {
+  await page.addStyleTag({
+    content: `
+      header[class*="safe-area-inset-top"],
+      nav[aria-label="Navegación principal"] { display: none !important; }
+      html, body { scroll-behavior: auto !important; }
+      /* Espacio extra al final para poder dejar arriba el foco aunque la pantalla sea corta. */
+      body { padding-bottom: 100vh !important; }`,
+  });
+  await page.waitForTimeout(150);
+}
+
+/** Atajos para elegir el elemento que va arriba en cada captura. */
+const heading = (p: Page, text: string | RegExp) => p.getByRole("heading", { name: text }).filter({ visible: true }).first();
+const visibleText = (p: Page, text: string | RegExp) => p.getByText(text).filter({ visible: true }).first();
+
+type Cap = {
+  file: string;
+  role: Role;
+  device: Device;
+  run: (p: Page) => Promise<void>;
+  /** Elemento que queda arriba de la pantalla, con un margen en px (por defecto 24). */
+  focus?: (p: Page) => Locator;
+  margin?: number;
+};
 const caps: Cap[] = [
   { file: "hero-ipad-staff-resumen", role: "head-coach", device: "ipad", run: (p) => go(p, "/dashboard") },
-  { file: "staff-resumen", role: "head-coach", device: "phone", run: (p) => go(p, "/dashboard") },
-  { file: "staff-lesiones", role: "kine", device: "phone", run: (p) => go(p, "/lesiones") },
-  { file: "staff-calendario", role: "head-coach", device: "phone", run: (p) => go(p, "/calendario") },
+  {
+    file: "staff-resumen",
+    role: "head-coach",
+    device: "phone",
+    run: (p) => go(p, "/dashboard"),
+    focus: (p) => heading(p, "Disponibilidad del plantel"),
+  },
+  {
+    file: "staff-lesiones",
+    role: "kine",
+    device: "phone",
+    run: (p) => go(p, "/lesiones"),
+  },
+  {
+    file: "staff-calendario",
+    role: "head-coach",
+    device: "phone",
+    run: (p) => go(p, "/calendario"),
+    focus: (p) => visibleText(p, /^lun, \d+ \w+ – dom/),
+  },
   {
     file: "staff-partido",
     role: "head-coach",
     device: "phone",
     run: async (p) => {
+      // Nómina del próximo partido en vista Cancha: titulares en sus puestos.
       await go(p, "/nominas");
       const id = await p.locator("a[href*='/disponibles']").first().getAttribute("href");
       if (!id) throw new Error("Sin nómina del próximo partido");
       await go(p, id);
+      // Clic por JS: en `next dev` a veces una capa transparente intercepta el puntero.
+      await p.getByRole("button", { name: "Cancha" }).filter({ visible: true }).first().evaluate((b) => (b as HTMLElement).click());
+      await settle(p);
     },
+    // El resumen de la nómina queda fijo arriba: el selector Lista | Cancha va justo debajo.
+    focus: (p) => p.getByRole("group", { name: "Vista" }).filter({ visible: true }).first(),
+    margin: 150,
   },
   {
     file: "staff-evaluaciones",
     role: "preparador-fisico",
     device: "phone",
-    run: async (p) => {
-      await go(p, "/evaluaciones?tab=comparar");
-    },
+    run: (p) => go(p, "/evaluaciones?tab=comparar"),
+    focus: (p) => visibleText(p, /^Test$/),
+    margin: 40,
   },
   {
     file: "staff-gimnasio",
     role: "preparador-fisico",
     device: "phone",
-    run: async (p) => {
-      // Lleva la sesión (bloques y ejercicios) a la parte de arriba de la pantalla.
-      await go(p, `/planes/${PLAN_GIMNASIO}`);
-      await top(p, p.getByText(/Sentadilla/).filter({ visible: true }).first(), 220);
-    },
+    run: (p) => go(p, `/planes/${PLAN_GIMNASIO}`),
+    // La sesión: nombre, día y los bloques con sus ejercicios.
+    focus: (p) => visibleText(p, /Sentadilla/),
+    margin: 150,
   },
-  { file: "staff-carga", role: "head-coach", device: "phone", run: (p) => go(p, "/metricas?tab=carga") },
-  { file: "jugador-resumen", role: "jugador", device: "phone", run: (p) => go(p, "/dashboard") },
-  { file: "jugador-registrar-lesion", role: "jugador", device: "phone", run: (p) => go(p, "/registrar-lesion") },
+  {
+    file: "staff-carga",
+    role: "head-coach",
+    device: "phone",
+    run: (p) => go(p, "/metricas?tab=carga"),
+    focus: (p) => heading(p, "Carga por jugador"),
+  },
+  {
+    file: "jugador-resumen",
+    role: "jugador",
+    device: "phone",
+    run: (p) => go(p, "/dashboard"),
+    focus: (p) => visibleText(p, /^Tu estado$/),
+    margin: 48,
+  },
+  {
+    file: "jugador-registrar-lesion",
+    role: "jugador",
+    device: "phone",
+    run: (p) => go(p, "/registrar-lesion"),
+    focus: (p) => visibleText(p, /^Zona del cuerpo$/),
+  },
   {
     file: "jugador-registrar-carga",
     role: "jugador",
@@ -165,11 +242,35 @@ const caps: Cap[] = [
       const href = await p.locator("a[href^='/reportar/']").first().getAttribute("href");
       if (!href) throw new Error("El jugador no tiene carga por registrar (¿se sembró la semana demo?)");
       await go(p, href);
+      // Elige un 7 sin guardar, para que se vea la escala marcada.
+      await p.getByRole("button", { name: "Esfuerzo 7" }).first().click();
+      await p.waitForTimeout(400);
     },
+    focus: (p) => heading(p, /Qué tan duro fue/),
   },
-  { file: "jugador-calendario", role: "jugador", device: "phone", run: (p) => go(p, "/calendario") },
-  { file: "jugador-evaluaciones", role: "jugador", device: "phone", run: (p) => go(p, "/evaluaciones") },
-  { file: "jugador-carga", role: "jugador", device: "phone", run: (p) => go(p, "/mi-carga") },
+  {
+    file: "jugador-calendario",
+    role: "jugador",
+    device: "phone",
+    run: (p) => go(p, "/calendario"),
+    focus: (p) => visibleText(p, /^lun, \d+ \w+ – dom/),
+  },
+  {
+    file: "jugador-evaluaciones",
+    role: "jugador",
+    device: "phone",
+    run: (p) => go(p, "/evaluaciones"),
+    focus: (p) => visibleText(p, /^Último resultado$/),
+    margin: 40,
+  },
+  {
+    file: "jugador-carga",
+    role: "jugador",
+    device: "phone",
+    run: (p) => go(p, "/mi-carga"),
+    focus: (p) => visibleText(p, /^Esta semana$/),
+    margin: 40,
+  },
 ];
 
 async function saveWebp(png: Buffer, file: string) {
@@ -194,6 +295,14 @@ async function main() {
       if (solo && !solo.includes(c.file)) continue;
       const page = await session(c.role, c.device);
       await c.run(page);
+      if (c.device === "phone") await hideChrome(page);
+      if (c.focus) {
+        await top(page, c.focus(page), c.margin ?? 24).catch(async () => {
+          console.warn(`  ${c.file}: no encontré el elemento de foco; queda desde arriba`);
+          await page.evaluate(() => window.scrollTo(0, 0));
+        });
+      }
+      else await page.evaluate(() => window.scrollTo(0, 0));
       const png = await page.screenshot();
       const r = await saveWebp(png, c.file);
       console.log(`${c.file}.webp  ${r.width}×${r.height}  ${r.kb} KB  (${c.role})`);

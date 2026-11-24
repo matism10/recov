@@ -45,13 +45,15 @@ begin
   select c, v_ev, p.id, uhc, s.slot
     from (values (1,'Bastián Undurraga'),(2,'Benjamín Castro'),(3,'Gaspar Garrido'),(4,'Felipe Herrera'),
                  (5,'Emilio Gajardo'),(6,'Alonso Fuentealba'),(7,'Fernando Troncoso'),(8,'Raimundo Jara'),
-                 (9,'Álvaro Aguirre'),(10,'Agustín Silva'),(11,'Francisco Rebolledo'),(12,'Martín Vega'),
+                 (9,'Álvaro Aguirre'),(10,'Agustín Silva'),(11,'Francisco Rebolledo'),(12,'Simón Donoso'),
                  (13,'Santiago Moraga'),(14,'Francisco Zamorano'),(15,'Maximiliano Díaz'),
                  (16,'Matías Leiva'),(17,'Rodrigo Navarrete'),(18,'Octavio Palma'),(19,'Octavio Troncoso'),
                  (20,'Álvaro Durán'),(21,'Hernán Jara'),(22,'León Mardones'),(23,'Clemente Donoso')) s(slot, nombre)
     join public.players p on p.club_id = c and p.full_name = s.nombre and p.status = 'confirmado'
                          and p.availability = 'disponible'
    where v_ev is not null
+     -- sin lesión abierta: si no, la nómina muestra "Convocaste a un jugador no disponible"
+     and not exists (select 1 from public.injuries i where i.player_id = p.id and i.status in ('activa', 'en_evaluacion'))
      and not exists (select 1 from public.event_callups x where x.event_id = v_ev and x.player_id = p.id and x.removed_at is null)
      and not exists (select 1 from public.event_callups x where x.event_id = v_ev and x.slot = s.slot and x.removed_at is null);
 
