@@ -1,0 +1,279 @@
+/* Landing pública de Recov (/inicio). Todo va bajo .lp para no tocar la app. Mobile first. */
+.lp {
+  --navy: #0b1426;
+  --celeste: #1cbbfe;
+  --acento: #0a9bff;
+  --azul-texto: #0567ad; /* azul de etiquetas sobre blanco y #F4F8FC (AA) */
+  --texto-2: #4a5a70;
+  --suave: #f4f8fc;
+  --linea: #dde6ef;
+  --gris-num: #8094aa;
+  flex: 1;
+  background: #fff;
+  color: var(--navy);
+  font-family: var(--lp-body), system-ui, sans-serif;
+  font-stretch: 100%;
+  overflow-x: clip;
+}
+html:has(.lp) { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html:has(.lp) { scroll-behavior: auto; } }
+.lp *, .lp *::before, .lp *::after { box-sizing: border-box; }
+.lp :focus-visible { outline: 3px solid var(--acento); outline-offset: 3px; }
+.lp section[id] { scroll-margin-top: 80px; }
+
+.lp-wrap { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+@media (min-width: 768px) { .lp-wrap { padding: 0 32px; } }
+
+/* Tipografía */
+.lp-display {
+  margin: 0;
+  font-family: var(--lp-title), sans-serif;
+  font-stretch: 75%;
+  font-variation-settings: "wdth" 75;
+  font-weight: 900;
+  line-height: 0.92;
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+}
+.lp-h1 { font-size: clamp(52px, 7vw, 100px); line-height: 0.9; color: #fff; }
+.lp-h2 { font-size: clamp(46px, 10vw, 84px); }
+.lp-kicker {
+  margin: 0;
+  font-family: var(--lp-title), sans-serif;
+  font-stretch: 100%;
+  font-variation-settings: "wdth" 100;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+@media (min-width: 768px) { .lp-kicker { font-size: 14px; } }
+.lp-lead { margin: 0; font-size: 18px; line-height: 1.6; color: var(--texto-2); }
+@media (min-width: 768px) { .lp-lead { font-size: 19px; } }
+
+/* Botones píldora */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: 600 16px/1 var(--lp-body), sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+.lp-btn-lg { min-height: 54px; padding: 0 28px; font-weight: 700; }
+.lp-btn-navy { background: var(--navy); color: #fff; }
+.lp-btn-navy:hover { background: #1b2a47; }
+.lp-btn-celeste { background: var(--celeste); color: var(--navy); }
+.lp-btn-celeste:hover { background: #5fd0ff; }
+.lp-btn-ghost { border-color: rgba(255, 255, 255, .45); color: #fff; }
+.lp-btn-ghost:hover { border-color: #fff; background: rgba(255, 255, 255, .08); }
+.lp-link {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+  font-weight: 700; font-size: 16px; color: var(--navy); text-decoration: none;
+}
+.lp-link:hover { color: var(--azul-texto); text-decoration: underline; text-underline-offset: 4px; }
+
+/* Header */
+.lp-header {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(255, 255, 255, .94);
+  border-bottom: 1px solid #e6edf5;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.lp-header-in { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 68px; }
+.lp-brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; text-decoration: none; }
+.lp-brand span { font-family: var(--lp-title), sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.03em; color: var(--acento); }
+.lp-nav { display: none; gap: 8px; }
+.lp-nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; font-size: 15px; font-weight: 500; color: var(--navy); text-decoration: none; border-radius: 999px; }
+.lp-nav a:hover { color: var(--azul-texto); }
+@media (min-width: 900px) { .lp-nav { display: flex; } }
+.lp-skip { position: absolute; left: -9999px; top: 8px; z-index: 30; background: #fff; padding: 12px 16px; border-radius: 12px; }
+.lp-skip:focus { left: 12px; }
+
+/* 1. Hero */
+.lp-hero { padding: 12px 12px 0; }
+@media (min-width: 768px) { .lp-hero { padding: 20px 20px 0; } }
+.lp-hero-box { position: relative; overflow: hidden; border-radius: 28px; background: var(--navy); }
+.lp-hero-photo { object-fit: cover; object-position: 60% center; }
+.lp-hero-shade {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(11, 20, 38, .94) 0%, rgba(11, 20, 38, .82) 42%, rgba(11, 20, 38, .4) 75%, rgba(11, 20, 38, .25) 100%);
+}
+@media (max-width: 899px) {
+  .lp-hero-shade { background: linear-gradient(180deg, rgba(11, 20, 38, .9) 0%, rgba(11, 20, 38, .84) 60%, rgba(11, 20, 38, .6) 100%); }
+}
+.lp-hero-grid { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; padding: 56px 24px 0; max-width: 1240px; margin: 0 auto; }
+@media (min-width: 900px) {
+  .lp-hero-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 32px; padding: 96px 40px 0; align-items: end; min-height: 700px; }
+}
+.lp-hero-copy { padding-bottom: 0; }
+@media (min-width: 900px) { .lp-hero-copy { padding-bottom: 96px; } }
+.lp-hero-copy .lp-kicker { color: var(--celeste); margin-bottom: 20px; }
+.lp-hero-copy .lp-lead { margin-top: 24px; max-width: 520px; color: #d3deeb; }
+.lp-hero-ctas { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* iPad horizontal con CSS, apoyado en el borde inferior y saliendo por la derecha */
+.lp-ipad-wrap { display: flex; min-width: 0; margin-right: -220px; }
+@media (min-width: 900px) { .lp-ipad-wrap { margin-right: -200px; } }
+.lp-ipad {
+  flex: none;
+  width: 600px;
+  padding: 14px 14px 0;
+  border-radius: 34px 34px 0 0;
+  background: #1a2438;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .5), inset 0 0 0 1.5px #2c3a55;
+}
+@media (min-width: 1100px) { .lp-ipad { width: 700px; padding: 16px 16px 0; } }
+.lp-ipad-screen { position: relative; aspect-ratio: 1180 / 700; overflow: hidden; border-radius: 20px 20px 0 0; background: var(--suave); }
+.lp-ipad-screen img { object-fit: cover; object-position: top left; }
+
+/* 2. Cómo funciona */
+.lp-steps-sec { padding: 80px 0; }
+@media (min-width: 900px) { .lp-steps-sec { padding: 120px 0; } }
+.lp-two { display: grid; gap: 48px; }
+@media (min-width: 900px) { .lp-two { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 80px; align-items: start; } }
+.lp-steps-intro .lp-kicker { color: var(--texto-2); max-width: 340px; margin-bottom: 20px; }
+.lp-steps-intro .lp-lead { margin-top: 28px; max-width: 400px; }
+.lp-steps-intro .lp-link { margin-top: 20px; }
+.lp-steps { list-style: none; margin: 0; padding: 0; }
+.lp-step { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 32px 0; border-bottom: 1px solid #d5dfea; }
+.lp-step:first-child { padding-top: 0; }
+.lp-step:last-child { border-bottom: 0; padding-bottom: 0; }
+@media (min-width: 768px) { .lp-step { grid-template-columns: 84px minmax(0, 1fr); gap: 16px; } }
+.lp-step-num { font-size: 44px; line-height: .9; color: var(--acento); }
+@media (min-width: 768px) { .lp-step-num { font-size: 52px; } }
+.lp-step h3 { margin: 0; font-size: 21px; line-height: 1.3; font-weight: 700; letter-spacing: -0.01em; }
+.lp-step p { margin: 10px 0 0; max-width: 460px; font-size: 16px; line-height: 1.65; color: var(--texto-2); }
+.lp-step .lp-tag { margin-top: 14px; font-size: 12px; color: var(--navy); }
+.lp-step .lp-tag-azul { color: var(--azul-texto); }
+
+/* 3. Funciones */
+.lp-features { background: var(--suave); padding: 80px 0; }
+@media (min-width: 900px) { .lp-features { padding: 120px 0; } }
+.lp-label { color: var(--azul-texto); margin-bottom: 14px; }
+.lp-features-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 40px; }
+@media (min-width: 900px) { .lp-features-head { margin-bottom: 56px; } }
+.lp-toggle { display: inline-flex; padding: 4px; border-radius: 999px; background: #fff; border: 1px solid #dde6ef; }
+.lp-toggle button {
+  min-height: 44px; padding: 0 22px; border: 0; border-radius: 999px; background: transparent;
+  color: var(--navy); font: 600 15px var(--lp-body), sans-serif; cursor: pointer;
+}
+.lp-toggle button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+.lp-fx { display: grid; gap: 40px; }
+@media (min-width: 900px) { .lp-fx { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: center; } }
+.lp-fx-list { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.lp-fx-item {
+  width: 100%; text-align: left; display: flex; gap: 18px; align-items: center;
+  min-height: 56px; padding: 12px 22px; border: 0; border-radius: 18px;
+  background: #fff; color: var(--navy); cursor: pointer; font-family: var(--lp-body), sans-serif;
+  transition: background-color .15s;
+}
+.lp-fx-item:hover { background: #e9f1f9; }
+.lp-fx-item .lp-fx-num { font-size: 26px; line-height: 1; color: var(--gris-num); min-width: 32px; }
+.lp-fx-item .lp-fx-title { font-family: var(--lp-title), sans-serif; font-weight: 800; font-size: 19px; letter-spacing: -0.01em; }
+.lp-fx-item .lp-fx-desc { display: none; }
+.lp-fx-item[aria-pressed="true"] { background: var(--navy); color: #fff; align-items: flex-start; padding: 22px 24px; border-radius: 20px; cursor: default; }
+.lp-fx-item[aria-pressed="true"] .lp-fx-num { font-size: 34px; color: var(--celeste); }
+.lp-fx-item[aria-pressed="true"] .lp-fx-title { font-size: 22px; }
+.lp-fx-item[aria-pressed="true"] .lp-fx-desc { display: block; margin-top: 6px; font-size: 15px; line-height: 1.5; color: #c9d6e6; }
+.lp-fx-text { display: flex; flex-direction: column; }
+
+/* Celular con CSS */
+.lp-phone {
+  width: min(300px, 78vw);
+  margin: 0 auto;
+  padding: 11px;
+  border-radius: 46px;
+  background: #1a2438;
+  box-shadow: 0 30px 70px rgba(11, 20, 38, .25), inset 0 0 0 1.5px #2c3a55;
+}
+@media (min-width: 900px) { .lp-phone { width: 316px; } }
+.lp-phone-screen { position: relative; aspect-ratio: 390 / 844; overflow: hidden; border-radius: 36px; background: var(--suave); }
+.lp-phone-screen img { object-fit: cover; object-position: top center; }
+
+/* 4. Deportes */
+.lp-sports { padding: 80px 0; }
+@media (min-width: 900px) { .lp-sports { padding: 120px 0; } }
+.lp-sports .lp-lead { margin-top: 24px; max-width: 500px; }
+.lp-pills { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.lp-pills li { padding: 10px 18px; border-radius: 999px; background: var(--suave); font-weight: 600; font-size: 15px; }
+.lp-pills li.is-main { background: var(--navy); color: #fff; }
+.lp-card {
+  background: #fff; border: 1px solid #e1e9f2; border-radius: 28px; padding: 28px 20px;
+  box-shadow: 0 20px 50px rgba(11, 20, 38, .08);
+}
+.lp-card figcaption { margin-top: 16px; text-align: center; font-size: 14px; color: var(--texto-2); }
+
+/* 5. Pide acceso */
+.lp-access { padding: 0 12px 12px; }
+@media (min-width: 768px) { .lp-access { padding: 0 20px 20px; } }
+.lp-access-box { background: var(--acento); border-radius: 28px; padding: 56px 20px; }
+@media (min-width: 768px) { .lp-access-box { padding: 88px 40px; } }
+.lp-access-grid { max-width: 1160px; margin: 0 auto; display: grid; gap: 40px; }
+@media (min-width: 900px) { .lp-access-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; } }
+.lp-access .lp-kicker { color: var(--navy); margin-bottom: 16px; }
+.lp-access .lp-display { color: #fff; }
+.lp-badge { display: inline-flex; margin-top: 28px; padding: 10px 18px; border-radius: 999px; background: #fff; color: var(--navy); font-weight: 700; font-size: 16px; }
+.lp-form { background: #fff; border-radius: 24px; padding: 24px 20px; display: grid; gap: 16px; }
+@media (min-width: 560px) { .lp-form { grid-template-columns: 1fr 1fr; padding: 32px; } }
+.lp-field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600; }
+.lp-field-wide { grid-column: 1 / -1; }
+.lp-field input, .lp-field select {
+  min-height: 48px; width: 100%; padding: 0 14px; border: 1px solid #b9c6d4; border-radius: 12px;
+  background: #fff; color: var(--navy); font: 400 16px var(--lp-body), sans-serif;
+}
+.lp-field input, .lp-field select { height: 48px; }
+.lp-field select {
+  -webkit-appearance: none; appearance: none; padding-right: 40px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%230b1426' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 16px center;
+}
+.lp-field input:focus, .lp-field select:focus { outline: 3px solid rgba(10, 155, 255, .35); outline-offset: 0; border-color: var(--navy); }
+.lp-field [aria-invalid="true"] { border-color: #b42318; }
+.lp-error { margin: 0; font-size: 13px; font-weight: 500; color: #b42318; }
+.lp-form .lp-btn { grid-column: 1 / -1; }
+.lp-form-note { grid-column: 1 / -1; margin: 0; font-size: 13px; line-height: 1.5; color: var(--texto-2); }
+.lp-form-note a { color: var(--navy); }
+.lp-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.lp-form-ok { background: #fff; border-radius: 24px; padding: 32px; }
+.lp-form-ok p { margin: 8px 0 0; color: var(--texto-2); }
+.lp-form-ok .lp-display { font-size: 40px; color: var(--navy); }
+
+/* 6. FAQs */
+.lp-faq { padding: 80px 0; }
+@media (min-width: 900px) { .lp-faq { padding: 120px 0; } }
+.lp-faq-in { max-width: 1000px; }
+.lp-faq .lp-display { margin-bottom: 40px; }
+.lp-faq-list { border-top: 1px solid #e1e9f2; }
+.lp-faq details { border-bottom: 1px solid #e1e9f2; }
+.lp-faq summary {
+  list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  min-height: 44px; padding: 22px 0;
+  font-family: var(--lp-title), sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -0.01em;
+}
+@media (min-width: 768px) { .lp-faq summary { font-size: 24px; } }
+.lp-faq summary::-webkit-details-marker { display: none; }
+.lp-plus { flex: none; font-size: 32px; font-weight: 400; line-height: 1; color: var(--acento); transition: transform .2s ease; }
+.lp-faq details[open] .lp-plus { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .lp-plus { transition: none; } }
+.lp-faq details p { margin: -6px 0 24px; max-width: 720px; font-size: 17px; line-height: 1.6; color: var(--texto-2); }
+
+/* 7. Footer */
+.lp-footer { background: var(--navy); color: #c9d6e6; padding: 64px 0 32px; }
+.lp-footer-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 32px; padding-bottom: 40px; border-bottom: 1px solid rgba(255, 255, 255, .12); }
+.lp-footer .lp-brand span { color: #fff; font-size: 32px; }
+.lp-footer .lp-display { margin-top: 20px; font-size: clamp(32px, 7vw, 44px); color: #fff; }
+.lp-footer a { color: #fff; }
+.lp-footer-mail { display: inline-flex; align-items: center; min-height: 44px; font-size: 18px; font-weight: 600; }
+.lp-footer-bottom { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 24px; padding-top: 16px; font-size: 14px; }
+.lp-footer-bottom nav { display: flex; flex-wrap: wrap; gap: 0 24px; }
+.lp-footer-bottom nav a { display: inline-flex; align-items: center; min-height: 44px; color: #c9d6e6; }
+/* "7 deportes. / Un solo Recov." en dos líneas también en la columna de escritorio */
+@media (min-width: 900px) { .lp-sports .lp-h2 { font-size: 70px; } }
