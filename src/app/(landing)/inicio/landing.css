@@ -202,15 +202,52 @@ html:has(.lp) { scroll-behavior: smooth; }
 /* 4. Deportes */
 .lp-sports { padding: 80px 0; }
 @media (min-width: 900px) { .lp-sports { padding: 120px 0; } }
-.lp-sports .lp-lead { margin-top: 24px; max-width: 500px; }
-.lp-pills { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
-.lp-pills li { padding: 10px 18px; border-radius: 999px; background: var(--suave); font-weight: 600; font-size: 15px; }
-.lp-pills li.is-main { background: var(--navy); color: #fff; }
-.lp-card {
-  background: #fff; border: 1px solid #e1e9f2; border-radius: 28px; padding: 28px 20px;
-  box-shadow: 0 20px 50px rgba(11, 20, 38, .08);
+.lp-sports-head { display: grid; gap: 20px; }
+@media (min-width: 900px) { .lp-sports-head { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: end; } }
+.lp-sports .lp-lead { max-width: 520px; }
+.lp-pills { list-style: none; margin: 32px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.lp-pills button {
+  min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--suave); color: var(--navy); font: 600 15px var(--lp-body), sans-serif;
+  transition: background-color .15s, color .15s;
 }
-.lp-card figcaption { margin-top: 16px; text-align: center; font-size: 14px; color: var(--texto-2); }
+.lp-pills button:hover { background: #e3edf7; }
+.lp-pills button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+
+/* Pantalla interactiva de la cancha (no es un celular: es la vista Plantel/Cancha) */
+.lp-screen {
+  margin-top: 20px; background: #fff; border: 1px solid #e1e9f2; border-radius: 28px;
+  box-shadow: 0 20px 50px rgba(11, 20, 38, .08); overflow: hidden;
+}
+.lp-screen-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid #e6edf5; }
+@media (min-width: 768px) { .lp-screen-bar { padding: 20px 28px; } }
+.lp-screen-title, .lp-screen-pos { margin: 0; font-family: var(--lp-title), sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -0.01em; }
+.lp-screen-pos { font-size: 20px; }
+.lp-screen-sub { margin: 2px 0 0; font-size: 14px; color: var(--texto-2); }
+.lp-toggle-sm { background: var(--suave); border-color: transparent; }
+.lp-toggle-sm button { min-height: 44px; padding: 0 16px; font-size: 14px; }
+.lp-screen-body { display: grid; gap: 24px; padding: 20px; }
+@media (min-width: 900px) {
+  .lp-screen-body { grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 40px; padding: 28px; align-items: start; }
+}
+.lp-screen-pitch { min-width: 0; }
+.lp-screen-hint { margin: 10px 0 0; text-align: center; font-size: 13px; color: var(--texto-2); }
+.lp-screen-list { min-width: 0; }
+.lp-screen-list ul { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lp-screen-list li {
+  position: relative; display: flex; align-items: center; gap: 12px; min-height: 64px;
+  padding: 10px 14px 10px 18px; border-radius: 14px; background: var(--suave); overflow: hidden;
+}
+.lp-screen-list li::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: #16a34a; }
+.lp-screen-list li[data-status="lesionado"]::before { background: #dc2626; }
+.lp-screen-list li[data-status="reintegro"]::before { background: #7c3aed; }
+.lp-screen-player { flex: 1; min-width: 0; }
+.lp-screen-player p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp-screen-player p:first-child { font-weight: 600; font-size: 16px; }
+.lp-screen-player p:last-child { font-size: 13px; color: var(--texto-2); }
+.lp-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; font-size: 13px; font-weight: 600; color: var(--texto-2); }
+.lp-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.lp-legend i { width: 10px; height: 10px; border-radius: 99px; }
 
 /* 5. Pide acceso */
 .lp-access { padding: 0 12px 12px; }
@@ -271,9 +308,17 @@ html:has(.lp) { scroll-behavior: smooth; }
 .lp-footer .lp-brand span { color: #fff; font-size: 32px; }
 .lp-footer .lp-display { margin-top: 20px; font-size: clamp(32px, 7vw, 44px); color: #fff; }
 .lp-footer a { color: #fff; }
-.lp-footer-mail { display: inline-flex; align-items: center; min-height: 44px; font-size: 18px; font-weight: 600; }
+.lp-footer-mail { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 18px; font-weight: 600; }
+.lp-footer-contact { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+@media (min-width: 900px) { .lp-footer-contact { align-items: flex-end; } }
+.lp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .lp-footer-bottom { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 24px; padding-top: 16px; font-size: 14px; }
 .lp-footer-bottom nav { display: flex; flex-wrap: wrap; gap: 0 24px; }
 .lp-footer-bottom nav a { display: inline-flex; align-items: center; min-height: 44px; color: #c9d6e6; }
 /* "7 deportes. / Un solo Recov." en dos líneas también en la columna de escritorio */
 @media (min-width: 900px) { .lp-sports .lp-h2 { font-size: 70px; } }
+/* Celular: sin avatar y el detalle en dos líneas, para que el nombre se lea completo */
+@media (max-width: 559px) {
+  .lp-screen-list li > :first-child { display: none; }
+  .lp-screen-player p:last-child { white-space: normal; }
+}

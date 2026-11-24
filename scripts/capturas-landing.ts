@@ -111,9 +111,6 @@ async function top(page: Page, loc: Locator, margin = 12) {
   await page.waitForTimeout(300);
 }
 
-const byText = (p: Page, text: string) =>
-  p.getByRole("button", { name: text }).or(p.getByRole("tab", { name: text })).or(p.getByText(text, { exact: true })).first();
-
 async function click(p: Page, loc: Locator) {
   await loc.click();
   await settle(p);
@@ -173,15 +170,6 @@ const caps: Cap[] = [
   { file: "jugador-calendario", role: "jugador", device: "phone", run: (p) => go(p, "/calendario") },
   { file: "jugador-evaluaciones", role: "jugador", device: "phone", run: (p) => go(p, "/evaluaciones") },
   { file: "jugador-carga", role: "jugador", device: "phone", run: (p) => go(p, "/mi-carga") },
-  {
-    file: "deportes-plantel-cancha",
-    role: "head-coach",
-    device: "phone",
-    run: async (p) => {
-      await go(p, "/plantel");
-      await click(p, byText(p, "Cancha"));
-    },
-  },
 ];
 
 async function saveWebp(png: Buffer, file: string) {

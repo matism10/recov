@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import logo from "@/app/recov-logo.png";
-import { FAQS, PLAYER_FEATURES, SPORTS, STAFF_FEATURES } from "@/lib/landing/config";
+import { FAQS, PLAYER_FEATURES, STAFF_FEATURES } from "@/lib/landing/config";
 import { AccessForm } from "./access-form";
 import { Features } from "./features";
+import { SportsDemo } from "./sports-demo";
 
 const NAV = [
   ["Cómo funciona", "#como-funciona"],
@@ -125,30 +126,17 @@ export default function LandingPage() {
 
         {/* 4. Deportes */}
         <section id="deportes" aria-labelledby="deportes-title" className="lp-sports">
-          <div className="lp-wrap lp-two">
-            <div>
-              <p className="lp-kicker lp-label">✳ Deportes</p>
-              <h2 id="deportes-title" className="lp-display lp-h2">7 deportes.<br />Un solo Recov.</h2>
+          <div className="lp-wrap">
+            <div className="lp-sports-head">
+              <div>
+                <p className="lp-kicker lp-label">✳ Deportes</p>
+                <h2 id="deportes-title" className="lp-display lp-h2">7 deportes.<br />Un solo Recov.</h2>
+              </div>
               <p className="lp-lead">
                 La misma app se adapta a tu deporte: puestos, nóminas y minutos de partido. En rugby, plantel de 15 y Sevens en el mismo lugar.
               </p>
-              <ul className="lp-pills" aria-label="Deportes">
-                {SPORTS.map((s, i) => <li key={s} className={i === 0 ? "is-main" : undefined}>{s}</li>)}
-              </ul>
             </div>
-            <figure className="lp-card" style={{ margin: 0 }}>
-              <div className="lp-phone">
-                <div className="lp-phone-screen">
-                  <Image
-                    src="/landing/deportes-plantel-cancha.webp"
-                    alt="Plantel de rugby en vista Cancha: cada puesto con el color de su disponibilidad."
-                    fill
-                    sizes="316px"
-                  />
-                </div>
-              </div>
-              <figcaption>Plantel de rugby en vista Cancha.</figcaption>
-            </figure>
+            <SportsDemo />
           </div>
         </section>
 
@@ -191,7 +179,17 @@ export default function LandingPage() {
               <span className="lp-brand"><Brand size={44} /></span>
               <p className="lp-display">Tu plantel al día.<br />Controla cada lesión.</p>
             </div>
-            <a href="mailto:contacto@recov.cl" className="lp-footer-mail">contacto@recov.cl</a>
+            <div className="lp-footer-contact">
+              <a href="mailto:contacto@recov.cl" className="lp-footer-mail">contacto@recov.cl</a>
+              <a href="https://www.instagram.com/recovapp/" target="_blank" rel="noopener noreferrer" className="lp-footer-mail">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="5" />
+                  <circle cx="12" cy="12" r="4.2" />
+                  <circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none" />
+                </svg>
+                <span><span className="lp-sr">Instagram </span>@recovapp</span>
+              </a>
+            </div>
           </div>
           <div className="lp-footer-bottom">
             <span>© 2026 Recov</span>
