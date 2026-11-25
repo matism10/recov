@@ -133,7 +133,7 @@ export default function LandingPage() {
                 <h2 id="deportes-title" className="lp-display lp-h2">7 deportes.<br />Un solo Recov.</h2>
               </div>
               <p className="lp-lead">
-                La misma app se adapta a tu deporte: puestos, nóminas y minutos de partido. En rugby, plantel de 15 y Sevens en el mismo lugar.
+                La misma app se adapta a tu deporte: puestos, nóminas y minutos de partido.
               </p>
             </div>
             <SportsDemo />
